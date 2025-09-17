@@ -20,7 +20,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Инициализируем русские контекстные меню
         setupRussianMenus()
         
+        // Инициализируем систему версий
+        setupVersionManager()
+        
         return true
+    }
+    
+    private func setupVersionManager() {
+        // Синхронизируем версию с Info.plist
+        VersionManager.shared.syncWithInfoPlist()
+        
+        // Автоматически увеличиваем build number при каждом запуске
+        VersionManager.shared.autoIncrementBuild()
+        
+        // Добавляем версию в историю
+        VersionManager.shared.addVersionToHistory()
     }
     
     private func setupRussianMenus() {

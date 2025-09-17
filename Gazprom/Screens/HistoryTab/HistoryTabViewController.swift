@@ -52,140 +52,26 @@ class HistoryTabViewController: UIViewController {
         return form.string(from: date)
     }
     
-    // MARK: - Edit Akt Methods
+    // MARK: - Version Display Methods
     
-    private func editAkt(_ akt: AKT) {
-        // Загружаем данные акта в TemplateModel для редактирования
-        loadAktToTemplate(akt)
+    private func getAktVersion(_ akt: AKT) -> String {
+        // Получаем версию акта на основе даты создания
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd.MM.yyyy"
+        let dateString = formatter.string(from: akt.realDateCreate)
         
-        // Определяем шаг, с которого начинать редактирование
-        let startStep = determineStartStep(for: akt)
-        
-        // Переходим к соответствующему экрану редактирования
-        navigateToEditStep(startStep, akt: akt)
+        // Создаем версию на основе даты и номера акта
+        let version = "v\(akt.number).\(dateString.replacingOccurrences(of: ".", with: ""))"
+        return version
     }
     
-    private func loadAktToTemplate(_ akt: AKT) {
-        // Очищаем текущий template
-        viewModel.templateModel.reset()
+    private func getAktVersionInfo(_ akt: AKT) -> String {
+        let version = getAktVersion(akt)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd.MM.yyyy HH:mm"
+        let dateString = formatter.string(from: akt.realDateCreate)
         
-        // Загружаем данные из акта
-        viewModel.templateModel.date = akt.date
-        viewModel.templateModel.aktNumber = akt.number
-        viewModel.templateModel.comissionPeople = akt.comission
-        viewModel.templateModel.organizations = [akt.organization]
-        viewModel.templateModel.objectCheck = akt.objectsCheck
-        viewModel.templateModel.violations = akt.violations
-        viewModel.templateModel.descripUser = akt.description
-        viewModel.templateModel.predstavitely = akt.predstavitelyComission
-        viewModel.templateModel.ustranenDatePicker = akt.actustranenDate
-        viewModel.templateModel.predostavlenDatePicker = akt.actPredostavlenDate
-        viewModel.templateModel.utverzdenDatePicker = akt.actUtverzdenDate
-    }
-    
-    private func determineStartStep(for akt: AKT) -> AKTCreationStep {
-        // Определяем с какого шага начинать редактирование
-        // Начинаем с первого шага, чтобы пользователь мог изменить любые данные
-        return .dateAndNumber
-    }
-    
-    private func navigateToEditStep(_ step: AKTCreationStep, akt: AKT) {
-        let targetVC = createEditViewControllerForStep(step, akt: akt)
-        
-        if let navigationController = navigationController {
-            navigationController.pushViewController(targetVC, animated: true)
-        }
-    }
-    
-    private func createEditViewControllerForStep(_ step: AKTCreationStep, akt: AKT) -> UIViewController {
-        switch step {
-        case .dateAndNumber:
-            return DateAndNumberAktViewController(viewModel: viewModel, akt: akt)
-        case .organizations:
-            return OrganizationsViewController(
-                viewModel: viewModel,
-                comissionPeople: akt.comission,
-                date: akt.date,
-                aktNumber: akt.number,
-                act: akt
-            )
-        case .objectCheck:
-            return ObjectReviewViewController(
-                viewModel: viewModel,
-                comissionPeople: akt.comission,
-                date: akt.date,
-                aktNumber: akt.number,
-                organizations: [akt.organization],
-                akt: akt
-            )
-        case .violations:
-            return NewViolationViewController(
-                viewModel: viewModel,
-                comissionPeople: akt.comission,
-                date: akt.date,
-                aktNumber: akt.number,
-                organizations: [akt.organization],
-                objectCheck: akt.objectsCheck,
-                violations: akt.violations,
-                akt: akt
-            )
-        case .userDescription:
-            return UserDescriptionViewController(
-                viewModel: viewModel,
-                comissionPeople: akt.comission,
-                date: akt.date,
-                aktNumber: akt.number,
-                organizations: [akt.organization],
-                objectCheck: akt.objectsCheck,
-                violations: akt.violations,
-                akt: akt
-            )
-        case .predstavitely:
-            return PredstavViewController(
-                viewModel: viewModel,
-                comissionPeople: akt.comission,
-                date: akt.date,
-                aktNumber: akt.number,
-                organizations: [akt.organization],
-                objectCheck: akt.objectsCheck,
-                violations: akt.violations,
-                descripUser: akt.description,
-                predstavitely: akt.predstavitelyComission,
-                akt: akt
-            )
-        case .generate:
-            return GenerateAktViewController(
-                viewModel: viewModel,
-                comissionPeople: akt.comission,
-                date: akt.date,
-                aktNumber: akt.number,
-                organizations: [akt.organization],
-                objectCheck: akt.objectsCheck,
-                violations: akt.violations,
-                descripUser: akt.description,
-                predstavitely: akt.predstavitelyComission,
-                akt: akt
-            )
-        }
-    }
-    
-    private func createWordDocument(for akt: AKT) {
-        // Создаем Word документ из шаблона для выбранного акта
-        let generateVC = GenerateAktViewController(
-            viewModel: viewModel,
-            comissionPeople: akt.comission,
-            date: akt.date,
-            aktNumber: akt.number,
-            organizations: [akt.organization],
-            objectCheck: akt.objectsCheck,
-            violations: akt.violations,
-            descripUser: akt.description,
-            predstavitely: akt.predstavitelyComission,
-            akt: akt
-        )
-        
-        // Переходим к экрану генерации для создания документа
-        navigationController?.pushViewController(generateVC, animated: true)
+        return "\(version)\nСоздан: \(dateString)"
     }
 
 }
@@ -247,11 +133,23 @@ extension HistoryTabViewController: UICollectionViewDelegate, UICollectionViewDa
             make.top.equalTo(objectLabel.snp.bottom).inset(-6)
         }
         
+        // Добавляем отображение версии акта
+        let versionLabel = UILabel()
+        versionLabel.textAlignment = .right
+        versionLabel.text = getAktVersion(item)
+        versionLabel.textColor = .systemBlue
+        versionLabel.font = .systemFont(ofSize: 12, weight: .medium)
+        cell.addSubview(versionLabel)
+        versionLabel.snp.makeConstraints { make in
+            make.right.equalToSuperview().inset(16)
+            make.bottom.equalToSuperview().inset(8)
+        }
+        
         return cell
     }
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        return CGSize(width: collectionView.frame.width - 32, height: 96)
+        return CGSize(width: collectionView.frame.width - 32, height: 120)
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
@@ -266,6 +164,15 @@ extension HistoryTabViewController: UICollectionViewDelegate, UICollectionViewDa
     func collectionView(_ collectionView: UICollectionView, contextMenuConfigurationForItemAt indexPath: IndexPath, point: CGPoint) -> UIContextMenuConfiguration? {
         
         return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ in
+            let akt = self.viewModel.aktArray.reversed()[indexPath.row]
+            let versionInfo = self.getAktVersionInfo(akt)
+            
+            let versionAction = UIAction(title: "Информация о версии", image: UIImage(systemName: "info.circle")) { _ in
+                let alert = UIAlertController(title: "Версия акта", message: versionInfo, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                self.present(alert, animated: true)
+            }
+            
             let deleteAction = UIAction(title: "Удалить", image: UIImage(systemName: "trash"), attributes: .destructive) { _ in
                 if let index = self.viewModel.aktArray.firstIndex(where: {$0.id == self.viewModel.aktArray.reversed()[indexPath.row].id}) {
                     self.viewModel.aktArray.remove(at: index)
@@ -275,7 +182,7 @@ extension HistoryTabViewController: UICollectionViewDelegate, UICollectionViewDa
                 collectionView.deleteItems(at: [indexPath])
             }
             
-            return UIMenu(title: "", children: [deleteAction])
+            return UIMenu(title: "", children: [versionAction, deleteAction])
         }
     }
 

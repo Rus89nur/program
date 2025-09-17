@@ -79,25 +79,18 @@ class SettingsTabViewController: UIViewController {
         }
         comSelectButton.addTarget(self, action: #selector(openComissionPeople), for: .touchUpInside)
         
-        let guideButton = UIButton(type: .system)
-        let title = "Инструкция для создания своего шаблона"
-        let attributedTitle = NSAttributedString(
-            string: title,
-            attributes: [
-                .foregroundColor: UIColor.systemBlue,
-                .font: UIFont.systemFont(ofSize: 14, weight: .regular),
-                .underlineStyle: NSUnderlineStyle.single.rawValue
-            ]
-        )
-        guideButton.setAttributedTitle(attributedTitle, for: .normal)
-        guideButton.setTitleColor(.systemBlue, for: .normal)
-        guideButton.titleLabel?.font = .systemFont(ofSize: 14, weight: .regular)
-        view.addSubview(guideButton)
-        guideButton.snp.makeConstraints { make in
+        // Добавляем информацию о версии приложения
+        let versionLabel = UILabel()
+        versionLabel.text = VersionManager.shared.getDisplayVersion()
+        versionLabel.textAlignment = .center
+        versionLabel.textColor = .systemGray
+        versionLabel.font = .systemFont(ofSize: 12, weight: .regular)
+        versionLabel.numberOfLines = 0
+        view.addSubview(versionLabel)
+        versionLabel.snp.makeConstraints { make in
             make.left.right.equalToSuperview().inset(16)
             make.bottom.equalTo(view.safeAreaLayoutGuide.snp.bottom).offset(-12)
         }
-        guideButton.addTarget(self, action: #selector(openGuide), for: .touchUpInside)
     }
     
     @objc private func openOrganizations() {
@@ -125,10 +118,5 @@ class SettingsTabViewController: UIViewController {
         navigationController?.pushViewController(vc, animated: true)
     }
     
-    @objc private func openGuide() {
-        if let url = URL(string: "https://docs.google.com/document/d/1pH8nKUk67NNKPVNGrTxscZQ-sopijoIIigKRhEpmxwY/edit?usp=sharing") {
-            UIApplication.shared.open(url, options: [:], completionHandler: nil)
-        }
-    }
 
 }
