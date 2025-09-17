@@ -79,18 +79,6 @@ class SettingsTabViewController: UIViewController {
         }
         comSelectButton.addTarget(self, action: #selector(openComissionPeople), for: .touchUpInside)
         
-        // Добавляем информацию о версии приложения
-        let versionLabel = UILabel()
-        versionLabel.text = VersionManager.shared.getDisplayVersion()
-        versionLabel.textAlignment = .center
-        versionLabel.textColor = .systemGray
-        versionLabel.font = .systemFont(ofSize: 12, weight: .regular)
-        versionLabel.numberOfLines = 0
-        view.addSubview(versionLabel)
-        versionLabel.snp.makeConstraints { make in
-            make.left.right.equalToSuperview().inset(16)
-            make.bottom.equalTo(view.safeAreaLayoutGuide.snp.bottom).offset(-12)
-        }
     }
     
     @objc private func openOrganizations() {

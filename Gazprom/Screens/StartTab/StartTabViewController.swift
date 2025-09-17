@@ -87,6 +87,19 @@ class StartTabViewController: UIViewController {
             make.centerX.equalToSuperview()
             make.bottom.equalTo(view.safeAreaLayoutGuide.snp.bottom).offset(-16)
         }
+        
+        // Добавляем информацию о версии приложения
+        let versionLabel = UILabel()
+        versionLabel.text = VersionManager.shared.getDisplayVersion()
+        versionLabel.textAlignment = .center
+        versionLabel.textColor = .systemBlue
+        versionLabel.font = .systemFont(ofSize: 14, weight: .medium)
+        versionLabel.numberOfLines = 0
+        view.addSubview(versionLabel)
+        versionLabel.snp.makeConstraints { make in
+            make.centerX.equalToSuperview()
+            make.bottom.equalTo(fioLabel.snp.top).offset(-8)
+        }
     
         let newButton = createButton(title: "Новый АКТ", color: .systemGreen)
         view.addSubview(newButton)
