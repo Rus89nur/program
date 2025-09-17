@@ -19,6 +19,7 @@
 		7C452D0E2E1ADCCF00A0C1B3 /* HistoryTabViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D0D2E1ADCCF00A0C1B3 /* HistoryTabViewController.swift */; };
 		7C452D322E1AE2DE00A0C1B3 /* MainAKTViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D312E1AE2DE00A0C1B3 /* MainAKTViewModel.swift */; };
 		7C452D342E1AE37700A0C1B3 /* Akt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D332E1AE37700A0C1B3 /* Akt.swift */; };
+		E1EE7C380EEB4794B690FBD3 /* VersionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B6B3AB2CE464A6289142764 /* VersionManager.swift */; };
 		7C452D392E1AE9A600A0C1B3 /* DataFlowAKT.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D382E1AE9A600A0C1B3 /* DataFlowAKT.swift */; };
 		7C452D3B2E1AEB5D00A0C1B3 /* UIFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D3A2E1AEB5D00A0C1B3 /* UIFactory.swift */; };
 		7C452D3D2E1AEFF100A0C1B3 /* DataFlowComission.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D3C2E1AEFF100A0C1B3 /* DataFlowComission.swift */; };
@@ -46,6 +47,7 @@
 		7C452D0D2E1ADCCF00A0C1B3 /* HistoryTabViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryTabViewController.swift; sourceTree = "<group>"; };
 		7C452D312E1AE2DE00A0C1B3 /* MainAKTViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainAKTViewModel.swift; sourceTree = "<group>"; };
 		7C452D332E1AE37700A0C1B3 /* Akt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Akt.swift; sourceTree = "<group>"; };
+		9B6B3AB2CE464A6289142764 /* VersionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionManager.swift; sourceTree = "<group>"; };
 		7C452D382E1AE9A600A0C1B3 /* DataFlowAKT.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataFlowAKT.swift; sourceTree = "<group>"; };
 		7C452D3A2E1AEB5D00A0C1B3 /* UIFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIFactory.swift; sourceTree = "<group>"; };
 		7C452D3C2E1AEFF100A0C1B3 /* DataFlowComission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataFlowComission.swift; sourceTree = "<group>"; };
@@ -148,6 +150,7 @@
 			children = (
 				7C5BD9172E1D5E6300E39873 /* ViolationsFlow */,
 				7C452D332E1AE37700A0C1B3 /* Akt.swift */,
+				9B6B3AB2CE464A6289142764 /* VersionManager.swift */,
 				7C452D382E1AE9A600A0C1B3 /* DataFlowAKT.swift */,
 				7C452DD22E1B0A6300A0C1B3 /* DataFlowOrganizations.swift */,
 				7C2744CD2E1C1FA600838AC7 /* DataFlowObjectsReview.swift */,
@@ -346,6 +349,7 @@
 				7C452D392E1AE9A600A0C1B3 /* DataFlowAKT.swift in Sources */,
 				7CB5A3D02E32BFF000D68079 /* DataFlowPredstavitely.swift in Sources */,
 				7C452D342E1AE37700A0C1B3 /* Akt.swift in Sources */,
+				E1EE7C380EEB4794B690FBD3 /* VersionManager.swift in Sources */,
 				7C452D3B2E1AEB5D00A0C1B3 /* UIFactory.swift in Sources */,
 				7C452D0E2E1ADCCF00A0C1B3 /* HistoryTabViewController.swift in Sources */,
 				7C5BD9192E1D5E8100E39873 /* ViolationModel.swift in Sources */,
