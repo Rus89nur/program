@@ -6,10 +6,12 @@
 //
 
 import UIKit
+import UniformTypeIdentifiers
 
 class SettingsTabViewController: UIViewController {
     
     let model: MainAKTViewModel
+    private var templateStatusLabel: UILabel!
     
     init(model: MainAKTViewModel) {
         self.model = model
@@ -23,11 +25,13 @@ class SettingsTabViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         tabBarController?.title = "Настройки"
+        updateTemplateStatus()
     }
     
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+        updateTemplateStatus()
     }
 
     private func setupUI() {
@@ -79,6 +83,30 @@ class SettingsTabViewController: UIViewController {
         }
         comSelectButton.addTarget(self, action: #selector(openComissionPeople), for: .touchUpInside)
         
+        // Кнопка загрузки шаблона
+        let templateButton = UIFactory.createButton(title: "Загрузить шаблон", color: .systemBlue)
+        view.addSubview(templateButton)
+        templateButton.snp.makeConstraints { make in
+            make.left.right.equalToSuperview().inset(16)
+            make.top.equalTo(comSelectButton.snp.bottom).inset(-12)
+            make.height.equalTo(54)
+        }
+        templateButton.addTarget(self, action: #selector(loadTemplate), for: .touchUpInside)
+        
+        // Надпись о статусе шаблона
+        let templateStatusLabel = UILabel()
+        templateStatusLabel.text = "Шаблон не загружен"
+        templateStatusLabel.textColor = .black
+        templateStatusLabel.font = .systemFont(ofSize: 12, weight: .regular)
+        templateStatusLabel.textAlignment = .center
+        view.addSubview(templateStatusLabel)
+        templateStatusLabel.snp.makeConstraints { make in
+            make.left.right.equalToSuperview().inset(16)
+            make.top.equalTo(templateButton.snp.bottom).offset(4)
+        }
+        
+        // Сохраняем ссылку на label для обновления статуса
+        self.templateStatusLabel = templateStatusLabel
     }
     
     @objc private func openOrganizations() {
@@ -106,5 +134,84 @@ class SettingsTabViewController: UIViewController {
         navigationController?.pushViewController(vc, animated: true)
     }
     
+    // MARK: - Template Methods
+    
+    private func updateTemplateStatus() {
+        if let filePath = UserDefaults.standard.string(forKey: "ShabPath") {
+            let url = URL(fileURLWithPath: filePath)
+            if FileManager.default.fileExists(atPath: url.path) {
+                templateStatusLabel.text = "Шаблон загружен"
+                templateStatusLabel.textColor = .systemGray
+            } else {
+                templateStatusLabel.text = "Шаблон не загружен"
+                templateStatusLabel.textColor = .black
+            }
+        } else {
+            templateStatusLabel.text = "Шаблон не загружен"
+            templateStatusLabel.textColor = .black
+        }
+    }
+    
+    @objc private func loadTemplate() {
+        let docxType = UTType(filenameExtension: "docx") ?? .item
+        
+        let documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: [docxType], asCopy: true)
+        documentPicker.delegate = self
+        documentPicker.allowsMultipleSelection = false
+        documentPicker.modalPresentationStyle = .formSheet
+        
+        present(documentPicker, animated: true, completion: nil)
+    }
+}
 
+// MARK: - UIDocumentPickerDelegate
+
+extension SettingsTabViewController: UIDocumentPickerDelegate {
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        guard let sourceURL = urls.first else { return }
+
+        let fileManager = FileManager.default
+        let destinationURL = getDocumentsDirectory().appendingPathComponent(sourceURL.lastPathComponent)
+
+        var success = false
+
+        if sourceURL.startAccessingSecurityScopedResource() {
+            success = true
+        }
+
+        defer {
+            if success {
+                sourceURL.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        do {
+            if fileManager.fileExists(atPath: destinationURL.path) {
+                try fileManager.removeItem(at: destinationURL)
+            }
+
+            try fileManager.copyItem(at: sourceURL, to: destinationURL)
+            print("✅ Файл шаблона скопирован в: \(destinationURL.path)")
+
+            // Сохраняем путь только после успешного копирования
+            UserDefaults.standard.set(destinationURL.path, forKey: "ShabPath")
+            
+            // Обновляем статус
+            updateTemplateStatus()
+
+        } catch {
+            print("❌ Ошибка при копировании файла шаблона: \(error.localizedDescription)")
+            // Удаляем старое значение, если копирование не удалось
+            UserDefaults.standard.removeObject(forKey: "ShabPath")
+            updateTemplateStatus()
+        }
+    }
+
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        print("Отмена выбора документа шаблона")
+    }
+    
+    private func getDocumentsDirectory() -> URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    }
 }
