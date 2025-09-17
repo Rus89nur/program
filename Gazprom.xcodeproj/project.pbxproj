@@ -1,0 +1,653 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		7C206C592E413E8100985FAC /* TemplateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C206C582E413E8100985FAC /* TemplateModel.swift */; };
+		7C2744CE2E1C1FA600838AC7 /* DataFlowObjectsReview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C2744CD2E1C1FA600838AC7 /* DataFlowObjectsReview.swift */; };
+		7C452CFA2E1ADB3200A0C1B3 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452CF02E1ADB3200A0C1B3 /* AppDelegate.swift */; };
+		7C452CFB2E1ADB3200A0C1B3 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452CF72E1ADB3200A0C1B3 /* SceneDelegate.swift */; };
+		7C452CFD2E1ADB3200A0C1B3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7C452CF12E1ADB3200A0C1B3 /* Assets.xcassets */; };
+		7C452CFF2E1ADB3200A0C1B3 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 7C452CF42E1ADB3200A0C1B3 /* LaunchScreen.storyboard */; };
+		7C452D002E1ADB3200A0C1B3 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 7C452CF62E1ADB3200A0C1B3 /* Main.storyboard */; };
+		7C452D052E1ADB9B00A0C1B3 /* SnapKit in Frameworks */ = {isa = PBXBuildFile; productRef = 7C452D042E1ADB9B00A0C1B3 /* SnapKit */; };
+		7C452D0C2E1ADCC500A0C1B3 /* StartTabViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D0B2E1ADCC500A0C1B3 /* StartTabViewController.swift */; };
+		7C452D0E2E1ADCCF00A0C1B3 /* HistoryTabViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D0D2E1ADCCF00A0C1B3 /* HistoryTabViewController.swift */; };
+		7C452D322E1AE2DE00A0C1B3 /* MainAKTViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D312E1AE2DE00A0C1B3 /* MainAKTViewModel.swift */; };
+		7C452D342E1AE37700A0C1B3 /* Akt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D332E1AE37700A0C1B3 /* Akt.swift */; };
+		7C452D392E1AE9A600A0C1B3 /* DataFlowAKT.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D382E1AE9A600A0C1B3 /* DataFlowAKT.swift */; };
+		7C452D3B2E1AEB5D00A0C1B3 /* UIFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D3A2E1AEB5D00A0C1B3 /* UIFactory.swift */; };
+		7C452D3D2E1AEFF100A0C1B3 /* DataFlowComission.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D3C2E1AEFF100A0C1B3 /* DataFlowComission.swift */; };
+		7C452DD32E1B0A6300A0C1B3 /* DataFlowOrganizations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452DD22E1B0A6300A0C1B3 /* DataFlowOrganizations.swift */; };
+		7C5BD9192E1D5E8100E39873 /* ViolationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C5BD9182E1D5E8100E39873 /* ViolationModel.swift */; };
+		7C5BD9642E1D6C1C00E39873 /* CoreXLSX in Frameworks */ = {isa = PBXBuildFile; productRef = 7C5BD9632E1D6C1C00E39873 /* CoreXLSX */; };
+		7C5BD96A2E1D802300E39873 /* xlsxwriter in Frameworks */ = {isa = PBXBuildFile; productRef = 7C5BD9692E1D802300E39873 /* xlsxwriter */; };
+		7C6045012E3D41470054EA06 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = 7C6045002E3D41470054EA06 /* Lottie */; };
+		7C6045032E3D427A0054EA06 /* Confetti.json in Resources */ = {isa = PBXBuildFile; fileRef = 7C6045022E3D427A0054EA06 /* Confetti.json */; };
+		7CAC4F562E2984BD00EC6735 /* GenerateViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CAC4F552E2984BD00EC6735 /* GenerateViewModel.swift */; };
+		7CB5A3D02E32BFF000D68079 /* DataFlowPredstavitely.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CB5A3CF2E32BFF000D68079 /* DataFlowPredstavitely.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		7C206C582E413E8100985FAC /* TemplateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateModel.swift; sourceTree = "<group>"; };
+		7C2744CD2E1C1FA600838AC7 /* DataFlowObjectsReview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataFlowObjectsReview.swift; sourceTree = "<group>"; };
+		7C452CC92E1ADAE700A0C1B3 /* Gazprom.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Gazprom.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7C452CF02E1ADB3200A0C1B3 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		7C452CF12E1ADB3200A0C1B3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		7C452CF22E1ADB3200A0C1B3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		7C452CF32E1ADB3200A0C1B3 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		7C452CF52E1ADB3200A0C1B3 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		7C452CF72E1ADB3200A0C1B3 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		7C452D0B2E1ADCC500A0C1B3 /* StartTabViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartTabViewController.swift; sourceTree = "<group>"; };
+		7C452D0D2E1ADCCF00A0C1B3 /* HistoryTabViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryTabViewController.swift; sourceTree = "<group>"; };
+		7C452D312E1AE2DE00A0C1B3 /* MainAKTViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainAKTViewModel.swift; sourceTree = "<group>"; };
+		7C452D332E1AE37700A0C1B3 /* Akt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Akt.swift; sourceTree = "<group>"; };
+		7C452D382E1AE9A600A0C1B3 /* DataFlowAKT.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataFlowAKT.swift; sourceTree = "<group>"; };
+		7C452D3A2E1AEB5D00A0C1B3 /* UIFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIFactory.swift; sourceTree = "<group>"; };
+		7C452D3C2E1AEFF100A0C1B3 /* DataFlowComission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataFlowComission.swift; sourceTree = "<group>"; };
+		7C452DD22E1B0A6300A0C1B3 /* DataFlowOrganizations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataFlowOrganizations.swift; sourceTree = "<group>"; };
+		7C5BD9182E1D5E8100E39873 /* ViolationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViolationModel.swift; sourceTree = "<group>"; };
+		7C6045022E3D427A0054EA06 /* Confetti.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Confetti.json; sourceTree = "<group>"; };
+		7CAC4F552E2984BD00EC6735 /* GenerateViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerateViewModel.swift; sourceTree = "<group>"; };
+		7CB5A3CF2E32BFF000D68079 /* DataFlowPredstavitely.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataFlowPredstavitely.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		7C2744CA2E1C1CB800838AC7 /* ObjectReview */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ObjectReview;
+			sourceTree = "<group>";
+		};
+		7C3ED67F2E21946900BDE5F4 /* Violations */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Violations;
+			sourceTree = "<group>";
+		};
+		7C3ED9312E258F7800BDE5F4 /* UserDescription */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = UserDescription;
+			sourceTree = "<group>";
+		};
+		7C452D022E1ADB8100A0C1B3 /* TabBar */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TabBar;
+			sourceTree = "<group>";
+		};
+		7C452D0A2E1ADCB400A0C1B3 /* SettingsTab */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SettingsTab;
+			sourceTree = "<group>";
+		};
+		7C452DD62E1B0EAE00A0C1B3 /* Organizations */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Organizations;
+			sourceTree = "<group>";
+		};
+		7C452DD72E1B0EB600A0C1B3 /* StartScreen */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = StartScreen;
+			sourceTree = "<group>";
+		};
+		7CAC4F442E297BED00EC6735 /* CompleteAkt */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = CompleteAkt;
+			sourceTree = "<group>";
+		};
+		7CB5A3CC2E32BE5B00D68079 /* Predstavitely */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Predstavitely;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		7C452CC62E1ADAE700A0C1B3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7C5BD96A2E1D802300E39873 /* xlsxwriter in Frameworks */,
+				7C5BD9642E1D6C1C00E39873 /* CoreXLSX in Frameworks */,
+				7C452D052E1ADB9B00A0C1B3 /* SnapKit in Frameworks */,
+				7C6045012E3D41470054EA06 /* Lottie in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		7C452CC02E1ADAE700A0C1B3 = {
+			isa = PBXGroup;
+			children = (
+				7C452CF92E1ADB3200A0C1B3 /* Gazprom */,
+				7C452CCA2E1ADAE700A0C1B3 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		7C452CCA2E1ADAE700A0C1B3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7C452CC92E1ADAE700A0C1B3 /* Gazprom.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		7C452CEA2E1ADB3200A0C1B3 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				7C452D3A2E1AEB5D00A0C1B3 /* UIFactory.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+		7C452CEB2E1ADB3200A0C1B3 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				7C5BD9172E1D5E6300E39873 /* ViolationsFlow */,
+				7C452D332E1AE37700A0C1B3 /* Akt.swift */,
+				7C452D382E1AE9A600A0C1B3 /* DataFlowAKT.swift */,
+				7C452DD22E1B0A6300A0C1B3 /* DataFlowOrganizations.swift */,
+				7C2744CD2E1C1FA600838AC7 /* DataFlowObjectsReview.swift */,
+				7C452D3C2E1AEFF100A0C1B3 /* DataFlowComission.swift */,
+				7CB5A3CF2E32BFF000D68079 /* DataFlowPredstavitely.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		7C452CEC2E1ADB3200A0C1B3 /* Other */ = {
+			isa = PBXGroup;
+			children = (
+				7C452CF02E1ADB3200A0C1B3 /* AppDelegate.swift */,
+				7C452CF12E1ADB3200A0C1B3 /* Assets.xcassets */,
+				7C452CF42E1ADB3200A0C1B3 /* LaunchScreen.storyboard */,
+				7C452CF62E1ADB3200A0C1B3 /* Main.storyboard */,
+				7C452CF72E1ADB3200A0C1B3 /* SceneDelegate.swift */,
+				7C6045022E3D427A0054EA06 /* Confetti.json */,
+			);
+			path = Other;
+			sourceTree = "<group>";
+		};
+		7C452CED2E1ADB3200A0C1B3 /* Screens */ = {
+			isa = PBXGroup;
+			children = (
+				7C452D0A2E1ADCB400A0C1B3 /* SettingsTab */,
+				7C452D092E1ADCAB00A0C1B3 /* HistoryTab */,
+				7C452D082E1ADC9B00A0C1B3 /* StartTab */,
+				7C452D022E1ADB8100A0C1B3 /* TabBar */,
+			);
+			path = Screens;
+			sourceTree = "<group>";
+		};
+		7C452CEF2E1ADB3200A0C1B3 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				7C452D312E1AE2DE00A0C1B3 /* MainAKTViewModel.swift */,
+				7CAC4F552E2984BD00EC6735 /* GenerateViewModel.swift */,
+				7C206C582E413E8100985FAC /* TemplateModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		7C452CF92E1ADB3200A0C1B3 /* Gazprom */ = {
+			isa = PBXGroup;
+			children = (
+				7C452CEF2E1ADB3200A0C1B3 /* ViewModels */,
+				7C452CEB2E1ADB3200A0C1B3 /* Models */,
+				7C452CEA2E1ADB3200A0C1B3 /* Extensions */,
+				7C452CED2E1ADB3200A0C1B3 /* Screens */,
+				7C452CEC2E1ADB3200A0C1B3 /* Other */,
+				7C452CF22E1ADB3200A0C1B3 /* Info.plist */,
+			);
+			path = Gazprom;
+			sourceTree = "<group>";
+		};
+		7C452D082E1ADC9B00A0C1B3 /* StartTab */ = {
+			isa = PBXGroup;
+			children = (
+				7C452D352E1AE60E00A0C1B3 /* NewAKT */,
+				7C452D0B2E1ADCC500A0C1B3 /* StartTabViewController.swift */,
+			);
+			path = StartTab;
+			sourceTree = "<group>";
+		};
+		7C452D092E1ADCAB00A0C1B3 /* HistoryTab */ = {
+			isa = PBXGroup;
+			children = (
+				7C452D0D2E1ADCCF00A0C1B3 /* HistoryTabViewController.swift */,
+			);
+			path = HistoryTab;
+			sourceTree = "<group>";
+		};
+		7C452D352E1AE60E00A0C1B3 /* NewAKT */ = {
+			isa = PBXGroup;
+			children = (
+				7CB5A3CC2E32BE5B00D68079 /* Predstavitely */,
+				7CAC4F442E297BED00EC6735 /* CompleteAkt */,
+				7C3ED9312E258F7800BDE5F4 /* UserDescription */,
+				7C3ED67F2E21946900BDE5F4 /* Violations */,
+				7C2744CA2E1C1CB800838AC7 /* ObjectReview */,
+				7C452DD72E1B0EB600A0C1B3 /* StartScreen */,
+				7C452DD62E1B0EAE00A0C1B3 /* Organizations */,
+			);
+			path = NewAKT;
+			sourceTree = "<group>";
+		};
+		7C5BD9172E1D5E6300E39873 /* ViolationsFlow */ = {
+			isa = PBXGroup;
+			children = (
+				7C5BD9182E1D5E8100E39873 /* ViolationModel.swift */,
+			);
+			path = ViolationsFlow;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		7C452CC82E1ADAE700A0C1B3 /* Gazprom */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7C452CDC2E1ADAE900A0C1B3 /* Build configuration list for PBXNativeTarget "Gazprom" */;
+			buildPhases = (
+				7C452CC52E1ADAE700A0C1B3 /* Sources */,
+				7C452CC62E1ADAE700A0C1B3 /* Frameworks */,
+				7C452CC72E1ADAE700A0C1B3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				7C2744CA2E1C1CB800838AC7 /* ObjectReview */,
+				7C3ED67F2E21946900BDE5F4 /* Violations */,
+				7C3ED9312E258F7800BDE5F4 /* UserDescription */,
+				7C452D022E1ADB8100A0C1B3 /* TabBar */,
+				7C452D0A2E1ADCB400A0C1B3 /* SettingsTab */,
+				7C452DD62E1B0EAE00A0C1B3 /* Organizations */,
+				7C452DD72E1B0EB600A0C1B3 /* StartScreen */,
+				7CAC4F442E297BED00EC6735 /* CompleteAkt */,
+				7CB5A3CC2E32BE5B00D68079 /* Predstavitely */,
+			);
+			name = Gazprom;
+			packageProductDependencies = (
+				7C452D042E1ADB9B00A0C1B3 /* SnapKit */,
+				7C5BD9632E1D6C1C00E39873 /* CoreXLSX */,
+				7C5BD9692E1D802300E39873 /* xlsxwriter */,
+				7C6045002E3D41470054EA06 /* Lottie */,
+			);
+			productName = Gazprom;
+			productReference = 7C452CC92E1ADAE700A0C1B3 /* Gazprom.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		7C452CC12E1ADAE700A0C1B3 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1640;
+				LastUpgradeCheck = 1640;
+				TargetAttributes = {
+					7C452CC82E1ADAE700A0C1B3 = {
+						CreatedOnToolsVersion = 16.4;
+					};
+				};
+			};
+			buildConfigurationList = 7C452CC42E1ADAE700A0C1B3 /* Build configuration list for PBXProject "Gazprom" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 7C452CC02E1ADAE700A0C1B3;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				7C452D032E1ADB9B00A0C1B3 /* XCRemoteSwiftPackageReference "SnapKit" */,
+				7C5BD9622E1D6C1C00E39873 /* XCRemoteSwiftPackageReference "CoreXLSX" */,
+				7C5BD9682E1D802300E39873 /* XCRemoteSwiftPackageReference "xlsxwriter" */,
+				7C6044FF2E3D41470054EA06 /* XCRemoteSwiftPackageReference "lottie-ios" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 7C452CCA2E1ADAE700A0C1B3 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				7C452CC82E1ADAE700A0C1B3 /* Gazprom */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		7C452CC72E1ADAE700A0C1B3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7C452CFD2E1ADB3200A0C1B3 /* Assets.xcassets in Resources */,
+				7C6045032E3D427A0054EA06 /* Confetti.json in Resources */,
+				7C452CFF2E1ADB3200A0C1B3 /* LaunchScreen.storyboard in Resources */,
+				7C452D002E1ADB3200A0C1B3 /* Main.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		7C452CC52E1ADAE700A0C1B3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7C452D3D2E1AEFF100A0C1B3 /* DataFlowComission.swift in Sources */,
+				7C206C592E413E8100985FAC /* TemplateModel.swift in Sources */,
+				7C452CFA2E1ADB3200A0C1B3 /* AppDelegate.swift in Sources */,
+				7CAC4F562E2984BD00EC6735 /* GenerateViewModel.swift in Sources */,
+				7C452D392E1AE9A600A0C1B3 /* DataFlowAKT.swift in Sources */,
+				7CB5A3D02E32BFF000D68079 /* DataFlowPredstavitely.swift in Sources */,
+				7C452D342E1AE37700A0C1B3 /* Akt.swift in Sources */,
+				7C452D3B2E1AEB5D00A0C1B3 /* UIFactory.swift in Sources */,
+				7C452D0E2E1ADCCF00A0C1B3 /* HistoryTabViewController.swift in Sources */,
+				7C5BD9192E1D5E8100E39873 /* ViolationModel.swift in Sources */,
+				7C452DD32E1B0A6300A0C1B3 /* DataFlowOrganizations.swift in Sources */,
+				7C2744CE2E1C1FA600838AC7 /* DataFlowObjectsReview.swift in Sources */,
+				7C452CFB2E1ADB3200A0C1B3 /* SceneDelegate.swift in Sources */,
+				7C452D322E1AE2DE00A0C1B3 /* MainAKTViewModel.swift in Sources */,
+				7C452D0C2E1ADCC500A0C1B3 /* StartTabViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		7C452CF42E1ADB3200A0C1B3 /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				7C452CF32E1ADB3200A0C1B3 /* Base */,
+			);
+			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+		7C452CF62E1ADB3200A0C1B3 /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				7C452CF52E1ADB3200A0C1B3 /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		7C452CDD2E1ADAE900A0C1B3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 42A39A63SW;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Gazprom/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "АПК_ГИ";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Разрешите доступ к камере";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = k.test.Gazprom;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		7C452CDE2E1ADAE900A0C1B3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 42A39A63SW;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Gazprom/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "АПК_ГИ";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Разрешите доступ к камере";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = k.test.Gazprom;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		7C452CDF2E1ADAE900A0C1B3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		7C452CE02E1ADAE900A0C1B3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		7C452CC42E1ADAE700A0C1B3 /* Build configuration list for PBXProject "Gazprom" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7C452CDF2E1ADAE900A0C1B3 /* Debug */,
+				7C452CE02E1ADAE900A0C1B3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7C452CDC2E1ADAE900A0C1B3 /* Build configuration list for PBXNativeTarget "Gazprom" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7C452CDD2E1ADAE900A0C1B3 /* Debug */,
+				7C452CDE2E1ADAE900A0C1B3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		7C452D032E1ADB9B00A0C1B3 /* XCRemoteSwiftPackageReference "SnapKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SnapKit/SnapKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.7.1;
+			};
+		};
+		7C5BD9622E1D6C1C00E39873 /* XCRemoteSwiftPackageReference "CoreXLSX" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/CoreOffice/CoreXLSX.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.14.2;
+			};
+		};
+		7C5BD9682E1D802300E39873 /* XCRemoteSwiftPackageReference "xlsxwriter" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/damuellen/xlsxwriter.swift";
+			requirement = {
+				branch = SPM;
+				kind = branch;
+			};
+		};
+		7C6044FF2E3D41470054EA06 /* XCRemoteSwiftPackageReference "lottie-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/airbnb/lottie-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.5.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		7C452D042E1ADB9B00A0C1B3 /* SnapKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7C452D032E1ADB9B00A0C1B3 /* XCRemoteSwiftPackageReference "SnapKit" */;
+			productName = SnapKit;
+		};
+		7C5BD9632E1D6C1C00E39873 /* CoreXLSX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7C5BD9622E1D6C1C00E39873 /* XCRemoteSwiftPackageReference "CoreXLSX" */;
+			productName = CoreXLSX;
+		};
+		7C5BD9692E1D802300E39873 /* xlsxwriter */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7C5BD9682E1D802300E39873 /* XCRemoteSwiftPackageReference "xlsxwriter" */;
+			productName = xlsxwriter;
+		};
+		7C6045002E3D41470054EA06 /* Lottie */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7C6044FF2E3D41470054EA06 /* XCRemoteSwiftPackageReference "lottie-ios" */;
+			productName = Lottie;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 7C452CC12E1ADAE700A0C1B3 /* Project object */;
+}

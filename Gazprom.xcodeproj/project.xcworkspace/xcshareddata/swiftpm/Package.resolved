@@ -1,0 +1,69 @@
+{
+  "originHash" : "9261a59448aaa7da530e361771d12b6b7e731e078287f470ea818b7dd2b0a134",
+  "pins" : [
+    {
+      "identity" : "corexlsx",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/CoreOffice/CoreXLSX.git",
+      "state" : {
+        "revision" : "1391f3832ea2eeee5186ea8abb81ea49ed0609cc",
+        "version" : "0.14.2"
+      }
+    },
+    {
+      "identity" : "libxlsxwriter",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jmcnamara/libxlsxwriter",
+      "state" : {
+        "branch" : "main",
+        "revision" : "f6e8305d1b70610705e03c15f337ce317c46be8a"
+      }
+    },
+    {
+      "identity" : "lottie-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/airbnb/lottie-ios",
+      "state" : {
+        "revision" : "a004050748dc197c56256a14dca49a035d74726c",
+        "version" : "4.5.2"
+      }
+    },
+    {
+      "identity" : "snapkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SnapKit/SnapKit",
+      "state" : {
+        "revision" : "2842e6e84e82eb9a8dac0100ca90d9444b0307f4",
+        "version" : "5.7.1"
+      }
+    },
+    {
+      "identity" : "xlsxwriter.swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/damuellen/xlsxwriter.swift",
+      "state" : {
+        "branch" : "SPM",
+        "revision" : "f4c0e101ce5ec0e5dbd762121b666945e1a2b68a"
+      }
+    },
+    {
+      "identity" : "xmlcoder",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/maxdesiatov/XMLCoder.git",
+      "state" : {
+        "revision" : "ca932442d7481700f5434a7b138c47dd42d9902b",
+        "version" : "0.14.0"
+      }
+    },
+    {
+      "identity" : "zipfoundation",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/weichsel/ZIPFoundation.git",
+      "state" : {
+        "revision" : "02b6abe5f6eef7e3cbd5f247c5cc24e246efcfe0",
+        "version" : "0.9.19"
+      }
+    }
+  ],
+  "version" : 3
+}
