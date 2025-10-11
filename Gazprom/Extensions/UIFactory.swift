@@ -27,16 +27,19 @@ class UIFactory {
         label.font = .systemFont(ofSize: 16, weight: .semibold)
         label.textAlignment = .left
         label.numberOfLines = 0
-        label.textColor = .black
+        label.textColor = .label
         return label
     }
     
     static func createTextField(placeholder: String) -> UITextField {
         let view = UITextField()
-        view.backgroundColor = .black.withAlphaComponent(0.05)
+        view.backgroundColor = .systemGray6
         view.layer.cornerRadius = 14
-        view.textColor = .black
+        view.textColor = .label
         view.font = .systemFont(ofSize: 16, weight: .regular)
+        
+        // Настройка золотого курсора для всех текстовых полей
+        view.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой цвет
     
         view.leftView =  UIView(frame: .init(x: 0, y: 0, width: 10, height: 10))
         view.leftViewMode = .always
@@ -47,7 +50,7 @@ class UIFactory {
         view.attributedPlaceholder = NSAttributedString(
                string: placeholder,
                attributes: [
-                   .foregroundColor: UIColor.systemBlue,
+                   .foregroundColor: UIColor.placeholderText,
                    .font: UIFont.systemFont(ofSize: 16, weight: .regular)
                ]
            )

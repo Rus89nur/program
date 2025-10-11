@@ -11,14 +11,66 @@ import xlsxwriter
 
 class ViolationsModel {
     
+    // Ключ для отслеживания первого запуска приложения
+    private static let firstLaunchKey = "FirstLaunchCompleted"
+    
+    // Проверяем, является ли это первым запуском после установки
+    static func isFirstLaunch() -> Bool {
+        return !UserDefaults.standard.bool(forKey: firstLaunchKey)
+    }
+    
+    // Отмечаем, что первый запуск завершен
+    static func markFirstLaunchCompleted() {
+        UserDefaults.standard.set(true, forKey: firstLaunchKey)
+        UserDefaults.standard.synchronize()
+    }
+    
+    // Очищаем все данные о нарушениях
+    static func clearViolationsData() {
+        UserDefaults.standard.removeObject(forKey: "ImportedExcelFilePath")
+        UserDefaults.standard.synchronize()
+        print("🧹 Данные о нарушениях очищены")
+    }
+    
+    // Принудительная очистка всех данных (для тестирования или сброса)
+    static func forceClearAllData() {
+        clearViolationsData()
+        UserDefaults.standard.removeObject(forKey: firstLaunchKey)
+        UserDefaults.standard.synchronize()
+        print("🔄 Все данные приложения сброшены")
+    }
+    
+    // Проверяем, нужно ли показать уведомление о необходимости импорта
+    static func shouldShowImportNotification() -> Bool {
+        return isFirstLaunch() || UserDefaults.standard.string(forKey: "ImportedExcelFilePath") == nil
+    }
+    
     static func returnAvialableViolation() -> [Violation] {
+        // Проверяем первый запуск
+        if isFirstLaunch() {
+            print("🆕 Первый запуск приложения - очищаем данные о нарушениях")
+            clearViolationsData()
+            markFirstLaunchCompleted()
+            return []
+        }
+        
         guard let path = UserDefaults.standard.string(forKey: "ImportedExcelFilePath") else {
-            print("⚠️ Путь не найден в UserDefaults")
+            print("⚠️ Путь не найден в UserDefaults - требуется загрузка Excel файла")
             return []
         }
         
         print("🔍 Путь к файлу: \(path)")
         print("🔍 Файл существует: \(FileManager.default.fileExists(atPath: path))")
+        
+        // Проверяем существование файла
+        guard FileManager.default.fileExists(atPath: path) else {
+            print("❌ Файл не существует по пути: \(path)")
+            // Очищаем сохраненный путь, чтобы пользователь заново загрузил файл
+            UserDefaults.standard.removeObject(forKey: "ImportedExcelFilePath")
+            UserDefaults.standard.synchronize()
+            print("🧹 Путь к файлу очищен - требуется повторная загрузка")
+            return []
+        }
         
         guard let file = XLSXFile(filepath: path) else {
             print("❌ Не удалось открыть Excel-файл по пути: \(path)")

@@ -16,14 +16,16 @@ class DateAndNumberAktViewController: UIViewController {
     
     lazy var comissionPeoples:  [ComissionPeople] = []
     
+    private var dateLabel: UILabel!
+    private var countLabel: UILabel!
+    private var comissionLabel: UILabel!
+    
     private let datePicker: UIDatePicker = {
         let view = UIDatePicker()
         view.date = .now
         view.datePickerMode = .date
         view.locale = .init(identifier: "ru_RU")
         view.preferredDatePickerStyle = .compact
-        view.overrideUserInterfaceStyle = .light
-        view.tintColor = .black
         return view
     }()
 
@@ -41,10 +43,11 @@ class DateAndNumberAktViewController: UIViewController {
     
     private let numberPicker: UIPickerView = {
         let view = UIPickerView()
-        view.overrideUserInterfaceStyle = .light
-        view.tintColor = .black
         return view
     }()
+    
+    // Занятые номера актов
+    private var occupiedNumbers: Set<String> = []
 
     init(viewModel: MainAKTViewModel, akt: AKT? = nil) {
         self.viewModel = viewModel
@@ -61,6 +64,40 @@ class DateAndNumberAktViewController: UIViewController {
             datePicker.date = a.date
             comissionPeoples = a.comission
             collection.reloadData()
+            
+            // Устанавливаем номер акта в picker
+            if let aktNumber = Int(a.number), aktNumber > 0 && aktNumber <= 100 {
+                numberPicker.selectRow(aktNumber - 1, inComponent: 0, animated: false)
+            }
+        }
+    }
+    
+    private func loadOccupiedNumbers() {
+        occupiedNumbers = viewModel.getOccupiedAktNumbers()
+        numberPicker.reloadAllComponents()
+        
+        // Обновляем информационный лейбл
+        updateInfoLabel()
+        
+        // Если это новый акт (не редактирование), устанавливаем следующий доступный номер
+        if akt == nil {
+            let nextAvailable = viewModel.getNextAvailableAktNumber()
+            if let nextRow = Int(nextAvailable), nextRow <= 100 {
+                numberPicker.selectRow(nextRow - 1, inComponent: 0, animated: false)
+            }
+        }
+    }
+    
+    private func updateInfoLabel() {
+        guard let infoLabel = view.viewWithTag(999) as? UILabel else { return }
+        
+        let occupiedCount = occupiedNumbers.count
+        let totalCount = 100
+        
+        if occupiedCount > 0 {
+            infoLabel.text = "Занято номеров: \(occupiedCount) из \(totalCount)"
+        } else {
+            infoLabel.text = "Все номера доступны"
         }
     }
     
@@ -91,9 +128,74 @@ class DateAndNumberAktViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
+        view.backgroundColor = .systemBackground
         setupUI()
         checkOld()
+        loadOccupiedNumbers()
+        
+        // Настройка темной темы после создания всех элементов
+        setupDarkTheme()
+    }
+    
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        
+        // Обновляем интерфейс при изменении темы
+        if traitCollection.userInterfaceStyle != previousTraitCollection?.userInterfaceStyle {
+            setupDarkTheme()
+            collection.reloadData()
+        }
+    }
+    
+    private func setupDarkTheme() {
+        // Настройка для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            view.backgroundColor = .systemBackground
+            collection.backgroundColor = .clear
+            
+            // Устанавливаем белый цвет для лейблов в темной теме
+            dateLabel?.textColor = .white
+            countLabel?.textColor = .white
+            comissionLabel?.textColor = .white
+            
+            // Обновляем цвет информационного лейбла
+            if let infoLabel = view.viewWithTag(999) as? UILabel {
+                infoLabel.textColor = .systemGray2
+            }
+            
+            // Настройка datePicker для темной темы
+            datePicker.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
+            datePicker.overrideUserInterfaceStyle = .dark
+            
+            // Настройка numberPicker для темной темы
+            numberPicker.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
+            numberPicker.overrideUserInterfaceStyle = .dark
+            
+            print("🌙 Темная тема: установлен белый цвет для лейблов и пикеров")
+        } else {
+            view.backgroundColor = .systemBackground
+            collection.backgroundColor = .clear
+            
+            // Стандартные цвета для светлой темы
+            dateLabel?.textColor = .label
+            countLabel?.textColor = .label
+            comissionLabel?.textColor = .label
+            
+            // Обновляем цвет информационного лейбла
+            if let infoLabel = view.viewWithTag(999) as? UILabel {
+                infoLabel.textColor = .systemGray
+            }
+            
+            // Настройка datePicker для светлой темы
+            datePicker.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
+            datePicker.overrideUserInterfaceStyle = .light
+            
+            // Настройка numberPicker для светлой темы
+            numberPicker.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
+            numberPicker.overrideUserInterfaceStyle = .light
+            
+            print("☀️ Светлая тема: установлен стандартный цвет для лейблов и пикеров")
+        }
     }
     
     private func setupViewModel() {
@@ -103,7 +205,7 @@ class DateAndNumberAktViewController: UIViewController {
     }
 
     private func setupUI() {
-        let dateLabel = UIFactory.createlabel(title: "Укажите дату проверки:")
+        dateLabel = UIFactory.createlabel(title: "Укажите дату проверки:")
         view.addSubview(dateLabel)
         dateLabel.snp.makeConstraints { make in
             make.left.equalToSuperview().inset(16)
@@ -117,11 +219,22 @@ class DateAndNumberAktViewController: UIViewController {
             make.centerY.equalTo(dateLabel)
         }
         
-        let countLabel = UIFactory.createlabel(title: "Укажите номер Акта:")
+        countLabel = UIFactory.createlabel(title: "Укажите номер Акта:")
         view.addSubview(countLabel)
         countLabel.snp.makeConstraints { make in
             make.left.equalToSuperview().inset(16)
             make.top.equalTo(datePicker.snp.bottom).offset(24)
+        }
+        
+        // Добавляем информационный лейбл о занятых номерах
+        let infoLabel = UIFactory.createlabel(title: "")
+        infoLabel.font = .systemFont(ofSize: 12, weight: .regular)
+        infoLabel.textColor = .systemGray
+        infoLabel.tag = 999 // Для последующего обновления
+        view.addSubview(infoLabel)
+        infoLabel.snp.makeConstraints { make in
+            make.left.equalToSuperview().inset(16)
+            make.top.equalTo(countLabel.snp.bottom).offset(4)
         }
         
         numberPicker.delegate = self
@@ -142,7 +255,7 @@ class DateAndNumberAktViewController: UIViewController {
         }
         nextButton.addTarget(self, action: #selector(goNext), for: .touchUpInside)
         
-        let comissionLabel = UIFactory.createlabel(title: "Члены комиссии:")
+        comissionLabel = UIFactory.createlabel(title: "Члены комиссии:")
         view.addSubview(comissionLabel)
         comissionLabel.snp.makeConstraints { make in
             make.left.equalToSuperview().inset(16)
@@ -157,15 +270,27 @@ class DateAndNumberAktViewController: UIViewController {
             make.bottom.equalTo(nextButton.snp.top).inset(-16)
             make.top.equalTo(comissionLabel.snp.bottom).inset(-16)
         }
+        
+        // Применяем настройки темы после создания всех элементов
+        setupDarkTheme()
     }
 
     @objc private func goNext() {
-        let vc = OrganizationsViewController(viewModel: viewModel, comissionPeople: comissionPeoples, date: datePicker.date, aktNumber: "\(numberPicker.selectedRow(inComponent: 0) + 1)", act: akt)
+        let selectedNumber = "\(numberPicker.selectedRow(inComponent: 0) + 1)"
+        
+        // Проверяем, не занят ли номер (исключая текущий акт при редактировании)
+        let excludingId = akt?.id
+        if !viewModel.isAktNumberAvailable(selectedNumber, excludingAktId: excludingId) {
+            showOccupiedNumberAlert(selectedNumber: selectedNumber)
+            return
+        }
+        
+        let vc = OrganizationsViewController(viewModel: viewModel, comissionPeople: comissionPeoples, date: datePicker.date, aktNumber: selectedNumber, act: akt)
         navigationController?.pushViewController(vc, animated: true)
         
         viewModel.templateModel.comissionPeople = comissionPeoples
         viewModel.templateModel.date = datePicker.date
-        viewModel.templateModel.aktNumber = "\(numberPicker.selectedRow(inComponent: 0) + 1)"
+        viewModel.templateModel.aktNumber = selectedNumber
     }
     
     @objc private func addNewComissionPeople() {
@@ -191,7 +316,63 @@ extension DateAndNumberAktViewController: UIPickerViewDelegate, UIPickerViewData
     }
     
     func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
-        return "№\(row + 1)"
+        let number = "\(row + 1)"
+        let isOccupied = occupiedNumbers.contains(number)
+        
+        if isOccupied {
+            return "№\(number) (занят)"
+        } else {
+            return "№\(number)"
+        }
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, attributedTitleForRow row: Int, forComponent component: Int) -> NSAttributedString? {
+        let number = "\(row + 1)"
+        let isOccupied = occupiedNumbers.contains(number)
+        
+        let title: String
+        if isOccupied {
+            title = "№\(number) (занят)"
+        } else {
+            title = "№\(number)"
+        }
+        
+        let color: UIColor
+        if traitCollection.userInterfaceStyle == .dark {
+            color = isOccupied ? .systemRed : .white
+        } else {
+            color = isOccupied ? .systemRed : .black
+        }
+        
+        return NSAttributedString(string: title, attributes: [.foregroundColor: color])
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+        let selectedNumber = "\(row + 1)"
+        let isOccupied = occupiedNumbers.contains(selectedNumber)
+        
+        if isOccupied {
+            showOccupiedNumberAlert(selectedNumber: selectedNumber)
+        }
+    }
+    
+    private func showOccupiedNumberAlert(selectedNumber: String) {
+        let alert = UIAlertController(
+            title: "Номер занят",
+            message: "Номер акта №\(selectedNumber) уже используется. Пожалуйста, выберите другой номер.",
+            preferredStyle: .alert
+        )
+        
+        let okAction = UIAlertAction(title: "Понятно", style: .default) { [weak self] _ in
+            // Предлагаем следующий доступный номер
+            if let nextAvailable = self?.viewModel.getNextAvailableAktNumber(),
+               let nextRow = Int(nextAvailable), nextRow <= 100 {
+                self?.numberPicker.selectRow(nextRow - 1, inComponent: 0, animated: true)
+            }
+        }
+        
+        alert.addAction(okAction)
+        present(alert, animated: true)
     }
 }
 
@@ -203,8 +384,10 @@ extension DateAndNumberAktViewController: UICollectionViewDelegate, UICollection
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "1", for: indexPath)
         cell.subviews.forEach { $0.removeFromSuperview() }
-        cell.backgroundColor = .black.withAlphaComponent(0.05)
-        cell.layer.cornerRadius = 16
+        
+        // Настройка внешнего вида ячейки в стиле настроек
+        cell.backgroundColor = .systemGray6
+        cell.layer.cornerRadius = 20
         cell.clipsToBounds = true
         
         if indexPath.row == viewModel.comissionArray.count {
@@ -236,7 +419,12 @@ extension DateAndNumberAktViewController: UICollectionViewDelegate, UICollection
             }
             
             let mainLabel = UIFactory.createlabel(title: item.fio)
-            mainLabel.textColor = .black
+            // Улучшенный контраст для темной темы
+            if traitCollection.userInterfaceStyle == .dark {
+                mainLabel.textColor = .white
+            } else {
+                mainLabel.textColor = .black
+            }
             mainLabel.numberOfLines = 1
             mainLabel.font = .systemFont(ofSize: 16, weight: .medium)
             cell.addSubview(mainLabel)
@@ -248,7 +436,12 @@ extension DateAndNumberAktViewController: UICollectionViewDelegate, UICollection
             
             let sublabel = UIFactory.createlabel(title: item.jobTitle)
             sublabel.numberOfLines = 1
-            sublabel.textColor = .black.withAlphaComponent(0.6)
+            // Улучшенный контраст для темной темы
+            if traitCollection.userInterfaceStyle == .dark {
+                sublabel.textColor = .white.withAlphaComponent(0.7)
+            } else {
+                sublabel.textColor = .black.withAlphaComponent(0.6)
+            }
             sublabel.font = .systemFont(ofSize: 12, weight: .regular)
             cell.addSubview(sublabel)
             sublabel.snp.makeConstraints { make in

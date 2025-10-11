@@ -16,6 +16,13 @@ extension UITextView {
     
     func setupRussianMenu() {
         // Настройка русских контекстных меню
+        // Настройка адаптивного цвета курсора
+        setupAdaptiveCursorColor()
+    }
+    
+    func setupAdaptiveCursorColor() {
+        // Устанавливаем золотой курсор для всех текстовых полей
+        self.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой цвет
     }
     
     @available(iOS 14.0, *)

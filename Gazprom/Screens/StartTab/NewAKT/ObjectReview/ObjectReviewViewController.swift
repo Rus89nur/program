@@ -79,9 +79,33 @@ class ObjectReviewViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
-       setupUI()
+        view.backgroundColor = .systemBackground
+        setupUI()
         checkOld()
+        
+        // Настройка темной темы
+        setupDarkTheme()
+    }
+    
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        
+        // Обновляем интерфейс при изменении темы
+        if traitCollection.userInterfaceStyle != previousTraitCollection?.userInterfaceStyle {
+            setupDarkTheme()
+            collection.reloadData()
+        }
+    }
+    
+    private func setupDarkTheme() {
+        // Настройка для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            view.backgroundColor = .systemBackground
+            collection.backgroundColor = .clear
+        } else {
+            view.backgroundColor = .systemBackground
+            collection.backgroundColor = .clear
+        }
     }
     
     private func setupViewModel() {
@@ -142,8 +166,11 @@ extension ObjectReviewViewController: UICollectionViewDelegate, UICollectionView
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "1", for: indexPath)
         cell.subviews.forEach { $0.removeFromSuperview() }
-        cell.backgroundColor = .black.withAlphaComponent(0.05)
-        cell.layer.cornerRadius = 16
+        
+        // Настройка внешнего вида ячейки в стиле настроек
+        cell.backgroundColor = .systemGray6
+        cell.layer.cornerRadius = 20
+        cell.clipsToBounds = true
         
         if indexPath.row == viewModel.objectCheckArray.count {
             let button = UIFactory.createButton(title: "Добавить", color: .clear)
@@ -177,6 +204,12 @@ extension ObjectReviewViewController: UICollectionViewDelegate, UICollectionView
             let title = UIFactory.createlabel(title: item.subTitle)
             title.numberOfLines = 1
             title.font = .systemFont(ofSize: 16, weight: .medium)
+            // Улучшенный контраст для темной темы
+            if traitCollection.userInterfaceStyle == .dark {
+                title.textColor = .white
+            } else {
+                title.textColor = .black
+            }
             cell.addSubview(title)
             title.snp.makeConstraints { make in
                 make.left.equalToSuperview().inset(16)
@@ -184,20 +217,14 @@ extension ObjectReviewViewController: UICollectionViewDelegate, UICollectionView
                 make.right.equalTo(rightImageView.snp.left).inset(-16)
             }
             
-            let mainLabel = UIFactory.createlabel(title: item.subTitle)
-            mainLabel.textColor = .black
-            mainLabel.numberOfLines = 1
-            mainLabel.font = .systemFont(ofSize: 16, weight: .medium)
-            cell.addSubview(mainLabel)
-            mainLabel.snp.makeConstraints { make in
-                make.left.equalToSuperview().inset(16)
-                make.right.equalTo(rightImageView.snp.left).inset(-16)
-                make.top.equalToSuperview().inset(10)
-            }
-            
             let sublabel = UIFactory.createlabel(title: item.title)
             sublabel.numberOfLines = 1
-            sublabel.textColor = .black.withAlphaComponent(0.6)
+            // Улучшенный контраст для темной темы
+            if traitCollection.userInterfaceStyle == .dark {
+                sublabel.textColor = .white.withAlphaComponent(0.7)
+            } else {
+                sublabel.textColor = .black.withAlphaComponent(0.6)
+            }
             sublabel.font = .systemFont(ofSize: 12, weight: .regular)
             cell.addSubview(sublabel)
             sublabel.snp.makeConstraints { make in

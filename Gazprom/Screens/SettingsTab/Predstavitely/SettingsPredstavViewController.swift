@@ -11,14 +11,16 @@ class SettingsPredstavViewController: UIViewController {
     
     let model: MainAKTViewModel
     
-    let tableView: UITableView = {
-        let view = UITableView(frame: .zero, style: .plain)
-        view.showsVerticalScrollIndicator = false
-        view.register(UITableViewCell.self, forCellReuseIdentifier: "1")
-        view.contentInset = .init(top: 0, left: 0, bottom: 100, right: 0)
-        view.backgroundColor = .clear
-        return view
+    let collectionView: UICollectionView = {
+        let layout = UICollectionViewFlowLayout()
+        let collection = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collection.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "1")
+        collection.backgroundColor = .clear
+        collection.contentInset = .init(top: 16, left: 0, bottom: 100, right: 0)
+        layout.scrollDirection = .vertical
+        return collection
     }()
+    
     
     init(model: MainAKTViewModel) {
         self.model = model
@@ -45,15 +47,15 @@ class SettingsPredstavViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
+        view.backgroundColor = .systemBackground
         setupUI()
     }
     
     private func setupUI() {
-        tableView.delegate = self
-        tableView.dataSource = self
-        view.addSubview(tableView)
-        tableView.snp.makeConstraints { make in
+        collectionView.delegate = self
+        collectionView.dataSource = self
+        view.addSubview(collectionView)
+        collectionView.snp.makeConstraints { make in
             make.left.right.equalToSuperview()
             make.bottom.equalToSuperview()
             make.top.equalTo(view.safeAreaLayoutGuide.snp.top)
@@ -77,7 +79,7 @@ class SettingsPredstavViewController: UIViewController {
                 let newObj = PredstavitelyComission(fio: text, jobTitle: subTitle)
                 model.predstavitelyArray.append(newObj)
                 DataFlowPredstavitely.saveArr(arr:  model.predstavitelyArray)
-                tableView.reloadData()
+                collectionView.reloadData()
             }
         }
         alert.addAction(save)
@@ -88,88 +90,84 @@ class SettingsPredstavViewController: UIViewController {
 }
 
 
-extension SettingsPredstavViewController: UITableViewDelegate, UITableViewDataSource {
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+extension SettingsPredstavViewController: UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         return model.predstavitelyArray.count
     }
     
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "1") ?? UITableViewCell()
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "1", for: indexPath)
         cell.subviews.forEach { $0.removeFromSuperview() }
-        cell.backgroundColor = .clear
+        cell.backgroundColor = .systemGray6
+        cell.clipsToBounds = true
+        cell.layer.cornerRadius = 20
         
         let item = model.predstavitelyArray[indexPath.row]
         
-        let separator = UIView()
-        separator.backgroundColor = .separator
-        cell.addSubview(separator)
-        separator.snp.makeConstraints { make in
-            make.left.right.equalToSuperview().inset(16)
-            make.bottom.equalToSuperview()
-            make.height.equalTo(1)
+        let fioLabel = UILabel()
+        fioLabel.text = item.fio
+        fioLabel.textAlignment = .left
+        fioLabel.textColor = .label
+        fioLabel.font = .systemFont(ofSize: 16, weight: .semibold)
+        cell.addSubview(fioLabel)
+        fioLabel.snp.makeConstraints { make in
+            make.left.equalToSuperview().inset(16)
+            make.top.equalToSuperview().inset(16)
+            make.right.equalToSuperview().inset(16)
         }
         
-        let topLabel = UILabel()
-        topLabel.text = item.fio
-        topLabel.textAlignment = .left
-        topLabel.textColor = .black
-        topLabel.font = .systemFont(ofSize: 16, weight: .semibold)
-        cell.addSubview(topLabel)
-        topLabel.snp.makeConstraints { make in
-            make.top.equalToSuperview().inset(12)
-            make.left.right.equalToSuperview().inset(16)
+        let jobTitleLabel = UILabel()
+        jobTitleLabel.text = item.jobTitle
+        jobTitleLabel.textAlignment = .left
+        jobTitleLabel.textColor = .secondaryLabel
+        jobTitleLabel.font = .systemFont(ofSize: 14, weight: .regular)
+        cell.addSubview(jobTitleLabel)
+        jobTitleLabel.snp.makeConstraints { make in
+            make.left.equalToSuperview().inset(16)
+            make.right.equalToSuperview().inset(16)
+            make.top.equalTo(fioLabel.snp.bottom).inset(-8)
         }
         
-        let subTitle = UILabel()
-        subTitle.text = item.jobTitle
-        subTitle.textAlignment = .left
-        subTitle.textColor = .systemGray
-        subTitle.font = .systemFont(ofSize: 14, weight: .regular)
-        cell.addSubview(subTitle)
-
-        subTitle.snp.makeConstraints { make in
-            make.bottom.equalToSuperview().inset(12)
-            make.left.right.equalToSuperview().inset(16)
-        }
         return cell
     }
     
-    
-    
-    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 70
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        return CGSize(width: collectionView.frame.width - 32, height: 80)
     }
     
-    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete {
-            model.predstavitelyArray.remove(at: indexPath.row)
-            DataFlowPredstavitely.saveArr(arr: model.predstavitelyArray)
-            tableView.deleteRows(at: [indexPath], with: .automatic)
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        showEditAlert(for: indexPath)
+    }
+    
+    // MARK: - Long Press Actions
+    func collectionView(_ collectionView: UICollectionView, contextMenuConfigurationForItemAt indexPath: IndexPath, point: CGPoint) -> UIContextMenuConfiguration? {
+        return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ in
+            let deleteAction = UIAction(title: "Удалить", image: UIImage(systemName: "trash"), attributes: .destructive) { _ in
+                self.showDeleteConfirmation(for: indexPath)
+            }
+            
+            return UIMenu(title: "", children: [deleteAction])
         }
     }
     
-    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        let deleteAction = UIContextualAction(style: .destructive, title: "Удалить") { [weak self] (action, view, completionHandler) in
+    private func showDeleteConfirmation(for indexPath: IndexPath) {
+        let alert = UIAlertController(title: "Удаление", message: "Вы уверены, что хотите удалить эту запись?", preferredStyle: .alert)
+        
+        let deleteAction = UIAlertAction(title: "Удалить", style: .destructive) { [weak self] _ in
             guard let self = self else { return }
             self.model.predstavitelyArray.remove(at: indexPath.row)
             DataFlowPredstavitely.saveArr(arr: self.model.predstavitelyArray)
-            tableView.deleteRows(at: [indexPath], with: .automatic)
-            completionHandler(true)
+            self.collectionView.deleteItems(at: [indexPath])
         }
-        deleteAction.backgroundColor = .systemRed
-        deleteAction.image = UIImage(systemName: "trash")
         
-        let editAction = UIContextualAction(style: .normal, title: "Редактировать") { [weak self] (action, view, completionHandler) in
-            guard let self = self else { return }
-            self.showEditAlert(for: indexPath)
-            completionHandler(true)
-        }
-        editAction.backgroundColor = .systemBlue
-        editAction.image = UIImage(systemName: "pencil")
+        let cancelAction = UIAlertAction(title: "Отмена", style: .cancel)
         
-        let configuration = UISwipeActionsConfiguration(actions: [deleteAction, editAction])
-        return configuration
+        alert.addAction(deleteAction)
+        alert.addAction(cancelAction)
+        
+        present(alert, animated: true)
     }
+    
     
     private func showEditAlert(for indexPath: IndexPath) {
         let predstavitely = model.predstavitelyArray[indexPath.row]
@@ -188,7 +186,7 @@ extension SettingsPredstavViewController: UITableViewDelegate, UITableViewDataSo
             self.model.updatePredstavitely(at: indexPath.row, newFio: newFio, newJobTitle: jobTitle) { success in
                 DispatchQueue.main.async {
                     if success {
-                        self.tableView.reloadRows(at: [indexPath], with: .automatic)
+                        self.collectionView.reloadData()
                     } else {
                         let errorAlert = UIAlertController(title: "Ошибка!", message: "Представитель с таким ФИО уже существует", preferredStyle: .alert)
                         let ok = UIAlertAction(title: "OK", style: .cancel)

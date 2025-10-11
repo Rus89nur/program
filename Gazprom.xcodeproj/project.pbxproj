@@ -17,18 +17,21 @@
 		7C452D052E1ADB9B00A0C1B3 /* SnapKit in Frameworks */ = {isa = PBXBuildFile; productRef = 7C452D042E1ADB9B00A0C1B3 /* SnapKit */; };
 		7C452D0C2E1ADCC500A0C1B3 /* StartTabViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D0B2E1ADCC500A0C1B3 /* StartTabViewController.swift */; };
 		7C452D0E2E1ADCCF00A0C1B3 /* HistoryTabViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D0D2E1ADCCF00A0C1B3 /* HistoryTabViewController.swift */; };
+		7C452D102E1ADCCF00A0C1B4 /* VersionHistoryViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D0F2E1ADCCF00A0C1B4 /* VersionHistoryViewController.swift */; };
+		7C452D122E1ADCCF00A0C1B5 /* VersionHistoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D112E1ADCCF00A0C1B5 /* VersionHistoryModel.swift */; };
 		7C452D322E1AE2DE00A0C1B3 /* MainAKTViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D312E1AE2DE00A0C1B3 /* MainAKTViewModel.swift */; };
 		7C452D342E1AE37700A0C1B3 /* Akt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D332E1AE37700A0C1B3 /* Akt.swift */; };
-		E1EE7C380EEB4794B690FBD3 /* VersionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B6B3AB2CE464A6289142764 /* VersionManager.swift */; };
 		7C452D392E1AE9A600A0C1B3 /* DataFlowAKT.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D382E1AE9A600A0C1B3 /* DataFlowAKT.swift */; };
 		7C452D3B2E1AEB5D00A0C1B3 /* UIFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D3A2E1AEB5D00A0C1B3 /* UIFactory.swift */; };
 		7C452D3D2E1AEFF100A0C1B3 /* DataFlowComission.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D3C2E1AEFF100A0C1B3 /* DataFlowComission.swift */; };
+		7C452D3F2E1B000000A0C1B3 /* SystemErrorHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452D3E2E1B000000A0C1B3 /* SystemErrorHandler.swift */; };
 		7C452DD32E1B0A6300A0C1B3 /* DataFlowOrganizations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C452DD22E1B0A6300A0C1B3 /* DataFlowOrganizations.swift */; };
 		7C5BD9192E1D5E8100E39873 /* ViolationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C5BD9182E1D5E8100E39873 /* ViolationModel.swift */; };
 		7C5BD9642E1D6C1C00E39873 /* CoreXLSX in Frameworks */ = {isa = PBXBuildFile; productRef = 7C5BD9632E1D6C1C00E39873 /* CoreXLSX */; };
 		7C5BD96A2E1D802300E39873 /* xlsxwriter in Frameworks */ = {isa = PBXBuildFile; productRef = 7C5BD9692E1D802300E39873 /* xlsxwriter */; };
 		7C6045012E3D41470054EA06 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = 7C6045002E3D41470054EA06 /* Lottie */; };
 		7C6045032E3D427A0054EA06 /* Confetti.json in Resources */ = {isa = PBXBuildFile; fileRef = 7C6045022E3D427A0054EA06 /* Confetti.json */; };
+		7C6045062E3D41480054EA06 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 7C6045052E3D41480054EA06 /* ZIPFoundation */; };
 		7CAC4F562E2984BD00EC6735 /* GenerateViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CAC4F552E2984BD00EC6735 /* GenerateViewModel.swift */; };
 		7CB5A3D02E32BFF000D68079 /* DataFlowPredstavitely.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CB5A3CF2E32BFF000D68079 /* DataFlowPredstavitely.swift */; };
 /* End PBXBuildFile section */
@@ -45,12 +48,14 @@
 		7C452CF72E1ADB3200A0C1B3 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		7C452D0B2E1ADCC500A0C1B3 /* StartTabViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartTabViewController.swift; sourceTree = "<group>"; };
 		7C452D0D2E1ADCCF00A0C1B3 /* HistoryTabViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryTabViewController.swift; sourceTree = "<group>"; };
+		7C452D0F2E1ADCCF00A0C1B4 /* VersionHistoryViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionHistoryViewController.swift; sourceTree = "<group>"; };
+		7C452D112E1ADCCF00A0C1B5 /* VersionHistoryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionHistoryModel.swift; sourceTree = "<group>"; };
 		7C452D312E1AE2DE00A0C1B3 /* MainAKTViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainAKTViewModel.swift; sourceTree = "<group>"; };
 		7C452D332E1AE37700A0C1B3 /* Akt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Akt.swift; sourceTree = "<group>"; };
-		9B6B3AB2CE464A6289142764 /* VersionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionManager.swift; sourceTree = "<group>"; };
 		7C452D382E1AE9A600A0C1B3 /* DataFlowAKT.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataFlowAKT.swift; sourceTree = "<group>"; };
 		7C452D3A2E1AEB5D00A0C1B3 /* UIFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIFactory.swift; sourceTree = "<group>"; };
 		7C452D3C2E1AEFF100A0C1B3 /* DataFlowComission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataFlowComission.swift; sourceTree = "<group>"; };
+		7C452D3E2E1B000000A0C1B3 /* SystemErrorHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemErrorHandler.swift; sourceTree = "<group>"; };
 		7C452DD22E1B0A6300A0C1B3 /* DataFlowOrganizations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataFlowOrganizations.swift; sourceTree = "<group>"; };
 		7C5BD9182E1D5E8100E39873 /* ViolationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViolationModel.swift; sourceTree = "<group>"; };
 		7C6045022E3D427A0054EA06 /* Confetti.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Confetti.json; sourceTree = "<group>"; };
@@ -59,6 +64,11 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		6D5F670C8B7E45A6BD0D97F153F7E3F6 /* ReportsTab */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ReportsTab;
+			sourceTree = "<group>";
+		};
 		7C2744CA2E1C1CB800838AC7 /* ObjectReview */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = ObjectReview;
@@ -104,6 +114,11 @@
 			path = Predstavitely;
 			sourceTree = "<group>";
 		};
+		83CE0D622EE248F6ACEB0079889ED319 /* EliminationTab */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = EliminationTab;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -115,6 +130,7 @@
 				7C5BD9642E1D6C1C00E39873 /* CoreXLSX in Frameworks */,
 				7C452D052E1ADB9B00A0C1B3 /* SnapKit in Frameworks */,
 				7C6045012E3D41470054EA06 /* Lottie in Frameworks */,
+				7C6045062E3D41480054EA06 /* ZIPFoundation in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -150,12 +166,12 @@
 			children = (
 				7C5BD9172E1D5E6300E39873 /* ViolationsFlow */,
 				7C452D332E1AE37700A0C1B3 /* Akt.swift */,
-				9B6B3AB2CE464A6289142764 /* VersionManager.swift */,
 				7C452D382E1AE9A600A0C1B3 /* DataFlowAKT.swift */,
 				7C452DD22E1B0A6300A0C1B3 /* DataFlowOrganizations.swift */,
 				7C2744CD2E1C1FA600838AC7 /* DataFlowObjectsReview.swift */,
 				7C452D3C2E1AEFF100A0C1B3 /* DataFlowComission.swift */,
 				7CB5A3CF2E32BFF000D68079 /* DataFlowPredstavitely.swift */,
+				7C452D112E1ADCCF00A0C1B5 /* VersionHistoryModel.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -168,6 +184,7 @@
 				7C452CF42E1ADB3200A0C1B3 /* LaunchScreen.storyboard */,
 				7C452CF62E1ADB3200A0C1B3 /* Main.storyboard */,
 				7C452CF72E1ADB3200A0C1B3 /* SceneDelegate.swift */,
+				7C452D3E2E1B000000A0C1B3 /* SystemErrorHandler.swift */,
 				7C6045022E3D427A0054EA06 /* Confetti.json */,
 			);
 			path = Other;
@@ -180,6 +197,8 @@
 				7C452D092E1ADCAB00A0C1B3 /* HistoryTab */,
 				7C452D082E1ADC9B00A0C1B3 /* StartTab */,
 				7C452D022E1ADB8100A0C1B3 /* TabBar */,
+				6D5F670C8B7E45A6BD0D97F153F7E3F6 /* ReportsTab */,
+				83CE0D622EE248F6ACEB0079889ED319 /* EliminationTab */,
 			);
 			path = Screens;
 			sourceTree = "<group>";
@@ -212,6 +231,7 @@
 			children = (
 				7C452D352E1AE60E00A0C1B3 /* NewAKT */,
 				7C452D0B2E1ADCC500A0C1B3 /* StartTabViewController.swift */,
+				7C452D0F2E1ADCCF00A0C1B4 /* VersionHistoryViewController.swift */,
 			);
 			path = StartTab;
 			sourceTree = "<group>";
@@ -262,6 +282,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
+				6D5F670C8B7E45A6BD0D97F153F7E3F6 /* ReportsTab */,
 				7C2744CA2E1C1CB800838AC7 /* ObjectReview */,
 				7C3ED67F2E21946900BDE5F4 /* Violations */,
 				7C3ED9312E258F7800BDE5F4 /* UserDescription */,
@@ -271,6 +292,7 @@
 				7C452DD72E1B0EB600A0C1B3 /* StartScreen */,
 				7CAC4F442E297BED00EC6735 /* CompleteAkt */,
 				7CB5A3CC2E32BE5B00D68079 /* Predstavitely */,
+				83CE0D622EE248F6ACEB0079889ED319 /* EliminationTab */,
 			);
 			name = Gazprom;
 			packageProductDependencies = (
@@ -278,6 +300,7 @@
 				7C5BD9632E1D6C1C00E39873 /* CoreXLSX */,
 				7C5BD9692E1D802300E39873 /* xlsxwriter */,
 				7C6045002E3D41470054EA06 /* Lottie */,
+				7C6045052E3D41480054EA06 /* ZIPFoundation */,
 			);
 			productName = Gazprom;
 			productReference = 7C452CC92E1ADAE700A0C1B3 /* Gazprom.app */;
@@ -303,6 +326,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				ru,
 				Base,
 			);
 			mainGroup = 7C452CC02E1ADAE700A0C1B3;
@@ -312,6 +336,7 @@
 				7C5BD9622E1D6C1C00E39873 /* XCRemoteSwiftPackageReference "CoreXLSX" */,
 				7C5BD9682E1D802300E39873 /* XCRemoteSwiftPackageReference "xlsxwriter" */,
 				7C6044FF2E3D41470054EA06 /* XCRemoteSwiftPackageReference "lottie-ios" */,
+				7C6045042E3D41480054EA06 /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7C452CCA2E1ADAE700A0C1B3 /* Products */;
@@ -349,7 +374,6 @@
 				7C452D392E1AE9A600A0C1B3 /* DataFlowAKT.swift in Sources */,
 				7CB5A3D02E32BFF000D68079 /* DataFlowPredstavitely.swift in Sources */,
 				7C452D342E1AE37700A0C1B3 /* Akt.swift in Sources */,
-				E1EE7C380EEB4794B690FBD3 /* VersionManager.swift in Sources */,
 				7C452D3B2E1AEB5D00A0C1B3 /* UIFactory.swift in Sources */,
 				7C452D0E2E1ADCCF00A0C1B3 /* HistoryTabViewController.swift in Sources */,
 				7C5BD9192E1D5E8100E39873 /* ViolationModel.swift in Sources */,
@@ -358,6 +382,9 @@
 				7C452CFB2E1ADB3200A0C1B3 /* SceneDelegate.swift in Sources */,
 				7C452D322E1AE2DE00A0C1B3 /* MainAKTViewModel.swift in Sources */,
 				7C452D0C2E1ADCC500A0C1B3 /* StartTabViewController.swift in Sources */,
+				7C452D102E1ADCCF00A0C1B4 /* VersionHistoryViewController.swift in Sources */,
+				7C452D122E1ADCCF00A0C1B5 /* VersionHistoryModel.swift in Sources */,
+				7C452D3F2E1B000000A0C1B3 /* SystemErrorHandler.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -389,13 +416,15 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 42A39A63SW;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Gazprom/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "АПК_ГИ";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Разрешите доступ к камере";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Разрешите доступ к камере для фотографирования документов";
+				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "Разрешите доступ к папке документов для сохранения АКТ";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Разрешите доступ к галерее для выбора фотографий документов";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
@@ -405,7 +434,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 9.6;
 				PRODUCT_BUNDLE_IDENTIFIER = k.test.Gazprom;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -424,13 +453,15 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 42A39A63SW;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Gazprom/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "АПК_ГИ";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Разрешите доступ к камере";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Разрешите доступ к камере для фотографирования документов";
+				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "Разрешите доступ к папке документов для сохранения АКТ";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Разрешите доступ к галерее для выбора фотографий документов";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
@@ -440,7 +471,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 9.6;
 				PRODUCT_BUNDLE_IDENTIFIER = k.test.Gazprom;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -628,6 +659,14 @@
 				minimumVersion = 4.5.2;
 			};
 		};
+		7C6045042E3D41480054EA06 /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/weichsel/ZIPFoundation.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.19;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -650,6 +689,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 7C6044FF2E3D41470054EA06 /* XCRemoteSwiftPackageReference "lottie-ios" */;
 			productName = Lottie;
+		};
+		7C6045052E3D41480054EA06 /* ZIPFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7C6045042E3D41480054EA06 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

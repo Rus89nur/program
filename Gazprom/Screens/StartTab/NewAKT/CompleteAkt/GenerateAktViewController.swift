@@ -53,16 +53,28 @@ class GenerateAktViewController: UIViewController, QLPreviewControllerDelegate, 
         viewModel.templateModel.ustranenDatePicker = ustranenDatePicker.date
         viewModel.templateModel.predostavlenDatePicker = predostavlenDatePicker.date
         viewModel.templateModel.utverzdenDatePicker = utverzdenDatePicker.date
+        
+        // Очищаем callback при уходе с экрана
+        viewModel.templateModel.autoSaveCallback = nil
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         title = "Генерация"
         
+        // Обновляем дату проверки из templateModel
+        if let templateDate = viewModel.templateModel.date {
+            date = templateDate
+        }
+        
+        // Сначала проверяем, есть ли сохраненные даты
         if let ustran = viewModel.templateModel.ustranenDatePicker, let predos = viewModel.templateModel.predostavlenDatePicker, let utverzd = viewModel.templateModel.utverzdenDatePicker {
             ustranenDatePicker.date = ustran
             predostavlenDatePicker.date = predos
             utverzdenDatePicker.date = utverzd
+        } else {
+            // Если сохраненных дат нет, устанавливаем даты по умолчанию
+            ustranenDateChanged()
         }
         setupNav()
     }
@@ -85,16 +97,23 @@ class GenerateAktViewController: UIViewController, QLPreviewControllerDelegate, 
     
     let bigIndicator: UIActivityIndicatorView = {
         let view = UIActivityIndicatorView(style: .large)
-        view.backgroundColor = .black.withAlphaComponent(0.3)
-        view.color = .white
+        view.backgroundColor = .systemBackground.withAlphaComponent(0.8)
+        view.color = .label
         return view
     }()
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
+        view.backgroundColor = .systemBackground
         setupUI()
         checkOld()
+        
+        // Добавляем observer для автоматического пересчета дат при изменении даты проверки
+        viewModel.templateModel.autoSaveCallback = { [weak self] in
+            DispatchQueue.main.async {
+                self?.updateDatesFromTemplate()
+            }
+        }
     }
     
     private func checkOld() {
@@ -124,10 +143,20 @@ class GenerateAktViewController: UIViewController, QLPreviewControllerDelegate, 
         }
         selectButton.addTarget(self, action: #selector(selectShab), for: .touchUpInside)
         
+        // Кнопка для пересчета дат
+        let recalculateButton = UIFactory.createButton(title: "Пересчитать даты", color: .systemOrange)
+        view.addSubview(recalculateButton)
+        recalculateButton.snp.makeConstraints { make in
+            make.left.right.equalToSuperview().inset(16)
+            make.height.equalTo(54)
+            make.top.equalTo(selectButton.snp.bottom).offset(8)
+        }
+        recalculateButton.addTarget(self, action: #selector(recalculateDates), for: .touchUpInside)
+        
         
         let ustranenDateLabel = UILabel()
         ustranenDateLabel.text = "Дата устранения нарушений:"
-        ustranenDateLabel.textColor = .black
+        ustranenDateLabel.textColor = .label
         ustranenDateLabel.font = .systemFont(ofSize: 16, weight: .regular)
         view.addSubview(ustranenDateLabel)
         ustranenDateLabel.snp.makeConstraints { make in
@@ -146,7 +175,7 @@ class GenerateAktViewController: UIViewController, QLPreviewControllerDelegate, 
         
         let predostavlenDateLabel = UILabel()
         predostavlenDateLabel.text = "Дата предоставления:"
-        predostavlenDateLabel.textColor = .black
+        predostavlenDateLabel.textColor = .label
         predostavlenDateLabel.font = .systemFont(ofSize: 16, weight: .regular)
         view.addSubview(predostavlenDateLabel)
         predostavlenDateLabel.snp.makeConstraints { make in
@@ -167,7 +196,7 @@ class GenerateAktViewController: UIViewController, QLPreviewControllerDelegate, 
         
         let utverzdenDateLabel = UILabel()
         utverzdenDateLabel.text = "Дата утверждения:"
-        utverzdenDateLabel.textColor = .black
+        utverzdenDateLabel.textColor = .label
         utverzdenDateLabel.font = .systemFont(ofSize: 16, weight: .regular)
         view.addSubview(utverzdenDateLabel)
         utverzdenDateLabel.snp.makeConstraints { make in
@@ -198,19 +227,59 @@ class GenerateAktViewController: UIViewController, QLPreviewControllerDelegate, 
     
     @objc private func ustranenDateChanged() {
         let proverkaDate = date
+        
+        // Дата устранения = +1 месяц от даты проверки
+        if let ustranenDate = Calendar.current.date(byAdding: .month, value: 1, to: proverkaDate) {
+            ustranenDatePicker.date = ustranenDate
             
-            // Дата устранения = +1 месяц от даты проверки
-            if let ustranenDate = Calendar.current.date(byAdding: .month, value: 1, to: proverkaDate) {
-                ustranenDatePicker.date = ustranenDate
-                
-                // Дата предоставления отчета = дата устранения
-                predostavlenDatePicker.date = ustranenDate
-            }
-            
-            // Дата утверждения = +7 дней от даты проверки
-            if let utverzdenDate = Calendar.current.date(byAdding: .day, value: 7, to: proverkaDate) {
-                utverzdenDatePicker.date = utverzdenDate
-            }
+            // Дата предоставления отчета = дата устранения (тоже +1 месяц от даты проверки)
+            predostavlenDatePicker.date = ustranenDate
+        }
+        
+        // Дата утверждения = +7 дней от даты проверки
+        if let utverzdenDate = Calendar.current.date(byAdding: .day, value: 7, to: proverkaDate) {
+            utverzdenDatePicker.date = utverzdenDate
+        }
+        
+        // Сохраняем рассчитанные даты в модель
+        viewModel.templateModel.ustranenDatePicker = ustranenDatePicker.date
+        viewModel.templateModel.predostavlenDatePicker = predostavlenDatePicker.date
+        viewModel.templateModel.utverzdenDatePicker = utverzdenDatePicker.date
+        
+        print("📅 Даты пересчитаны:")
+        print("   Дата проверки: \(proverkaDate)")
+        print("   Дата устранения: \(ustranenDatePicker.date)")
+        print("   Дата предоставления: \(predostavlenDatePicker.date)")
+        print("   Дата утверждения: \(utverzdenDatePicker.date)")
+    }
+    
+    @objc private func recalculateDates() {
+        // Обновляем дату проверки из templateModel
+        if let templateDate = viewModel.templateModel.date {
+            date = templateDate
+        }
+        
+        // Пересчитываем даты
+        ustranenDateChanged()
+        
+        // Показываем уведомление пользователю
+        let alert = UIAlertController(title: "Даты пересчитаны", message: "Даты обновлены согласно текущей дате проверки", preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
+    
+    private func updateDatesFromTemplate() {
+        // Обновляем дату проверки из templateModel
+        if let templateDate = viewModel.templateModel.date {
+            date = templateDate
+        }
+        
+        // Пересчитываем даты только если они не были установлены вручную
+        if viewModel.templateModel.ustranenDatePicker == nil || 
+           viewModel.templateModel.predostavlenDatePicker == nil || 
+           viewModel.templateModel.utverzdenDatePicker == nil {
+            ustranenDateChanged()
+        }
     }
     
     @objc private func openAlert() {
@@ -258,22 +327,39 @@ class GenerateAktViewController: UIViewController, QLPreviewControllerDelegate, 
                         guard let self = self else { return }
                         bigIndicator.stopAnimating()
                         if let unwURL = url {
-                            let act = AKT(
-                                number: aktNumber,
-                                date: date,
-                                comission: comissionPeople,
-                                organization: organizations.first ?? Organization(title: "-"),
-                                objectsCheck: objectCheck,
-                                predstavitelyComission: predstavitely,
-                                violations: violations,
-                                description: descripUser,
-                                actustranenDate: ustranenDatePicker.date,
-                                actPredostavlenDate: predostavlenDatePicker.date,
-                                actUtverzdenDate: utverzdenDatePicker.date,
-                                urlAct: unwURL, realDateCreate: Date.now
-                            )
-                            viewModel.aktArray.append(act)
-                            DataFlowAKT.saveArr(arr: viewModel.aktArray)
+                            // Если это редактирование существующего акта, обновляем его
+                            if let existingAkt = self.akt {
+                                print("🔄 Редактируем существующий акт №\(existingAkt.number) с ID: \(existingAkt.id)")
+                                let updatedAkt = existingAkt.updated(with: unwURL)
+                                print("   Обновленный акт с ID: \(updatedAkt.id)")
+                                
+                                // Сохраняем изменения в редактируемый акт
+                                viewModel.saveChangesToEditableAkt(updatedAkt)
+                                print("   ✅ Изменения сохранены в редактируемый акт")
+                            } else {
+                                print("➕ Создаем новый акт №\(aktNumber)")
+                                // Если это новый акт, создаем его
+                                let act = AKT(
+                                    number: aktNumber,
+                                    date: date,
+                                    comission: comissionPeople,
+                                    organization: organizations.first ?? Organization(title: "-"),
+                                    objectsCheck: objectCheck,
+                                    predstavitelyComission: predstavitely,
+                                    violations: violations,
+                                    description: descripUser,
+                                    actustranenDate: ustranenDatePicker.date,
+                                    actPredostavlenDate: predostavlenDatePicker.date,
+                                    actUtverzdenDate: utverzdenDatePicker.date,
+                                    urlAct: unwURL, realDateCreate: Date.now
+                                )
+                                print("   Новый акт с ID: \(act.id)")
+                                
+                                // Создаем новый акт и делаем его редактируемым
+                                viewModel.createNewAktAndMakeEditable(act)
+                                print("   ✅ Новый акт создан и сделан редактируемым")
+                            }
+                            
                             openDoc(url: unwURL)
                         }
                     }
@@ -298,10 +384,39 @@ class GenerateAktViewController: UIViewController, QLPreviewControllerDelegate, 
 //    }
     
     private func openDoc(url: URL) {
+        // Проверяем существование файла
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            print("❌ Файл не существует: \(url.path)")
+            showAlert(title: "Ошибка", message: "Файл не найден или недоступен")
+            return
+        }
+        
+        // Проверяем размер файла
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+            let fileSize = attributes[.size] as? NSNumber ?? 0
+            if fileSize.intValue == 0 {
+                print("❌ Файл пустой: \(url.path)")
+                showAlert(title: "Ошибка", message: "Файл пустой или поврежден")
+                return
+            }
+        } catch {
+            print("❌ Ошибка при проверке файла: \(error)")
+            showAlert(title: "Ошибка", message: "Не удалось проверить файл")
+            return
+        }
+        
         self.documentURL = url
         let previewController = QLPreviewController()
         previewController.dataSource = self
+        previewController.delegate = self
         self.present(previewController, animated: true, completion: nil)
+    }
+    
+    private func showAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
     
     func numberOfPreviewItems(in controller: QLPreviewController) -> Int {

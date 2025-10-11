@@ -6,12 +6,16 @@
 //
 
 import UIKit
+import Foundation
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        
+        // Настраиваем обработку ошибок
+        setupErrorHandling()
         
         // Устанавливаем русскую локализацию через UserDefaults
         UserDefaults.standard.set(["ru"], forKey: "AppleLanguages")
@@ -20,21 +24,55 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Инициализируем русские контекстные меню
         setupRussianMenus()
         
-        // Инициализируем систему версий
-        setupVersionManager()
+        // Инициализируем систему нарушений
+        setupViolationsSystem()
         
         return true
     }
     
-    private func setupVersionManager() {
-        // Синхронизируем версию с Info.plist
-        VersionManager.shared.syncWithInfoPlist()
+    private func setupErrorHandling() {
+        // Настраиваем обработку необработанных исключений
+        NSSetUncaughtExceptionHandler { exception in
+            print("❌ Необработанное исключение: \(exception)")
+            print("❌ Стек вызовов: \(exception.callStackSymbols)")
+        }
         
-        // Автоматически увеличиваем build number при каждом запуске
-        VersionManager.shared.autoIncrementBuild()
+        // Настраиваем обработку сигналов
+        signal(SIGABRT) { _ in
+            print("❌ Получен сигнал SIGABRT")
+        }
         
-        // Добавляем версию в историю
-        VersionManager.shared.addVersionToHistory()
+        signal(SIGILL) { _ in
+            print("❌ Получен сигнал SIGILL")
+        }
+        
+        signal(SIGSEGV) { _ in
+            print("❌ Получен сигнал SIGSEGV")
+        }
+        
+        signal(SIGFPE) { _ in
+            print("❌ Получен сигнал SIGFPE")
+        }
+        
+        signal(SIGBUS) { _ in
+            print("❌ Получен сигнал SIGBUS")
+        }
+        
+        signal(SIGPIPE) { _ in
+            print("❌ Получен сигнал SIGPIPE")
+        }
+        
+        // Настраиваем системный обработчик ошибок
+        SystemErrorHandler.shared.setupErrorHandling()
+    }
+    
+    
+    private func setupViolationsSystem() {
+        // Инициализируем систему нарушений
+        // Это вызовет проверку первого запуска и очистку данных при необходимости
+        _ = ViolationsModel.returnAvialableViolation()
+        
+        print("✅ Система нарушений инициализирована")
     }
     
     private func setupRussianMenus() {
@@ -46,7 +84,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Перехватываем системные строки локализации
         DispatchQueue.main.async {
             // Устанавливаем русскую локализацию для системных строк
-            UserDefaults.standard.set("ru", forKey: "AppleLanguages")
+            UserDefaults.standard.set(["ru"], forKey: "AppleLanguages")
             UserDefaults.standard.synchronize()
             
             // Принудительно обновляем локализацию через swizzling

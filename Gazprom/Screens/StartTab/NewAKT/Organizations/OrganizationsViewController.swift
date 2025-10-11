@@ -74,9 +74,33 @@ class OrganizationsViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
+        view.backgroundColor = .systemBackground
         setupUI()
         checkOld()
+        
+        // Настройка темной темы
+        setupDarkTheme()
+    }
+    
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        
+        // Обновляем интерфейс при изменении темы
+        if traitCollection.userInterfaceStyle != previousTraitCollection?.userInterfaceStyle {
+            setupDarkTheme()
+            collection.reloadData()
+        }
+    }
+    
+    private func setupDarkTheme() {
+        // Настройка для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            view.backgroundColor = .systemBackground
+            collection.backgroundColor = .clear
+        } else {
+            view.backgroundColor = .systemBackground
+            collection.backgroundColor = .clear
+        }
     }
     
     private func setupViewModel() {
@@ -137,8 +161,11 @@ extension OrganizationsViewController: UICollectionViewDelegate, UICollectionVie
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "1", for: indexPath)
         cell.subviews.forEach { $0.removeFromSuperview() }
-        cell.backgroundColor = .black.withAlphaComponent(0.05)
-        cell.layer.cornerRadius = 16
+        
+        // Настройка внешнего вида ячейки в стиле настроек
+        cell.backgroundColor = .systemGray6
+        cell.layer.cornerRadius = 20
+        cell.clipsToBounds = true
         
         if indexPath.row == viewModel.organizationsArray.count {
             let button = UIFactory.createButton(title: "Добавить", color: .clear)
@@ -172,6 +199,12 @@ extension OrganizationsViewController: UICollectionViewDelegate, UICollectionVie
             let title = UIFactory.createlabel(title: item.title)
             title.numberOfLines = 1
             title.font = .systemFont(ofSize: 16, weight: .medium)
+            // Улучшенный контраст для темной темы
+            if traitCollection.userInterfaceStyle == .dark {
+                title.textColor = .white
+            } else {
+                title.textColor = .black
+            }
             cell.addSubview(title)
             title.snp.makeConstraints { make in
                 make.left.equalToSuperview().inset(16)

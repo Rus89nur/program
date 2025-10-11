@@ -220,8 +220,14 @@ class DraftManager {
 class MainAKTViewModel {
     
     var collectionReloadBinding: (()->())?
+    var continueButtonUpdateBinding: (()->())?
     
     lazy var aktArray: [AKT] = DataFlowAKT.loadArr()
+    
+    // MARK: - Refresh Data
+    func refreshAktArray() {
+        aktArray = DataFlowAKT.loadArr()
+    }
     lazy var comissionArray: [ComissionPeople] = DataFlowComission.loadArr()
     lazy var organizationsArray: [Organization] = DataFlowOrganizations.loadArr()
     lazy var objectCheckArray: [ObjectCheck] = DataFlowObjectsReview.loadArr()
@@ -231,10 +237,18 @@ class MainAKTViewModel {
     // Последний открытый АКТ для кнопки "Продолжить заполнение"
     private var lastOpenedAkt: AKT?
     
+    // Ключ для сохранения последнего открытого акта в UserDefaults
+    private let lastOpenedAktKey = "LastOpenedAktId"
+    
     // MARK: - Draft Management
     func saveDraft(currentStep: AKTCreationStep) {
         if let draft = DraftManager.shared.createDraftFromTemplate(templateModel, currentStep: currentStep) {
             DraftManager.shared.saveDraft(draft)
+            
+            // Уведомляем о необходимости обновления кнопки "Продолжить"
+            DispatchQueue.main.async {
+                self.continueButtonUpdateBinding?()
+            }
         }
     }
     
@@ -248,19 +262,138 @@ class MainAKTViewModel {
     
     func deleteDraft() {
         DraftManager.shared.deleteDraft()
+        
+        // Уведомляем о необходимости обновления кнопки "Продолжить"
+        DispatchQueue.main.async {
+            self.continueButtonUpdateBinding?()
+        }
     }
     
     // MARK: - Last Opened AKT Management
     func setLastOpenedAkt(_ akt: AKT?) {
         lastOpenedAkt = akt
+        if let akt = akt {
+            // Сохраняем ID последнего открытого акта в UserDefaults
+            UserDefaults.standard.set(akt.id.uuidString, forKey: lastOpenedAktKey)
+        } else {
+            // Очищаем сохраненный ID
+            UserDefaults.standard.removeObject(forKey: lastOpenedAktKey)
+        }
+        
+        // Уведомляем о необходимости обновления кнопки "Продолжить"
+        DispatchQueue.main.async {
+            self.continueButtonUpdateBinding?()
+        }
     }
     
     func getLastOpenedAkt() -> AKT? {
-        return lastOpenedAkt
+        // Всегда проверяем UserDefaults, чтобы получить актуальный ID
+        if let lastOpenedAktIdString = UserDefaults.standard.string(forKey: lastOpenedAktKey) {
+            if let lastOpenedAktId = UUID(uuidString: lastOpenedAktIdString) {
+                // Ищем акт в обновленном массиве актов
+                lastOpenedAkt = aktArray.first { $0.id == lastOpenedAktId }
+                return lastOpenedAkt
+            }
+        } else {
+            lastOpenedAkt = nil
+        }
+        
+        return nil
     }
     
     func clearLastOpenedAkt() {
         lastOpenedAkt = nil
+        UserDefaults.standard.removeObject(forKey: lastOpenedAktKey)
+        
+        // Уведомляем о необходимости обновления кнопки "Продолжить"
+        DispatchQueue.main.async {
+            self.continueButtonUpdateBinding?()
+        }
+    }
+    
+    // MARK: - Get Last Akt for Continue
+    func getLastAktForContinue() -> AKT? {
+        // Обновляем массив актов перед поиском
+        refreshAktArray()
+        
+        // Новая логика: приоритет редактируемому акту
+        
+        // 1. Если есть черновик - значит последним делали новый акт
+        if hasDraft() {
+            return nil // Черновик обрабатывается отдельно
+        }
+        
+        // 2. Если есть редактируемый акт - значит последним редактировали акт
+        if let editableAkt = DataFlowAKT.getEditableAKT() {
+            return editableAkt.akt
+        }
+        
+        // 3. Если есть последний открытый акт - значит последним открывали из истории
+        if let lastOpened = getLastOpenedAkt() {
+            return lastOpened
+        }
+        
+        // 4. Если ничего не найдено - показываем пустую кнопку
+        return nil
+    }
+    
+    // MARK: - Editable AKT Management
+    func getEditableAktInfo() -> (akt: AKT, violationsCount: Int)? {
+        guard let editableAkt = DataFlowAKT.getEditableAKT() else { return nil }
+        return (editableAkt.akt, editableAkt.akt.violations.count)
+    }
+    
+    func createEditableAKT(from akt: AKT) {
+        _ = DataFlowAKT.createEditableAKT(from: akt)
+        
+        // Уведомляем о необходимости обновления кнопки "Продолжить"
+        DispatchQueue.main.async {
+            self.continueButtonUpdateBinding?()
+        }
+    }
+    
+    func updateEditableAKT(_ updatedAkt: AKT) {
+        DataFlowAKT.updateEditableAKT(updatedAkt)
+        
+        // Уведомляем о необходимости обновления кнопки "Продолжить"
+        DispatchQueue.main.async {
+            self.continueButtonUpdateBinding?()
+        }
+    }
+    
+    func finalizeEditableAKT() -> AKT? {
+        guard let finalAkt = DataFlowAKT.finalizeEditableAKT() else { return nil }
+        
+        // Добавляем финальный акт в историю
+        addNewAktToArray(finalAkt)
+        
+        // Уведомляем о необходимости обновления кнопки "Продолжить"
+        DispatchQueue.main.async {
+            self.continueButtonUpdateBinding?()
+        }
+        
+        return finalAkt
+    }
+    
+    func moveEditableToHistory() {
+        DataFlowAKT.moveEditableToHistory()
+        
+        // Обновляем массив актов
+        refreshAktArray()
+        
+        // Уведомляем о необходимости обновления кнопки "Продолжить"
+        DispatchQueue.main.async {
+            self.continueButtonUpdateBinding?()
+        }
+    }
+    
+    func replaceEditableAKT(with newAkt: AKT) {
+        DataFlowAKT.replaceEditableAKT(with: newAkt)
+        
+        // Уведомляем о необходимости обновления кнопки "Продолжить"
+        DispatchQueue.main.async {
+            self.continueButtonUpdateBinding?()
+        }
     }
     
     func getDraftInfo() -> (step: AKTCreationStep, violationsCount: Int)? {
@@ -523,6 +656,114 @@ class MainAKTViewModel {
             DataFlowComission.saveArr(arr: comissionArray)
             escaping(true)
         }
+    }
+    
+    // MARK: - AKT Array Management
+    func updateAktInArray(_ updatedAkt: AKT) {
+        // Находим индекс акта в массиве по ID
+        if let index = aktArray.firstIndex(where: { $0.id == updatedAkt.id }) {
+            // Обновляем акт в массиве
+            aktArray[index] = updatedAkt
+            // Сохраняем обновленный массив
+            DataFlowAKT.saveArr(arr: aktArray)
+            print("✅ АКТ обновлен в массиве: №\(updatedAkt.number)")
+        } else {
+            print("❌ Акт с ID \(updatedAkt.id) не найден в массиве для обновления!")
+            print("   Доступные ID в массиве: \(aktArray.map { $0.id })")
+        }
+        
+        // Уведомляем о необходимости обновления коллекции
+        DispatchQueue.main.async {
+            self.collectionReloadBinding?()
+        }
+    }
+    
+    func addNewAktToArray(_ newAkt: AKT) {
+        // Добавляем новый акт в массив
+        aktArray.append(newAkt)
+        DataFlowAKT.saveArr(arr: aktArray)
+        print("✅ Новый АКТ добавлен в массив: №\(newAkt.number)")
+        
+        // Уведомляем о необходимости обновления коллекции
+        DispatchQueue.main.async {
+            self.collectionReloadBinding?()
+        }
+    }
+    
+    // MARK: - Number Validation
+    func isAktNumberAvailable(_ number: String, excludingAktId: UUID? = nil) -> Bool {
+        // Обновляем массив актов
+        refreshAktArray()
+        
+        // Проверяем, есть ли акт с таким номером (исключая текущий акт при редактировании)
+        let existingAkt = aktArray.first { akt in
+            akt.number == number && (excludingAktId == nil || akt.id != excludingAktId)
+        }
+        
+        return existingAkt == nil
+    }
+    
+    func getOccupiedAktNumbers() -> Set<String> {
+        // Обновляем массив актов
+        refreshAktArray()
+        
+        // Возвращаем множество занятых номеров
+        return Set(aktArray.map { $0.number })
+    }
+    
+    func getNextAvailableAktNumber() -> String {
+        let occupiedNumbers = getOccupiedAktNumbers()
+        var number = 1
+        
+        while occupiedNumbers.contains("\(number)") {
+            number += 1
+        }
+        
+        return "\(number)"
+    }
+
+    // MARK: - New AKT Creation with Editable System
+    func createNewAktAndMakeEditable(_ newAkt: AKT) {
+        // Создаем редактируемый акт
+        createEditableAKT(from: newAkt)
+        
+        // Очищаем черновик при создании нового акта
+        deleteDraft()
+        
+        print("✅ Новый АКТ №\(newAkt.number) создан и сделан редактируемым")
+    }
+    
+    // MARK: - Edit Existing AKT
+    func editExistingAkt(_ akt: AKT) {
+        // Создаем редактируемый акт из существующего
+        createEditableAKT(from: akt)
+        
+        // Очищаем черновик при редактировании акта
+        deleteDraft()
+        
+        // Сохраняем акт как последний открытый
+        setLastOpenedAkt(akt)
+        
+        print("✅ АКТ №\(akt.number) сделан редактируемым для продолжения")
+    }
+    
+    // MARK: - Save Changes to Editable AKT
+    func saveChangesToEditableAkt(_ updatedAkt: AKT) {
+        // Обновляем редактируемый акт
+        updateEditableAKT(updatedAkt)
+        
+        print("✅ Изменения сохранены в редактируемый АКТ №\(updatedAkt.number)")
+    }
+    
+    // MARK: - Finalize Editable AKT (move to history)
+    func finalizeEditableAktToHistory() {
+        // Перемещаем редактируемый акт в историю
+        moveEditableToHistory()
+        
+        // Очищаем последний открытый акт
+        clearLastOpenedAkt()
+        
+        print("✅ Редактируемый АКТ финализирован и перемещен в историю")
     }
     
     

@@ -81,10 +81,25 @@ class ViolationPreviewViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         configureContent()
+        
+        // Настройка темной темы
+        setupDarkTheme()
+    }
+    
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        
+        // Обновляем интерфейс при изменении темы
+        if traitCollection.userInterfaceStyle != previousTraitCollection?.userInterfaceStyle {
+            setupDarkTheme()
+        }
     }
     
     private func setupUI() {
         view.backgroundColor = .systemBackground
+        
+        // Настройка темной темы
+        setupDarkTheme()
         
         // Настройка навигации
         navigationItem.title = "Предварительный просмотр"
@@ -114,6 +129,29 @@ class ViolationPreviewViewController: UIViewController {
         contentView.addSubview(typeLabel)
         
         setupConstraints()
+    }
+    
+    private func setupDarkTheme() {
+        // Настройка для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            view.backgroundColor = .systemBackground
+            scrollView.backgroundColor = .systemBackground
+            contentView.backgroundColor = .systemBackground
+            
+            // Обновляем цвета текста для темной темы
+            titleLabel.textColor = .white
+            numberLabel.textColor = .systemBlue
+            descriptionLabel.textColor = .white.withAlphaComponent(0.9)
+            referenceLabel.textColor = .systemGreen
+            typeLabel.textColor = .systemOrange
+        } else {
+            // Светлая тема
+            titleLabel.textColor = .label
+            numberLabel.textColor = .systemBlue
+            descriptionLabel.textColor = .secondaryLabel
+            referenceLabel.textColor = .systemGreen
+            typeLabel.textColor = .systemOrange
+        }
     }
     
     private func setupConstraints() {

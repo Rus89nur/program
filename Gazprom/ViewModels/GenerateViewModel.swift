@@ -7,6 +7,7 @@
 
 import Foundation
 import UIKit
+import ZIPFoundation
 
 class GenerateViewModel {
     
@@ -175,7 +176,8 @@ class GenerateViewModel {
                 of: "<w:tr[^>]*>(?:(?!<\\/w:tr>).)*?tempOne.*?<\\/w:tr>",
                 options: [.regularExpression]
             ) else {
-                print("❌ Не удалось найти шаблон строки с numbPho")
+                print("❌ Не удалось найти шаблон строки с tempOne")
+                completion(nil)
                 return
             }
 

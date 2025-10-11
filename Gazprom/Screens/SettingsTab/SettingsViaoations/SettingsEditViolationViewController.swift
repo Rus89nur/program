@@ -44,6 +44,7 @@ class SettingsEditViolationViewController: UIViewController {
         textField.layer.borderColor = UIColor.systemGray4.cgColor
         textField.textColor = .label
         textField.font = .systemFont(ofSize: 16, weight: .regular)
+        textField.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
         textField.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 0))
         textField.leftViewMode = .always
         textField.rightView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 0))
@@ -72,6 +73,7 @@ class SettingsEditViolationViewController: UIViewController {
         textView.textContainerInset = UIEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
         textView.isScrollEnabled = true
         textView.showsVerticalScrollIndicator = true
+        textView.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
         return textView
     }()
     
@@ -95,6 +97,7 @@ class SettingsEditViolationViewController: UIViewController {
         textView.textContainerInset = UIEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
         textView.isScrollEnabled = true
         textView.showsVerticalScrollIndicator = true
+        textView.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
         return textView
     }()
     
@@ -118,6 +121,7 @@ class SettingsEditViolationViewController: UIViewController {
         textView.textContainerInset = UIEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
         textView.isScrollEnabled = true
         textView.showsVerticalScrollIndicator = true
+        textView.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
         return textView
     }()
     
@@ -141,6 +145,7 @@ class SettingsEditViolationViewController: UIViewController {
         textView.textContainerInset = UIEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
         textView.isScrollEnabled = true
         textView.showsVerticalScrollIndicator = true
+        textView.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
         return textView
     }()
     
@@ -190,6 +195,9 @@ class SettingsEditViolationViewController: UIViewController {
     private func setupUI() {
         view.backgroundColor = .systemBackground
         
+        // Настройка темной темы
+        setupDarkTheme()
+        
         // Настройка навигации
         navigationItem.title = "Редактирование нарушения"
         navigationItem.leftBarButtonItem = UIBarButtonItem(
@@ -233,6 +241,15 @@ class SettingsEditViolationViewController: UIViewController {
         
         setupConstraints()
         setupActions()
+    }
+    
+    private func setupDarkTheme() {
+        // Настройка для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            view.backgroundColor = .systemBackground
+            scrollView.backgroundColor = .systemBackground
+            contentView.backgroundColor = .systemBackground
+        }
     }
     
     private func setupConstraints() {
@@ -313,6 +330,13 @@ class SettingsEditViolationViewController: UIViewController {
     private func setupActions() {
         saveButton.addTarget(self, action: #selector(saveButtonTapped), for: .touchUpInside)
         cancelButton.addTarget(self, action: #selector(cancelButtonTapped), for: .touchUpInside)
+        
+        // Настраиваем делегаты для текстовых полей
+        numberTextField.delegate = self
+        formulationTextView.delegate = self
+        referenceTextView.delegate = self
+        noteTextView.delegate = self
+        typeTextView.delegate = self
     }
     
     private func configureContent() {
@@ -326,6 +350,7 @@ class SettingsEditViolationViewController: UIViewController {
     private func setupKeyboardToolbar() {
         let toolbar = UIToolbar()
         toolbar.sizeToFit()
+        toolbar.translatesAutoresizingMaskIntoConstraints = false
         
         let doneButton = UIBarButtonItem(
             title: "Готово",
@@ -427,6 +452,11 @@ class SettingsEditViolationViewController: UIViewController {
         
         scrollView.contentInset.bottom = keyboardHeight
         scrollView.verticalScrollIndicatorInsets.bottom = keyboardHeight
+        
+        // Прокручиваем к активному текстовому полю
+        DispatchQueue.main.async {
+            self.scrollToActiveField()
+        }
     }
     
     @objc private func keyboardWillHide(notification: NSNotification) {
@@ -438,5 +468,56 @@ class SettingsEditViolationViewController: UIViewController {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "OK", style: .default))
         present(alert, animated: true)
+    }
+    
+    private func scrollToActiveField() {
+        var activeField: UIView?
+        
+        if numberTextField.isFirstResponder {
+            activeField = numberTextField
+        } else if formulationTextView.isFirstResponder {
+            activeField = formulationTextView
+        } else if referenceTextView.isFirstResponder {
+            activeField = referenceTextView
+        } else if noteTextView.isFirstResponder {
+            activeField = noteTextView
+        } else if typeTextView.isFirstResponder {
+            activeField = typeTextView
+        }
+        
+        guard let field = activeField else { return }
+        scrollToView(field)
+    }
+    
+    private func scrollToView(_ view: UIView) {
+        // Получаем frame поля в координатах scrollView
+        let viewFrame = view.convert(view.bounds, to: scrollView)
+        
+        // Вычисляем отступ сверху, чтобы поле было видно над клавиатурой
+        let targetY = viewFrame.minY - 20 // 20pt отступ сверху
+        
+        // Прокручиваем к нужной позиции
+        let contentOffset = CGPoint(x: 0, y: max(0, targetY))
+        scrollView.setContentOffset(contentOffset, animated: true)
+    }
+}
+
+// MARK: - UITextFieldDelegate
+extension SettingsEditViolationViewController: UITextFieldDelegate {
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+        // Прокручиваем к текстовому полю при начале редактирования
+        DispatchQueue.main.async {
+            self.scrollToView(textField)
+        }
+    }
+}
+
+// MARK: - UITextViewDelegate
+extension SettingsEditViolationViewController: UITextViewDelegate {
+    func textViewDidBeginEditing(_ textView: UITextView) {
+        // Прокручиваем к текстовому полю при начале редактирования
+        DispatchQueue.main.async {
+            self.scrollToView(textView)
+        }
     }
 }

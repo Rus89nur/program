@@ -27,13 +27,14 @@ class UserDescriptionViewController: UIViewController {
     
     let mainTextView: UITextView = {
         let view = UITextView()
-        view.backgroundColor = .white.withAlphaComponent(0.9)
+        view.backgroundColor = .systemGray6
         view.font = .systemFont(ofSize: 16, weight: .regular)
         view.layer.cornerRadius = 16
         view.layer.borderWidth = 1
         view.layer.borderColor = UIColor.systemGray.cgColor
         view.textContainerInset = .init(top: 16, left: 16, bottom: 16, right: 16)
-        view.textColor = .black
+        view.textColor = .label
+        view.tintColor = .white
         return view
     }()
     
@@ -87,9 +88,12 @@ class UserDescriptionViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
+        view.backgroundColor = .systemBackground
         stupUI()
         checkOld()
+        
+        // Настраиваем функциональность клавиатуры
+        setupKeyboardHandling()
     }
     
     private func checkOld() {
@@ -107,8 +111,7 @@ class UserDescriptionViewController: UIViewController {
             make.height.equalTo(250)
         }
         
-        let gestire = UITapGestureRecognizer(target: self, action: #selector(hideKB))
-        view.addGestureRecognizer(gestire)
+        // Обработчик тапа для сворачивания клавиатуры теперь настраивается в setupKeyboardHandling()
         
         let nextButton = UIFactory.createButton(title: "Далее", color: .systemBlue)
         view.addSubview(nextButton)
@@ -209,7 +212,16 @@ class UserDescriptionViewController: UIViewController {
         }
     }
 
-    @objc private func hideKB() {
+    // Метод hideKB удален - теперь используется dismissKeyboard из расширения
+    
+    private func setupKeyboardHandling() {
+        // Создаем обработчик тапа для сворачивания клавиатуры
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        tapGesture.cancelsTouchesInView = false
+        view.addGestureRecognizer(tapGesture)
+    }
+    
+    @objc private func dismissKeyboard() {
         view.endEditing(true)
     }
 

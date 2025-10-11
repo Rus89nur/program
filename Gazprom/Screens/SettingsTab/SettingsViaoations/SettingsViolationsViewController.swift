@@ -7,10 +7,12 @@
 
 import UIKit
 import UniformTypeIdentifiers
+import AudioToolbox
 
 class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelegate {
     
     var items = ViolationsModel.returnAvialableViolation()
+    private var filteredItems: [ViolationsModel.Violation] = []
     
     let tableView: UITableView = {
         let view = UITableView(frame: .zero, style: .plain)
@@ -21,6 +23,16 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
         return view
     }()
     
+    private let searchTextField: UISearchTextField = {
+        let textField = UISearchTextField()
+        textField.placeholder = "Поиск по формулировке, документу, примечанию..."
+        textField.returnKeyType = .done
+        textField.backgroundColor = .systemGray6
+        textField.layer.cornerRadius = 12
+        textField.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
+        return textField
+    }()
+    
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         title = "Просмотр нарушений"
@@ -29,19 +41,72 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
+        view.backgroundColor = .systemBackground
+        
+        // Настройка темной темы
+        setupDarkTheme()
        
+        setupSearchField()
+        setupTableView()
+        setupButtons()
+        checkitems()
+        
+        // Инициализируем отфильтрованный список
+        filteredItems = items
+        
+        // Принудительно обновляем таблицу
+        tableView.reloadData()
+    }
+    
+    private func setupDarkTheme() {
+        // Настройка для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            view.backgroundColor = .systemBackground
+            tableView.backgroundColor = .systemBackground
+        }
+    }
+    
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        
+        // Обновляем интерфейс при изменении темы
+        if traitCollection.userInterfaceStyle != previousTraitCollection?.userInterfaceStyle {
+            setupDarkTheme()
+            tableView.reloadData()
+        }
+    }
+    
+    private func setupSearchField() {
+        searchTextField.delegate = self
+        searchTextField.addTarget(self, action: #selector(searchTextChanged(_:)), for: .editingChanged)
+        view.addSubview(searchTextField)
+        searchTextField.snp.makeConstraints { make in
+            make.left.right.equalToSuperview().inset(16)
+            make.top.equalTo(view.safeAreaLayoutGuide.snp.top).offset(16)
+            make.height.equalTo(42)
+        }
+    }
+    
+    private func setupTableView() {
         tableView.delegate = self
         tableView.dataSource = self
         view.addSubview(tableView)
         tableView.snp.makeConstraints { make in
             make.left.right.equalToSuperview()
             make.bottom.equalToSuperview()
-            make.top.equalTo(view.safeAreaLayoutGuide.snp.top)
+            make.top.equalTo(searchTextField.snp.bottom).offset(4)
         }
         
+        // Добавляем длительное нажатие для редактирования
+        let longPressGesture = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress(_:)))
+        longPressGesture.minimumPressDuration = 0.5
+        tableView.addGestureRecognizer(longPressGesture)
+    }
+    
+    private func setupButtons() {
         let loadButton = UIFactory.createButton(title: "Импорт", color: .systemBlue)
         let exportButton = UIFactory.createButton(title: "Экспорт", color: .systemBlue)
+        
         loadButton.addTarget(self, action: #selector(importData), for: .touchUpInside)
         exportButton.addTarget(self, action: #selector(exportData), for: .touchUpInside)
         
@@ -60,8 +125,6 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
             make.bottom.equalTo(view.safeAreaLayoutGuide.snp.bottom)
             make.left.equalTo(view.safeAreaLayoutGuide.snp.centerX).offset(4)
         }
-        
-        checkitems()
     }
     
     @objc private func importData() {
@@ -89,6 +152,7 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
         let activityVC = UIActivityViewController(activityItems: [fileURL], applicationActivities: nil)
         self.present(activityVC, animated: true, completion: nil)
     }
+    
 
     
     // MARK: - UIDocumentPickerDelegate
@@ -120,6 +184,7 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
 
             print("🔍 Загружаем нарушения из файла...")
             items = ViolationsModel.returnAvialableViolation()
+            filteredItems = items
             print("📊 Загружено нарушений в UI: \(items.count)")
             
             tableView.reloadData()
@@ -150,6 +215,7 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
             self.navigationItem.rightBarButtonItem = nil
         }
     }
+    
     
     @objc private func addNew() {
         let alert = UIAlertController(title: "Добавление нарушения", message: "Заполните все поля", preferredStyle: .alert)
@@ -182,6 +248,7 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
             ViolationsModel.addNewViolation(violation: violataion)
             
             items = ViolationsModel.returnAvialableViolation()
+            filteredItems = items
             tableView.reloadData()
             
         }
@@ -190,7 +257,71 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
         present(alert, animated: true)
     }
     
+    @objc private func addNewViolationFromSearch() {
+        // Вибрационный отклик
+        triggerHapticFeedback(.light)
+        
+        // Получаем текст из поиска
+        let searchText = searchTextField.text ?? ""
+        
+        // Очищаем поле поиска
+        searchTextField.text = ""
+        searchTextField.resignFirstResponder()
+        
+        // Вызываем метод добавления с предзаполненным текстом
+        addNewWithSearchText(searchText)
+    }
+    
+    private func addNewWithSearchText(_ searchText: String) {
+        // Подсчитываем количество нарушений в базе для автоматического номера
+        let allViolations = ViolationsModel.returnAvialableViolation()
+        let nextNumber = allViolations.count + 1
+        
+        let alert = UIAlertController(title: "Добавление нарушения", message: "Заполните все поля", preferredStyle: .alert)
+        
+        alert.addTextField() //0 - Номер
+        alert.addTextField() //1 - Формулировка
+        alert.addTextField() //2 - Ссылка на норм. документ
+        alert.addTextField() //3 - Примечание
+        alert.addTextField() //4 - Вид нарушения
+        
+        let cancel = UIAlertAction(title: "Отмена", style: .cancel)
+        alert.addAction(cancel)
+        
+        alert.textFields?[0].placeholder = "Номер"
+        alert.textFields?[1].placeholder = "Формулировка"
+        alert.textFields?[2].placeholder = "Ссылка на норм. документ"
+        alert.textFields?[3].placeholder = "Примечание"
+        alert.textFields?[4].placeholder = "Вид нарушения"
+        
+        // Предзаполняем поля
+        alert.textFields?[0].text = "\(nextNumber)"
+        alert.textFields?[1].text = searchText.isEmpty ? "" : searchText
+        
+        let save = UIAlertAction(title: "Сохранить", style: .default) { [weak self] _ in
+            guard let self = self else { return }
+            
+            let number: Int = Int(alert.textFields?[0].text ?? "0") ?? 0
+            let form: String = alert.textFields?[1].text ?? "-"
+            let url: String = alert.textFields?[2].text ?? "-"
+            let desc: String = alert.textFields?[3].text ?? "-"
+            let vid: String = alert.textFields?[4].text ?? "-"
+            
+            let violation = ViolationsModel.Violation(number: number, titie: form, subTitle: url, description: desc, vid: vid)
+            ViolationsModel.addNewViolation(violation: violation)
+            self.items = ViolationsModel.returnAvialableViolation()
+            self.filteredItems = self.items
+            self.tableView.reloadData()
+        }
+        alert.addAction(save)
+        
+        present(alert, animated: true)
+    }
+    
     private func showViolationInfo(for violation: ViolationsModel.Violation) {
+        // Вибрационный отклик для просмотра
+        triggerHapticFeedback(.light)
+        
         let previewVC = ViolationPreviewViewController(violation: violation)
         previewVC.modalPresentationStyle = .pageSheet
         
@@ -203,7 +334,63 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
         present(previewVC, animated: true)
     }
     
+    // MARK: - Haptic Feedback Methods
+    private func triggerHapticFeedback(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
+        let impactFeedback = UIImpactFeedbackGenerator(style: style)
+        impactFeedback.impactOccurred()
+    }
+    
+    private func triggerHapticFeedback(_ style: UINotificationFeedbackGenerator.FeedbackType) {
+        let notificationFeedback = UINotificationFeedbackGenerator()
+        notificationFeedback.notificationOccurred(style)
+    }
+    
+    // MARK: - Long Press Gesture Handler
+    @objc private func handleLongPress(_ gestureRecognizer: UILongPressGestureRecognizer) {
+        let point = gestureRecognizer.location(in: tableView)
+        guard let indexPath = tableView.indexPathForRow(at: point) else { return }
+        
+        switch gestureRecognizer.state {
+        case .began:
+            // Вибрационный отклик при начале длительного нажатия
+            triggerHapticFeedback(.medium)
+            
+            // Анимация ячейки
+            if let cell = tableView.cellForRow(at: indexPath) {
+                UIView.animate(withDuration: 0.1, animations: {
+                    cell.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+                    cell.alpha = 0.8
+                })
+            }
+            
+        case .ended, .cancelled:
+            // Возвращаем ячейку в исходное состояние
+            if let cell = tableView.cellForRow(at: indexPath) {
+                UIView.animate(withDuration: 0.1, animations: {
+                    cell.transform = .identity
+                    cell.alpha = 1.0
+                })
+            }
+            
+            // Открываем редактирование только если жест завершился успешно
+            if gestureRecognizer.state == .ended {
+                let violation = filteredItems[indexPath.row]
+                // Находим индекс в оригинальном массиве для корректного обновления
+                if let originalIndex = items.firstIndex(where: { $0.titie == violation.titie && $0.subTitle == violation.subTitle }) {
+                    let originalIndexPath = IndexPath(row: originalIndex, section: 0)
+                    openEditAlert(for: violation, at: originalIndexPath)
+                }
+            }
+            
+        default:
+            break
+        }
+    }
+    
     private func openEditAlert(for violation: ViolationsModel.Violation, at indexPath: IndexPath) {
+        // Вибрационный отклик для редактирования
+        triggerHapticFeedback(.medium)
+        
         let editVC = SettingsEditViolationViewController(violation: violation) { [weak self] updatedViolation in
             guard let self = self else { return }
             
@@ -216,6 +403,7 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
             
             // Обновляем локальный массив
             self.items = ViolationsModel.returnAvialableViolation()
+            self.filteredItems = self.items
             print("📊 Количество нарушений после обновления: \(self.items.count)")
             self.tableView.reloadData()
         }
@@ -232,28 +420,208 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
         present(navController, animated: true)
     }
     
+    // MARK: - Search Methods
+    @objc private func searchTextChanged(_ textField: UITextField) {
+        guard let query = textField.text?.lowercased(), !query.isEmpty else {
+            filteredItems = items
+            tableView.reloadData()
+            return
+        }
+        
+        filteredItems = items.filter { violation in
+            // Поиск по формулировке нарушения
+            let titleMatch = violation.titie.lowercased().contains(query)
+            
+            // Поиск по нормативному документу
+            let documentMatch = violation.subTitle.lowercased().contains(query)
+            
+            // Поиск по примечанию
+            let descriptionMatch = violation.description?.lowercased().contains(query) ?? false
+            
+            // Поиск по виду нарушения
+            let typeMatch = violation.vid?.lowercased().contains(query) ?? false
+            
+            // Поиск по номеру нарушения
+            let numberMatch = violation.number?.description.contains(query) ?? false
+            
+            // Возвращаем true если хотя бы одно поле содержит запрос
+            return titleMatch || documentMatch || descriptionMatch || typeMatch || numberMatch
+        }
+        
+        // Принудительно обновляем таблицу
+        DispatchQueue.main.async {
+            self.tableView.reloadData()
+        }
+    }
+    
+    private func highlightText(_ text: String, searchText: String) -> NSAttributedString {
+        let attributedString = NSMutableAttributedString(string: text)
+        
+        // Ищем все вхождения поискового текста (без учета регистра)
+        let searchRange = text.range(of: searchText, options: .caseInsensitive)
+        if let searchRange = searchRange {
+            let nsRange = NSRange(searchRange, in: text)
+            attributedString.addAttribute(.backgroundColor, value: UIColor.systemGray5, range: nsRange)
+            attributedString.addAttribute(.font, value: UIFont.boldSystemFont(ofSize: 16), range: nsRange)
+        }
+        
+        return attributedString
+    }
+    
+    // MARK: - Add Violation Cell Setup
+    private func setupAddViolationCell(containerView: UIView) {
+        // Создаем кнопку с иконкой плюс
+        let addButton = UIButton(type: .system)
+        addButton.setTitle("", for: .normal)
+        addButton.backgroundColor = .clear
+        addButton.layer.cornerRadius = 0
+        addButton.addTarget(self, action: #selector(addNewViolationFromSearch), for: .touchUpInside)
+        
+        // Добавляем кнопку в контейнер
+        containerView.addSubview(addButton)
+        addButton.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
+        }
+        
+        // Создаем горизонтальный стек для содержимого (плюс и текст в одну строку)
+        let stackView = UIStackView()
+        stackView.axis = .horizontal
+        stackView.alignment = .center
+        stackView.spacing = 12
+        stackView.isUserInteractionEnabled = false
+        
+        // Иконка плюс
+        let plusImageView = UIImageView()
+        plusImageView.image = UIImage(systemName: "plus.circle.fill")
+        plusImageView.tintColor = .systemBlue
+        plusImageView.contentMode = .scaleAspectFit
+        
+        // Настройка для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            plusImageView.tintColor = .white
+        }
+        
+        // Заголовок
+        let titleLabel = UILabel()
+        titleLabel.text = "Добавить нарушение"
+        titleLabel.font = .systemFont(ofSize: 18, weight: .medium)
+        titleLabel.textAlignment = .left
+        
+        // Настройка цветов для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            titleLabel.textColor = .white
+        } else {
+            titleLabel.textColor = .label
+        }
+        
+        // Добавляем элементы в стек
+        stackView.addArrangedSubview(plusImageView)
+        stackView.addArrangedSubview(titleLabel)
+        
+        // Добавляем стек в контейнер
+        containerView.addSubview(stackView)
+        stackView.snp.makeConstraints { make in
+            make.center.equalToSuperview()
+            make.left.right.equalToSuperview().inset(20)
+        }
+        
+        // Ограничения для иконки
+        plusImageView.snp.makeConstraints { make in
+            make.width.height.equalTo(24)
+        }
+    }
+    
+}
+
+// MARK: - UISearchTextFieldDelegate
+extension SettingsViolationsViewController: UISearchTextFieldDelegate {
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        textField.resignFirstResponder()
+        return true
+    }
 }
 
 extension SettingsViolationsViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return items.count
+        // Если результаты поиска пусты, показываем одну ячейку с кнопкой добавления
+        if filteredItems.isEmpty && !(searchTextField.text?.isEmpty ?? true) {
+            return 1
+        }
+        return filteredItems.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "1") ?? UITableViewCell()
+        // Полностью очищаем ячейку от всех subviews
         cell.subviews.forEach { $0.removeFromSuperview() }
         cell.backgroundColor = .clear
         
-        let item = items[indexPath.row]
+        // Сбрасываем все свойства ячейки
+        cell.layer.cornerRadius = 0
+        cell.layer.shadowOpacity = 0
+        cell.transform = .identity
+        cell.alpha = 1.0
+        
+        // Настройка внешнего вида ячейки в стиле кнопок главного меню
+        cell.layer.cornerRadius = 16
+        cell.layer.masksToBounds = false
+        cell.layer.shadowColor = UIColor.black.cgColor
+        cell.layer.shadowOffset = CGSize(width: 0, height: 2)
+        cell.layer.shadowOpacity = 0.1
+        cell.layer.shadowRadius = 4
+        
+        // Создаем контейнер для содержимого ячейки
+        let containerView = UIView()
+        
+        // Настройка для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            containerView.backgroundColor = .systemGray6
+            containerView.layer.cornerRadius = 16
+            containerView.layer.masksToBounds = false
+            // Добавляем белую рамку для темной темы
+            containerView.layer.borderWidth = 1.0
+            containerView.layer.borderColor = UIColor.white.withAlphaComponent(0.3).cgColor
+            containerView.layer.shadowColor = UIColor.white.withAlphaComponent(0.1).cgColor
+            containerView.layer.shadowOffset = CGSize(width: 0, height: 1)
+            containerView.layer.shadowOpacity = 1.0
+            containerView.layer.shadowRadius = 2
+        } else {
+            containerView.backgroundColor = .systemGray6
+            containerView.layer.cornerRadius = 16
+            containerView.layer.masksToBounds = true
+        }
+        
+        cell.addSubview(containerView)
+        containerView.snp.makeConstraints { make in
+            make.edges.equalToSuperview().inset(8)
+        }
+        
+        // Проверяем, нужно ли показать кнопку добавления нарушения
+        if filteredItems.isEmpty && !(searchTextField.text?.isEmpty ?? true) {
+            setupAddViolationCell(containerView: containerView)
+            return cell
+        }
+        
+        let item = filteredItems[indexPath.row]
         
         let numbLabel = UILabel()
-        numbLabel.text = item.titie
+        // Подсвечиваем найденный текст в заголовке
+        if let searchText = searchTextField.text, !searchText.isEmpty {
+            numbLabel.attributedText = highlightText(item.titie, searchText: searchText)
+        } else {
+            numbLabel.text = item.titie
+        }
         numbLabel.textAlignment = .left
-        numbLabel.textColor = .black
+        // Улучшенный контраст для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            numbLabel.textColor = .white
+        } else {
+            numbLabel.textColor = .label
+        }
         numbLabel.font = .systemFont(ofSize: 20, weight: .medium)
-        cell.addSubview(numbLabel)
+        containerView.addSubview(numbLabel)
         numbLabel.snp.makeConstraints { make in
-            make.top.equalToSuperview().inset(16)
+            make.top.equalToSuperview().inset(4)
             make.left.equalToSuperview().inset(8)
             make.right.equalToSuperview().inset(16)
           //  make.width.equalTo(50)
@@ -262,50 +630,72 @@ extension SettingsViolationsViewController: UITableViewDelegate, UITableViewData
         
         let urlLabel = UILabel()
         urlLabel.text = "Ссылка на норм. документ"
-        urlLabel.textColor = .black
+        // Улучшенный контраст для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            urlLabel.textColor = .white.withAlphaComponent(0.8)
+        } else {
+            urlLabel.textColor = .label
+        }
         urlLabel.font = .systemFont(ofSize: 16, weight: .semibold)
-        cell.addSubview(urlLabel)
+        containerView.addSubview(urlLabel)
         urlLabel.snp.makeConstraints { make in
             make.left.equalToSuperview().inset(24)
-            make.top.equalTo(numbLabel.snp.bottom).inset(-8)
+            make.top.equalTo(numbLabel.snp.bottom).inset(-2)
         }
         
         let normLabel = UILabel()
-        normLabel.text = item.subTitle
+        // Подсвечиваем найденный текст в нормативном документе
+        if let searchText = searchTextField.text, !searchText.isEmpty {
+            normLabel.attributedText = highlightText(item.subTitle, searchText: searchText)
+        } else {
+            normLabel.text = item.subTitle
+        }
         normLabel.textAlignment = .left
-        normLabel.textColor = .black
+        // Улучшенный контраст для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            normLabel.textColor = .white.withAlphaComponent(0.9)
+        } else {
+            normLabel.textColor = .label
+        }
         normLabel.font = .systemFont(ofSize: 16, weight: .regular)
-        cell.addSubview(normLabel)
+        containerView.addSubview(normLabel)
         normLabel.snp.makeConstraints { make in
             make.left.right.equalToSuperview().inset(24)
             make.top.equalTo(urlLabel.snp.bottom).inset(-2)
         }
         
-        let separator = UIView()
-        separator.backgroundColor = .separator
-        cell.addSubview(separator)
-        separator.snp.makeConstraints { make in
-            make.left.right.equalToSuperview().inset(16)
-            make.bottom.equalToSuperview()
-            make.height.equalTo(1)
-        }
-        
         let primLabel = UILabel()
         primLabel.text = "Примечание"
-        primLabel.textColor = .black
+        // Улучшенный контраст для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            primLabel.textColor = .white.withAlphaComponent(0.8)
+        } else {
+            primLabel.textColor = .label
+        }
         primLabel.font = .systemFont(ofSize: 16, weight: .semibold)
-        cell.addSubview(primLabel)
+        containerView.addSubview(primLabel)
         primLabel.snp.makeConstraints { make in
             make.left.equalToSuperview().inset(24)
-            make.top.equalTo(normLabel.snp.bottom).inset(-8)
+            make.top.equalTo(normLabel.snp.bottom).inset(-4)
         }
         
         let mainPrimLabel = UILabel()
-        mainPrimLabel.text = item.description == nil ? "---" :  item.description
+        let descriptionText = item.description == nil ? "---" : item.description!
+        // Подсвечиваем найденный текст в примечании
+        if let searchText = searchTextField.text, !searchText.isEmpty {
+            mainPrimLabel.attributedText = highlightText(descriptionText, searchText: searchText)
+        } else {
+            mainPrimLabel.text = descriptionText
+        }
         mainPrimLabel.textAlignment = .left
-        mainPrimLabel.textColor = .black
+        // Улучшенный контраст для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            mainPrimLabel.textColor = .white.withAlphaComponent(0.9)
+        } else {
+            mainPrimLabel.textColor = .label
+        }
         mainPrimLabel.font = .systemFont(ofSize: 16, weight: .regular)
-        cell.addSubview(mainPrimLabel)
+        containerView.addSubview(mainPrimLabel)
         mainPrimLabel.snp.makeConstraints { make in
             make.left.right.equalToSuperview().inset(24)
             make.top.equalTo(primLabel.snp.bottom).inset(-2)
@@ -313,43 +703,99 @@ extension SettingsViolationsViewController: UITableViewDelegate, UITableViewData
         
         let narushLabel = UILabel()
         narushLabel.text = "Вид нарушения"
-        narushLabel.textColor = .black
+        // Улучшенный контраст для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            narushLabel.textColor = .white.withAlphaComponent(0.8)
+        } else {
+            narushLabel.textColor = .label
+        }
         narushLabel.font = .systemFont(ofSize: 16, weight: .semibold)
-        cell.addSubview(narushLabel)
+        containerView.addSubview(narushLabel)
         narushLabel.snp.makeConstraints { make in
             make.left.equalToSuperview().inset(24)
-            make.top.equalTo(mainPrimLabel.snp.bottom).inset(-8)
+            make.top.equalTo(mainPrimLabel.snp.bottom).inset(-4)
         }
         
         let mainVidLabel = UILabel()
-        mainVidLabel.text = item.vid
+        let vidText = item.vid ?? "---"
+        // Подсвечиваем найденный текст в виде нарушения
+        if let searchText = searchTextField.text, !searchText.isEmpty {
+            mainVidLabel.attributedText = highlightText(vidText, searchText: searchText)
+        } else {
+            mainVidLabel.text = vidText
+        }
         mainVidLabel.textAlignment = .left
-        mainVidLabel.textColor = .black
+        // Улучшенный контраст для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            mainVidLabel.textColor = .white.withAlphaComponent(0.9)
+        } else {
+            mainVidLabel.textColor = .label
+        }
         mainVidLabel.font = .systemFont(ofSize: 16, weight: .regular)
-        cell.addSubview(mainVidLabel)
+        mainVidLabel.numberOfLines = 0
+        containerView.addSubview(mainVidLabel)
         mainVidLabel.snp.makeConstraints { make in
             make.left.right.equalToSuperview().inset(24)
             make.top.equalTo(narushLabel.snp.bottom).inset(-2)
+            make.bottom.equalToSuperview().inset(16)
         }
         
         return cell
     }
 
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 200
+        // Если это кнопка добавления нарушения, делаем её компактной по высоте текста
+        if filteredItems.isEmpty && !(searchTextField.text?.isEmpty ?? true) {
+            return 60
+        }
+        // Увеличиваем высоту строк для лучшего отображения в темной теме
+        return 220
+    }
+    
+    func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        return 0
+    }
+    
+    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+        return nil
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        let violation = items[indexPath.row]
+        
+        // Проверяем, если это кнопка добавления нарушения
+        if filteredItems.isEmpty && !(searchTextField.text?.isEmpty ?? true) {
+            addNewViolationFromSearch()
+            return
+        }
+        
+        let violation = filteredItems[indexPath.row]
+        
+        // Анимация ячейки при нажатии
+        if let cell = tableView.cellForRow(at: indexPath) {
+            UIView.animate(withDuration: 0.1, animations: {
+                cell.transform = CGAffineTransform(scaleX: 0.98, y: 0.98)
+            }) { _ in
+                UIView.animate(withDuration: 0.1) {
+                    cell.transform = .identity
+                }
+            }
+        }
+        
+        // Показываем подробную информацию при одиночном нажатии
         showViolationInfo(for: violation)
     }
     
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
         if editingStyle == .delete {
-            let itemToDelete = items[indexPath.row]
-            items.remove(at: indexPath.row)
-            tableView.deleteRows(at: [indexPath], with: .automatic)
+            let itemToDelete = filteredItems[indexPath.row]
+            // Находим и удаляем из оригинального массива
+            if let originalIndex = items.firstIndex(where: { $0.titie == itemToDelete.titie && $0.subTitle == itemToDelete.subTitle }) {
+                items.remove(at: originalIndex)
+            }
+            // Обновляем отфильтрованный массив
+            filteredItems = items
+            tableView.reloadData()
             ViolationsModel.delete(item: itemToDelete)
             checkitems()
         }
@@ -358,25 +804,23 @@ extension SettingsViolationsViewController: UITableViewDelegate, UITableViewData
     func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
         let deleteAction = UIContextualAction(style: .destructive, title: "Удалить") { [weak self] (_, _, completionHandler) in
             guard let self = self else { return }
-            let itemToDelete = self.items[indexPath.row]
-            self.items.remove(at: indexPath.row)
-            tableView.deleteRows(at: [indexPath], with: .automatic)
+            let itemToDelete = self.filteredItems[indexPath.row]
+            // Находим и удаляем из оригинального массива
+            if let originalIndex = self.items.firstIndex(where: { $0.titie == itemToDelete.titie && $0.subTitle == itemToDelete.subTitle }) {
+                self.items.remove(at: originalIndex)
+            }
+            // Обновляем отфильтрованный массив
+            self.filteredItems = self.items
+            tableView.reloadData()
             ViolationsModel.delete(item: itemToDelete)
             self.checkitems()
             completionHandler(true)
         }
         
-        let editAction = UIContextualAction(style: .normal, title: "Изменить") { [weak self] (_, _, completionHandler) in
-            guard let self = self else { return }
-            let violation = self.items[indexPath.row]
-            self.openEditAlert(for: violation, at: indexPath)
-            completionHandler(true)
-        }
-        
         deleteAction.backgroundColor = .systemRed
-        editAction.backgroundColor = .systemOrange
+        deleteAction.image = UIImage(systemName: "trash")
         
-        let configuration = UISwipeActionsConfiguration(actions: [deleteAction, editAction])
+        let configuration = UISwipeActionsConfiguration(actions: [deleteAction])
         configuration.performsFirstActionWithFullSwipe = true
         return configuration
     }

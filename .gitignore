@@ -89,25 +89,21 @@ fastlane/test_output
 
 iOSInjectionProject/
 
-# macOS
-.DS_Store
-
 # Backup files
 *.backup
-*.bak
-*~
+*_backup_*
+BACKUP_*
+Config_Backups/
+Full_Backups/
+Master_Backups/
+Source_Code_Backups/
+*.tar.gz
+*.txt
+*.md
+*.sh
+*.py
+*.swift
 
 # Temporary files
 *.tmp
 *.temp
-
-# Logs
-*.log
-
-# IDE files
-.vscode/
-.idea/
-
-# Backup directories
-backups/
-backup_*/

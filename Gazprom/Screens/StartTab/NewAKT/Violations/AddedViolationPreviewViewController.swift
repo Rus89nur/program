@@ -50,6 +50,15 @@ class AddedViolationPreviewViewController: UIViewController {
         return label
     }()
     
+    private let violationTypeLabel: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 16, weight: .semibold)
+        label.textColor = .systemPurple
+        label.numberOfLines = 0
+        label.textAlignment = .left
+        return label
+    }()
+    
     private let photosLabel: UILabel = {
         let label = UILabel()
         label.font = .systemFont(ofSize: 16, weight: .semibold)
@@ -83,6 +92,41 @@ class AddedViolationPreviewViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         configureContent()
+        
+        // Настройка темной темы
+        setupDarkTheme()
+    }
+    
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        
+        // Обновляем интерфейс при изменении темы
+        if traitCollection.userInterfaceStyle != previousTraitCollection?.userInterfaceStyle {
+            setupDarkTheme()
+        }
+    }
+    
+    private func setupDarkTheme() {
+        // Настройка для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            view.backgroundColor = .systemBackground
+            scrollView.backgroundColor = .systemBackground
+            contentView.backgroundColor = .systemBackground
+            
+            // Обновляем цвета текста для темной темы
+            titleLabel.textColor = .white
+            locationLabel.textColor = .systemBlue
+            referenceLabel.textColor = .systemGreen
+            violationTypeLabel.textColor = .systemPurple
+            photosLabel.textColor = .systemOrange
+        } else {
+            // Светлая тема
+            titleLabel.textColor = .label
+            locationLabel.textColor = .systemBlue
+            referenceLabel.textColor = .systemGreen
+            violationTypeLabel.textColor = .systemPurple
+            photosLabel.textColor = .systemOrange
+        }
     }
     
     private func setupUI() {
@@ -112,6 +156,7 @@ class AddedViolationPreviewViewController: UIViewController {
         contentView.addSubview(titleLabel)
         contentView.addSubview(locationLabel)
         contentView.addSubview(referenceLabel)
+        contentView.addSubview(violationTypeLabel)
         contentView.addSubview(photosLabel)
         contentView.addSubview(photosCollectionView)
         
@@ -138,8 +183,13 @@ class AddedViolationPreviewViewController: UIViewController {
             make.left.right.equalToSuperview().inset(20)
         }
         
-        photosLabel.snp.makeConstraints { make in
+        violationTypeLabel.snp.makeConstraints { make in
             make.top.equalTo(referenceLabel.snp.bottom).offset(16)
+            make.left.right.equalToSuperview().inset(20)
+        }
+        
+        photosLabel.snp.makeConstraints { make in
+            make.top.equalTo(violationTypeLabel.snp.bottom).offset(16)
             make.left.right.equalToSuperview().inset(20)
         }
         
@@ -164,6 +214,14 @@ class AddedViolationPreviewViewController: UIViewController {
         } else {
             referenceLabel.text = "Ссылка на нормативный документ не указана"
             referenceLabel.textColor = .tertiaryLabel
+        }
+        
+        // Вид нарушения
+        if !violation.vid.isEmpty {
+            violationTypeLabel.text = "Вид нарушения:\n\(violation.vid)"
+        } else {
+            violationTypeLabel.text = "Вид нарушения не указан"
+            violationTypeLabel.textColor = .tertiaryLabel
         }
         
         // Фотографии

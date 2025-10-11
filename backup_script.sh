@@ -57,6 +57,20 @@ create_backup() {
             return 1
         fi
         
+        # Обновляем дату последнего резервного копирования в приложении
+        cd "$PROJECT_DIR"
+        if swift update_backup_date.swift; then
+            success "Дата резервного копирования обновлена в приложении"
+        else
+            warning "Не удалось обновить дату резервного копирования в приложении"
+        fi
+        
+        # Также сохраняем дату в UserDefaults через defaults
+        local backup_date=$(date '+%Y-%m-%d %H:%M:%S')
+        defaults write k.test.Gazprom LastBackupDate -date "$backup_date" 2>/dev/null || {
+            warning "Не удалось сохранить дату в UserDefaults через defaults"
+        }
+        
         # Очищаем старые бэкапы
         cleanup_old_backups
         

@@ -35,7 +35,7 @@ class SettingsTabViewController: UIViewController {
     }
 
     private func setupUI() {
-        view.backgroundColor = .white
+        view.backgroundColor = .systemBackground
         
         let violationsSelectButton = UIFactory.createButton(title: "Нарушения", color: .systemBlue)
         view.addSubview(violationsSelectButton)
@@ -96,7 +96,7 @@ class SettingsTabViewController: UIViewController {
         // Надпись о статусе шаблона
         let templateStatusLabel = UILabel()
         templateStatusLabel.text = "Шаблон не загружен"
-        templateStatusLabel.textColor = .black
+        templateStatusLabel.textColor = .label
         templateStatusLabel.font = .systemFont(ofSize: 12, weight: .regular)
         templateStatusLabel.textAlignment = .center
         view.addSubview(templateStatusLabel)
@@ -141,14 +141,14 @@ class SettingsTabViewController: UIViewController {
             let url = URL(fileURLWithPath: filePath)
             if FileManager.default.fileExists(atPath: url.path) {
                 templateStatusLabel.text = "Шаблон загружен"
-                templateStatusLabel.textColor = .systemGray
+                templateStatusLabel.textColor = .systemGreen
             } else {
                 templateStatusLabel.text = "Шаблон не загружен"
-                templateStatusLabel.textColor = .black
+                templateStatusLabel.textColor = .label
             }
         } else {
             templateStatusLabel.text = "Шаблон не загружен"
-            templateStatusLabel.textColor = .black
+            templateStatusLabel.textColor = .label
         }
     }
     

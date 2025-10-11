@@ -52,6 +52,7 @@ class UniversalEditViewController: UIViewController {
         textView.textContainerInset = UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
         textView.isScrollEnabled = true
         textView.showsVerticalScrollIndicator = true
+        textView.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
         return textView
     }()
     
@@ -82,6 +83,7 @@ class UniversalEditViewController: UIViewController {
         textView.textContainerInset = UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
         textView.isScrollEnabled = true
         textView.showsVerticalScrollIndicator = true
+        textView.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
         return textView
     }()
     
@@ -204,6 +206,7 @@ class UniversalEditViewController: UIViewController {
     private func setupKeyboardToolbar() {
         let toolbar = UIToolbar()
         toolbar.sizeToFit()
+        toolbar.translatesAutoresizingMaskIntoConstraints = false
         
         let doneButton = UIBarButtonItem(
             title: "Готово",
@@ -241,18 +244,38 @@ class UniversalEditViewController: UIViewController {
     
     @objc private func keyboardWillShow(notification: NSNotification) {
         guard let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue else { return }
-        let _ = keyboardFrame.cgRectValue.height
+        let keyboardHeight = keyboardFrame.cgRectValue.height
+        
+        // Обновляем contentInset для scrollView
+        scrollView.contentInset.bottom = keyboardHeight
+        scrollView.verticalScrollIndicatorInsets.bottom = keyboardHeight
         
         // Прокручиваем к активному текстовому полю
-        if firstTextView.isFirstResponder {
-            firstTextView.scrollRangeToVisible(firstTextView.selectedRange)
-        } else if secondTextView.isFirstResponder {
-            secondTextView.scrollRangeToVisible(secondTextView.selectedRange)
+        DispatchQueue.main.async {
+            if self.firstTextView.isFirstResponder {
+                self.scrollToTextView(self.firstTextView)
+            } else if self.secondTextView.isFirstResponder {
+                self.scrollToTextView(self.secondTextView)
+            }
         }
     }
     
     @objc private func keyboardWillHide(notification: NSNotification) {
-        // Клавиатура скрыта, ничего не делаем
+        // Сбрасываем contentInset при скрытии клавиатуры
+        scrollView.contentInset.bottom = 0
+        scrollView.verticalScrollIndicatorInsets.bottom = 0
+    }
+    
+    private func scrollToTextView(_ textView: UITextView) {
+        // Получаем frame текстового поля в координатах scrollView
+        let textViewFrame = textView.convert(textView.bounds, to: scrollView)
+        
+        // Вычисляем отступ сверху, чтобы поле было видно над клавиатурой
+        let targetY = textViewFrame.minY - 20 // 20pt отступ сверху
+        
+        // Прокручиваем к нужной позиции
+        let contentOffset = CGPoint(x: 0, y: max(0, targetY))
+        scrollView.setContentOffset(contentOffset, animated: true)
     }
     
     private func setupConstraints() {
@@ -452,6 +475,13 @@ class UniversalEditViewController: UIViewController {
 extension UniversalEditViewController: UITextViewDelegate {
     func textViewDidChange(_ textView: UITextView) {
         updateCharacterCounts()
+    }
+    
+    func textViewDidBeginEditing(_ textView: UITextView) {
+        // Прокручиваем к текстовому полю при начале редактирования
+        DispatchQueue.main.async {
+            self.scrollToTextView(textView)
+        }
     }
 }
 

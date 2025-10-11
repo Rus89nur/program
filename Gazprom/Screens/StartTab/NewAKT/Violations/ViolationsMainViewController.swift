@@ -8,7 +8,7 @@
 import UIKit
 import SnapKit
 
-class ViolationsMainViewController: UIViewController {
+class ViolationsMainViewController: UIViewController, UITableViewDragDelegate, UITableViewDropDelegate {
     
     private let viewModel: MainAKTViewModel
     private let akt: AKT
@@ -23,14 +23,14 @@ class ViolationsMainViewController: UIViewController {
     private let aktNumberLabel: UILabel = {
         let label = UILabel()
         label.font = .systemFont(ofSize: 20, weight: .bold)
-        label.textColor = .black
+        label.textColor = .label
         return label
     }()
     
     private let dateLabel: UILabel = {
         let label = UILabel()
         label.font = .systemFont(ofSize: 16, weight: .regular)
-        label.textColor = .black
+        label.textColor = .label
         return label
     }()
     
@@ -64,7 +64,7 @@ class ViolationsMainViewController: UIViewController {
         label.text = "Нарушения не обнаружены"
         label.textAlignment = .center
         label.font = .systemFont(ofSize: 18, weight: .medium)
-        label.textColor = .systemGray
+        label.textColor = .label
         return label
     }()
     
@@ -90,16 +90,61 @@ class ViolationsMainViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         configureData()
+        
+        // Настройка темной темы
+        setupDarkTheme()
+    }
+    
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        
+        // Обновляем интерфейс при изменении темы
+        if traitCollection.userInterfaceStyle != previousTraitCollection?.userInterfaceStyle {
+            setupDarkTheme()
+            violationsTableView.reloadData()
+        }
+    }
+    
+    private func setupDarkTheme() {
+        // Настройка для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            view.backgroundColor = .systemBackground
+            violationsTableView.backgroundColor = .systemBackground
+            headerView.backgroundColor = .clear
+            emptyStateView.backgroundColor = .clear
+            
+            // Обновляем цвета текста для темной темы
+            aktNumberLabel.textColor = .white
+            dateLabel.textColor = .white.withAlphaComponent(0.9)
+            emptyStateLabel.textColor = .white.withAlphaComponent(0.8)
+        } else {
+            // Светлая тема
+            aktNumberLabel.textColor = .label
+            dateLabel.textColor = .label
+            emptyStateLabel.textColor = .label
+        }
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationItem.title = "Нарушения"
         navigationItem.largeTitleDisplayMode = .never
+        
+        // Добавляем кнопку "домик" для возврата на главный экран
+        let goBackButton = UIButton(type: .system)
+        goBackButton.setBackgroundImage(UIImage(systemName: "house"), for: .normal)
+        let homeButton = UIBarButtonItem(customView: goBackButton)
+        goBackButton.snp.makeConstraints { make in
+            make.height.width.equalTo(24)
+        }
+        goBackButton.addTarget(self, action: #selector(goHome), for: .touchUpInside)
+        goBackButton.alpha = 0.5
+        
+        navigationItem.rightBarButtonItem = homeButton
     }
     
     private func setupUI() {
-        view.backgroundColor = .white
+        view.backgroundColor = .systemBackground
         
         // Настройка header view
         view.addSubview(headerView)
@@ -163,6 +208,14 @@ class ViolationsMainViewController: UIViewController {
         violationsTableView.delegate = self
         violationsTableView.dataSource = self
         
+        // Включаем перетаскивание для изменения порядка
+        violationsTableView.dragInteractionEnabled = true
+        violationsTableView.dragDelegate = self
+        violationsTableView.dropDelegate = self
+        
+        // Настраиваем обработку ошибок drag and drop
+        setupDragAndDropErrorHandling()
+        
         // Настройка действий
         editButton.addTarget(self, action: #selector(editButtonTapped), for: .touchUpInside)
     }
@@ -188,6 +241,11 @@ class ViolationsMainViewController: UIViewController {
     
     @objc private func editButtonTapped() {
         showEditMenu()
+    }
+    
+    @objc private func goHome() {
+        // Переходим на главную вкладку (индекс 0)
+        tabBarController?.selectedIndex = 0
     }
     
     private func showEditMenu() {
@@ -458,6 +516,124 @@ class ViolationsMainViewController: UIViewController {
         // Обновляем отображение
         violationsTableView.reloadData()
     }
+    
+    // MARK: - UITableViewDragDelegate
+    func tableView(_ tableView: UITableView, itemsForBeginning session: UIDragSession, at indexPath: IndexPath) -> [UIDragItem] {
+        // Проверяем, что индекс валидный
+        guard indexPath.row < akt.violations.count else {
+            print("⚠️ Неверный индекс для drag: \(indexPath.row), всего нарушений: \(akt.violations.count)")
+            return []
+        }
+        
+        let violation = akt.violations[indexPath.row]
+        
+        // Создаем itemProvider с правильным типом данных
+        let itemProvider = NSItemProvider()
+        
+        // Регистрируем данные с правильной обработкой ошибок
+        itemProvider.registerDataRepresentation(forTypeIdentifier: "public.text", visibility: .all) { completion in
+            guard let data = violation.title.data(using: .utf8) else {
+                print("❌ Ошибка кодирования текста нарушения")
+                completion(nil, NSError(domain: "DragError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Ошибка кодирования текста"]))
+                return nil
+            }
+            completion(data, nil)
+            return nil
+        }
+        
+        let dragItem = UIDragItem(itemProvider: itemProvider)
+        dragItem.localObject = violation
+        return [dragItem]
+    }
+    
+    // MARK: - UITableViewDropDelegate
+    func tableView(_ tableView: UITableView, dropSessionDidUpdate session: UIDropSession, withDestinationIndexPath destinationIndexPath: IndexPath?) -> UITableViewDropProposal {
+        return UITableViewDropProposal(operation: .move, intent: .insertAtDestinationIndexPath)
+    }
+    
+    func tableView(_ tableView: UITableView, performDropWith coordinator: UITableViewDropCoordinator) {
+        guard let destinationIndexPath = coordinator.destinationIndexPath,
+              let sourceIndexPath = coordinator.items.first?.sourceIndexPath else {
+            print("⚠️ Неверные индексы для drop операции")
+            return
+        }
+        
+        // Проверяем валидность индексов
+        guard sourceIndexPath.row < akt.violations.count,
+              destinationIndexPath.row <= akt.violations.count,
+              sourceIndexPath.row != destinationIndexPath.row else {
+            print("⚠️ Недопустимые индексы для drop: source=\(sourceIndexPath.row), destination=\(destinationIndexPath.row), всего=\(akt.violations.count)")
+            return
+        }
+        
+        // Перемещаем нарушение в новую позицию
+        var updatedViolations = akt.violations
+        let movedViolation = updatedViolations.remove(at: sourceIndexPath.row)
+        
+        // Корректируем индекс назначения если нужно
+        let adjustedDestinationIndex = destinationIndexPath.row > sourceIndexPath.row ? destinationIndexPath.row - 1 : destinationIndexPath.row
+        updatedViolations.insert(movedViolation, at: adjustedDestinationIndex)
+        
+        // Создаем обновленный АКТ
+        let updatedAkt = AKT(
+            number: akt.number,
+            date: akt.date,
+            comission: akt.comission,
+            organization: akt.organization,
+            objectsCheck: akt.objectsCheck,
+            predstavitelyComission: akt.predstavitelyComission,
+            violations: updatedViolations,
+            description: akt.description,
+            actustranenDate: akt.actustranenDate,
+            actPredostavlenDate: akt.actPredostavlenDate,
+            actUtverzdenDate: akt.actUtverzdenDate,
+            urlAct: akt.urlToFllACT ?? URL(fileURLWithPath: ""),
+            realDateCreate: akt.realDateCreate
+        )
+        
+        // Обновляем АКТ в массиве
+        if let index = viewModel.aktArray.firstIndex(where: { $0.id == akt.id }) {
+            viewModel.aktArray[index] = updatedAkt
+            DataFlowAKT.saveArr(arr: viewModel.aktArray)
+            print("✅ Нарушение перемещено с позиции \(sourceIndexPath.row) на \(adjustedDestinationIndex)")
+        }
+        
+        // Обновляем отображение
+        violationsTableView.reloadData()
+    }
+    
+    // MARK: - Drag and Drop Error Handling
+    private func setupDragAndDropErrorHandling() {
+        // Обработка ошибок drag and drop
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDragAndDropError),
+            name: NSNotification.Name("DragAndDropError"),
+            object: nil
+        )
+    }
+    
+    @objc private func handleDragAndDropError() {
+        print("⚠️ Обнаружена ошибка drag and drop")
+        print("🔄 Очистка ресурсов drag and drop...")
+        
+        // Очищаем ресурсы drag and drop
+        violationsTableView.dragInteractionEnabled = false
+        violationsTableView.dragDelegate = nil
+        violationsTableView.dropDelegate = nil
+        
+        // Перезапускаем drag and drop через небольшую задержку
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.violationsTableView.dragInteractionEnabled = true
+            self.violationsTableView.dragDelegate = self
+            self.violationsTableView.dropDelegate = self
+            print("✅ Ресурсы drag and drop очищены")
+        }
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
 }
 
 // MARK: - UITableViewDataSource
@@ -468,17 +644,48 @@ extension ViolationsMainViewController: UITableViewDataSource {
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "ViolationCell", for: indexPath)
+        // Полностью очищаем ячейку от всех subviews
         cell.subviews.forEach { $0.removeFromSuperview() }
+        cell.backgroundColor = .clear
         
-        cell.backgroundColor = .white
+        // Сбрасываем все свойства ячейки
+        cell.layer.cornerRadius = 0
+        cell.layer.shadowOpacity = 0
+        cell.transform = .identity
+        cell.alpha = 1.0
         
-        let separator = UIView()
-        separator.backgroundColor = .separator
-        cell.addSubview(separator)
-        separator.snp.makeConstraints { make in
-            make.height.equalTo(0.5)
-            make.left.right.equalToSuperview()
-            make.bottom.equalToSuperview()
+        // Настройка внешнего вида ячейки в стиле кнопок главного меню
+        cell.layer.cornerRadius = 16
+        cell.layer.masksToBounds = false
+        cell.layer.shadowColor = UIColor.black.cgColor
+        cell.layer.shadowOffset = CGSize(width: 0, height: 2)
+        cell.layer.shadowOpacity = 0.1
+        cell.layer.shadowRadius = 4
+        
+        // Создаем контейнер для содержимого ячейки
+        let containerView = UIView()
+        
+        // Настройка для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            containerView.backgroundColor = .systemGray6
+            containerView.layer.cornerRadius = 16
+            containerView.layer.masksToBounds = false
+            // Добавляем белую рамку для темной темы
+            containerView.layer.borderWidth = 1.0
+            containerView.layer.borderColor = UIColor.white.withAlphaComponent(0.3).cgColor
+            containerView.layer.shadowColor = UIColor.white.withAlphaComponent(0.1).cgColor
+            containerView.layer.shadowOffset = CGSize(width: 0, height: 1)
+            containerView.layer.shadowOpacity = 1.0
+            containerView.layer.shadowRadius = 2
+        } else {
+            containerView.backgroundColor = .systemGray6
+            containerView.layer.cornerRadius = 16
+            containerView.layer.masksToBounds = true
+        }
+        
+        cell.addSubview(containerView)
+        containerView.snp.makeConstraints { make in
+            make.edges.equalToSuperview().inset(8)
         }
         
         let item = akt.violations[indexPath.row]
@@ -489,7 +696,7 @@ extension ViolationsMainViewController: UITableViewDataSource {
         numberLabel.textAlignment = .left
         numberLabel.textColor = .systemBlue
         numberLabel.font = .systemFont(ofSize: 16, weight: .bold)
-        cell.addSubview(numberLabel)
+        containerView.addSubview(numberLabel)
         numberLabel.snp.makeConstraints { make in
             make.top.equalToSuperview().inset(8)
             make.left.equalToSuperview().inset(16)
@@ -499,9 +706,14 @@ extension ViolationsMainViewController: UITableViewDataSource {
         let mainLabel = UILabel()
         mainLabel.textAlignment = .left
         mainLabel.text = item.title
-        mainLabel.textColor = .black
+        // Улучшенный контраст для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            mainLabel.textColor = .white
+        } else {
+            mainLabel.textColor = .black
+        }
         mainLabel.font = .systemFont(ofSize: 16, weight: .semibold)
-        cell.addSubview(mainLabel)
+        containerView.addSubview(mainLabel)
         mainLabel.snp.makeConstraints { make in
             make.top.equalToSuperview().inset(8)
             make.left.equalTo(numberLabel.snp.right).offset(8)
@@ -510,10 +722,15 @@ extension ViolationsMainViewController: UITableViewDataSource {
         
         let subLabel = UILabel()
         subLabel.text = item.urlToPravilo
-        subLabel.textColor = .black.withAlphaComponent(0.7)
+        // Улучшенный контраст для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            subLabel.textColor = .white.withAlphaComponent(0.8)
+        } else {
+            subLabel.textColor = .black.withAlphaComponent(0.7)
+        }
         subLabel.font = .systemFont(ofSize: 16, weight: .regular)
         subLabel.textAlignment = .left
-        cell.addSubview(subLabel)
+        containerView.addSubview(subLabel)
         subLabel.snp.makeConstraints { make in
             make.left.equalTo(numberLabel.snp.right).offset(8)
             make.right.equalToSuperview().inset(16)
@@ -522,10 +739,15 @@ extension ViolationsMainViewController: UITableViewDataSource {
         
         let mestoLabel = UILabel()
         mestoLabel.text = item.mesto
-        mestoLabel.textColor = .black.withAlphaComponent(0.7)
+        // Улучшенный контраст для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            mestoLabel.textColor = .white.withAlphaComponent(0.8)
+        } else {
+            mestoLabel.textColor = .black.withAlphaComponent(0.7)
+        }
         mestoLabel.font = .systemFont(ofSize: 16, weight: .regular)
         mestoLabel.textAlignment = .left
-        cell.addSubview(mestoLabel)
+        containerView.addSubview(mestoLabel)
         mestoLabel.snp.makeConstraints { make in
             make.left.equalTo(numberLabel.snp.right).offset(8)
             make.right.equalToSuperview().inset(16)
@@ -546,7 +768,8 @@ extension ViolationsMainViewController: UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 80
+        // Увеличиваем высоту строк для лучшего отображения в темной теме
+        return 100
     }
     
     func tableView(_ tableView: UITableView, contextMenuConfigurationForRowAt indexPath: IndexPath, point: CGPoint) -> UIContextMenuConfiguration? {
@@ -561,7 +784,7 @@ extension ViolationsMainViewController: UITableViewDelegate {
                 self.deleteViolation(at: indexPath.row)
             }
             
-            return UIMenu(title: "", children: [editAction, deleteAction])
+        return UIMenu(title: "", children: [editAction, deleteAction])
         }
     }
 }
