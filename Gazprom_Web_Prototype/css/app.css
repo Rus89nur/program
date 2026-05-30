@@ -836,8 +836,8 @@
       color: inherit;
     }
     .chip-removable {
-      cursor: pointer;
-      transition: background 0.15s, transform 0.1s;
+      cursor: grab;
+      transition: background 0.15s, transform 0.1s, opacity 0.15s;
     }
     .chip-removable:hover {
       background: #fce4ec;
@@ -845,7 +845,16 @@
       transform: translateY(-1px);
     }
     .chip-removable:active {
+      cursor: grabbing;
       transform: translateY(0);
+    }
+    .chip-dragging {
+      opacity: 0.4;
+      transform: scale(0.95);
+    }
+    .chip-drag-over {
+      outline: 2px dashed #4caf50;
+      outline-offset: 2px;
     }
     .chip-catalog {
       background: #e8f5e9;
@@ -889,49 +898,6 @@
     }
     #wNewPersonBtn:hover {
       background: #e8f5e9;
-    }
-    .csd-wrapper {
-      position: relative;
-    }
-    .csd-trigger {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      cursor: pointer;
-      user-select: none;
-    }
-    .csd-arrow {
-      font-size: 11px;
-      opacity: 0.6;
-      transition: transform 0.15s;
-    }
-    .csd-wrapper.open .csd-arrow { transform: rotate(180deg); }
-    .csd-list {
-      display: none;
-      position: absolute;
-      top: calc(100% + 4px);
-      left: 0;
-      right: 0;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-      max-height: 300px;
-      overflow-y: auto;
-      z-index: 200;
-    }
-    .csd-wrapper.open .csd-list { display: block; }
-    .csd-option {
-      padding: 10px 14px;
-      font-size: 14px;
-      cursor: pointer;
-      transition: background 0.1s;
-    }
-    .csd-option:hover { background: var(--bg); }
-    .csd-option-selected {
-      background: var(--primary-soft);
-      color: var(--primary);
-      font-weight: 600;
     }
 
     /* Photo lightbox */
@@ -1439,24 +1405,53 @@
       max-height: 90vh;
       overflow-y: auto;
     }
-    .backup-modal-section { margin-bottom: 8px; }
+    .backup-modal-section {
+      padding: 20px 0;
+    }
     .backup-modal-section-title {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
-      color: var(--text);
-      margin: 0 0 8px;
+      color: var(--text-muted);
       text-transform: uppercase;
-      letter-spacing: 0.04em;
-      opacity: 0.7;
+      letter-spacing: 0.06em;
+      margin: 0 0 12px;
     }
     .backup-modal-divider {
       border: none;
       border-top: 1px solid var(--border);
-      margin: 20px 0;
+      margin: 4px 0;
     }
     .backup-modal-section.backup-import-card {
       background: none;
-      padding: 0;
+      padding: 20px 0 4px;
       box-shadow: none;
       border: none;
+    }
+    .backup-modal-section .backup-import-hint {
+      margin-bottom: 12px;
+    }
+    .backup-modal-section .backup-steps {
+      margin: 0 0 16px 20px;
+      padding: 0;
+    }
+    .backup-modal-section .backup-steps li {
+      margin-bottom: 6px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .backup-modal-section .backup-import-actions {
+      margin-top: 16px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .backup-modal-section .backup-merge-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
     }
