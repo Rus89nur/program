@@ -271,38 +271,6 @@
       </section>
 
       <section class="screen" id="screen-settings">
-        <div class="card backup-import-card">
-          <h3>Резервная копия с iPhone</h3>
-          <p class="backup-import-hint">
-            Файлы <strong>.gazprombackup</strong> создаются в iOS-приложении автоматически. Чтобы перенести на компьютер:
-          </p>
-          <ol class="backup-steps">
-            <li>iPhone → <strong>Настройки</strong> → <strong>Восстановление по дате</strong> (календарь бэкапов)</li>
-            <li>Выберите дату → копию → <strong>Поделиться</strong></li>
-            <li>Отправьте себе на Mac (AirDrop, «Файлы», почта, iCloud Drive)</li>
-            <li>Загрузите файл ниже или перетащите на эту карточку</li>
-          </ol>
-          <p class="backup-import-hint">
-            <a href="assets/sample-demo.gazprombackup" download>Скачать демо-файл</a> для проверки (без фото, ~2 КБ).
-          </p>
-          <div id="backupLoading" class="backup-loading" hidden>
-            <div class="backup-loading-spinner"></div>
-            <span id="backupLoadingText">Импорт…</span>
-          </div>
-          <div class="backup-import-actions">
-            <label class="btn-primary backup-file-label">
-              📂 Выбрать файл резервной копии
-              <input type="file" id="backupFileInput" accept=".gazprombackup,.json,application/json" hidden>
-            </label>
-            <button type="button" class="btn-ghost" id="backupClearBtn">Очистить данные</button>
-          </div>
-          <label class="backup-merge-option">
-            <input type="checkbox" id="backupMergeCheckbox">
-            Объединить с уже загруженными (иначе — заменить все данные)
-          </label>
-          <div id="backupPreview" class="backup-preview" hidden></div>
-          <p id="backupImportMessage" class="backup-import-message" role="status"></p>
-        </div>
         <div class="settings-grid">
           <div class="card settings-tile" data-catalog="commission" role="button" tabindex="0"><div class="icon">👥</div><h4>Комиссия</h4><p>Члены комиссии</p><span class="tile-count"></span></div>
           <div class="card settings-tile" data-catalog="organizations" role="button" tabindex="0"><div class="icon">🏢</div><h4>Организации</h4><p>Справочник</p><span class="tile-count"></span></div>
@@ -387,6 +355,58 @@
     <button class="bottom-nav-item" data-screen="elimination" type="button"><span class="nav-icon">✓</span><span>Устран.</span></button>
     <button class="bottom-nav-item" data-screen="settings" type="button"><span class="nav-icon">⚙</span><span>Ещё</span></button>
   </nav>
+
+  <!-- ——— Модал: Резервные копии ——— -->
+  <div id="backupModal" class="catalog-form-overlay" hidden>
+    <div class="catalog-form-dialog card backup-modal-dialog">
+      <h3>💾 Резервные копии</h3>
+
+      <div class="backup-modal-section">
+        <h4 class="backup-modal-section-title">Экспорт — скачать копию</h4>
+        <p class="backup-import-hint">Сохраните все текущие данные браузера в файл <strong>.gazprombackup</strong>. Файл можно открыть в другом браузере или в iOS-приложении.</p>
+        <button type="button" class="btn-primary" id="backupExportBtn">💾 Скачать резервную копию</button>
+      </div>
+
+      <hr class="backup-modal-divider">
+
+      <div class="backup-modal-section backup-import-card">
+        <h4 class="backup-modal-section-title">Импорт — загрузить копию</h4>
+        <p class="backup-import-hint">
+          Файлы <strong>.gazprombackup</strong> создаются в iOS-приложении автоматически. Чтобы перенести на компьютер:
+        </p>
+        <ol class="backup-steps">
+          <li>iPhone → <strong>Настройки</strong> → <strong>Восстановление по дате</strong> (календарь бэкапов)</li>
+          <li>Выберите дату → копию → <strong>Поделиться</strong></li>
+          <li>Отправьте себе на Mac (AirDrop, «Файлы», почта, iCloud Drive)</li>
+          <li>Загрузите файл ниже или перетащите на эту карточку</li>
+        </ol>
+        <p class="backup-import-hint">
+          <a href="assets/sample-demo.gazprombackup" download>Скачать демо-файл</a> для проверки (без фото, ~2 КБ).
+        </p>
+        <div id="backupLoading" class="backup-loading" hidden>
+          <div class="backup-loading-spinner"></div>
+          <span id="backupLoadingText">Импорт…</span>
+        </div>
+        <div class="backup-import-actions">
+          <label class="btn-primary backup-file-label">
+            📂 Выбрать файл резервной копии
+            <input type="file" id="backupFileInput" accept=".gazprombackup,.json,application/json" hidden>
+          </label>
+          <button type="button" class="btn-ghost" id="backupClearBtn">Очистить данные</button>
+        </div>
+        <label class="backup-merge-option">
+          <input type="checkbox" id="backupMergeCheckbox">
+          Объединить с уже загруженными (иначе — заменить все данные)
+        </label>
+        <div id="backupPreview" class="backup-preview" hidden></div>
+        <p id="backupImportMessage" class="backup-import-message" role="status"></p>
+      </div>
+
+      <div class="catalog-form-actions">
+        <button type="button" class="btn-ghost" id="backupModalClose">Закрыть</button>
+      </div>
+    </div>
+  </div>
 
   <script src="js/data-store.js"></script>
   <script src="js/photo-store.js"></script>

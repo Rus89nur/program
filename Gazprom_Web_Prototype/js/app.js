@@ -260,7 +260,16 @@ function init() {
     el.addEventListener('click', () => goTo(el.dataset.go));
   });
 
-  document.querySelector('.settings-tile--backup')?.addEventListener('click', async () => {
+  document.querySelector('.settings-tile--backup')?.addEventListener('click', () => {
+    document.getElementById('backupModal').hidden = false;
+  });
+  document.getElementById('backupModalClose')?.addEventListener('click', () => {
+    document.getElementById('backupModal').hidden = true;
+  });
+  document.getElementById('backupModal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) e.currentTarget.hidden = true;
+  });
+  document.getElementById('backupExportBtn')?.addEventListener('click', async () => {
     try {
       await CatalogService.exportBackup();
       GazpromToast.show('Резервная копия скачана', 'success');
