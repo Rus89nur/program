@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0d47a1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.json">
+  <title>Газпром — акты проверок</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+  <div id="dataStatusBar" class="data-status data-status--empty">
+    <span>Данные не загружены</span> — импортируйте файл <code>.gazprombackup</code> с iPhone (Настройки)
+  </div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="logo">Газ<span>пром</span></div>
+        <small>Акты проверок · веб</small>
+      </div>
+      <button class="nav-item active" data-screen="home" type="button">
+        <span class="nav-icon">✈</span><span>Главная</span>
+      </button>
+      <button class="nav-item" data-screen="wizard" type="button">
+        <span class="nav-icon">📋</span><span>Новый акт</span>
+      </button>
+      <button class="nav-item" data-screen="history" type="button">
+        <span class="nav-icon">🕐</span><span>История</span>
+      </button>
+      <button class="nav-item" data-screen="reports" type="button">
+        <span class="nav-icon">📄</span><span>Отчёты</span>
+      </button>
+      <button class="nav-item" data-screen="elimination" type="button">
+        <span class="nav-icon">✓</span><span>Устранение</span>
+      </button>
+      <button class="nav-item" data-screen="settings" type="button">
+        <span class="nav-icon">⚙</span><span>Настройки</span>
+      </button>
+      <div class="sidebar-footer">
+        программа НЕТ<br>
+        v1.0 · PWA
+      </div>
+    </aside>
+
+    <header class="header">
+      <h1 class="header-title" id="pageTitle">Главная</h1>
+      <div class="header-actions">
+        <input type="search" class="search-box" id="globalSearch" placeholder="🔍 Поиск актов, объектов…" autocomplete="off">
+        <button class="year-chip" type="button">📅 2026</button>
+        <div class="avatar" title="Инспектор">ИП</div>
+      </div>
+    </header>
+
+    <main class="main">
+
+      <section class="screen active" id="screen-home">
+        <div class="card home-hero">
+          <div class="home-datetime" id="liveClock">—</div>
+          <div class="home-greeting">Добрый день! Готовы к проверке?</div>
+          <div class="progress-block">
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-label" id="progressLabel">График проверок</div>
+            <div class="progress-hint">Нажмите на полосу — переключить «за месяц» / «за период»</div>
+          </div>
+          <button class="btn-primary" type="button" data-go="wizard">Создать новый акт</button>
+          <p style="margin-top:14px;font-size:13px;color:var(--text-muted);" id="homeSubAction" hidden>
+            или <button class="btn-ghost" type="button" data-go="wizard" style="display:inline;padding:4px 10px;">начать новый акт</button>
+          </p>
+        </div>
+        <div class="home-grid">
+          <div class="card stat-card">
+            <div class="stat-value" id="homeStatCurrent">—</div>
+            <div class="stat-label">Текущий номер акта</div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-value" id="homeStatTotal">0</div>
+            <div class="stat-label">Актов в работе</div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-value" id="homeStatDrafts">0</div>
+            <div class="stat-label">Черновиков</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-wizard">
+        <div class="wizard-stepper" id="wizardStepper">
+          <button class="wizard-step current" data-step="0" type="button">
+            <span class="wizard-step-num">1</span>
+            <span class="wizard-step-label">Дата и комиссия</span>
+          </button>
+          <div class="wizard-connector"></div>
+          <button class="wizard-step" data-step="1" type="button">
+            <span class="wizard-step-num">2</span>
+            <span class="wizard-step-label">Организации</span>
+          </button>
+          <div class="wizard-connector"></div>
+          <button class="wizard-step" data-step="2" type="button">
+            <span class="wizard-step-num">3</span>
+            <span class="wizard-step-label">Объекты</span>
+          </button>
+          <div class="wizard-connector"></div>
+          <button class="wizard-step" data-step="3" type="button">
+            <span class="wizard-step-num">4</span>
+            <span class="wizard-step-label">Нарушения</span>
+          </button>
+          <div class="wizard-connector"></div>
+          <button class="wizard-step" data-step="4" type="button">
+            <span class="wizard-step-num">5</span>
+            <span class="wizard-step-label">Описание</span>
+          </button>
+          <div class="wizard-connector"></div>
+          <button class="wizard-step" data-step="5" type="button">
+            <span class="wizard-step-num">6</span>
+            <span class="wizard-step-label">Генерация</span>
+          </button>
+        </div>
+
+        <div id="wizardEmpty" class="wizard-empty card" hidden>
+          <h3>Нет данных</h3>
+          <p>Сначала загрузите резервную копию <code>.gazprombackup</code> в разделе <strong>Настройки</strong>.</p>
+          <button type="button" class="btn-primary" data-go="settings">Перейти в настройки</button>
+        </div>
+
+        <div id="wizardRoot">
+          <div class="wizard-toolbar">
+            <button type="button" class="btn-ghost" id="wizardNewBtn">+ Новый акт</button>
+            <span id="wizardDirtyBadge" class="wizard-dirty-badge" hidden>● Не сохранено</span>
+          </div>
+          <div class="wizard-layout">
+            <div>
+              <div id="wizardPanels"></div>
+              <div class="wizard-footer">
+                <button class="btn-ghost" type="button" id="wizardPrev">← Назад</button>
+                <button class="btn-primary" type="button" id="wizardNext">Далее →</button>
+              </div>
+            </div>
+            <div class="summary-panel">
+              <div class="card" id="wizardSummaryCard">
+                <h3>Сводка акта</h3>
+                <div class="summary-row"><span>Номер</span><span>—</span></div>
+                <div class="summary-row"><span>Дата</span><span>—</span></div>
+                <div class="summary-row"><span>Комиссия</span><span>0 чел.</span></div>
+                <div class="summary-row"><span>Организация</span><span>0</span></div>
+                <div class="summary-row"><span>Объекты</span><span>0</span></div>
+                <div class="summary-row"><span>Нарушения</span><span>0</span></div>
+                <div class="summary-row summary-row--last"><span>Фото</span><span>0</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-history">
+        <div class="toolbar">
+          <div class="toolbar-filters">
+            <input type="search" class="form-control history-search" id="historySearch" placeholder="Поиск по номеру, организации…">
+            <button class="filter-pill active" type="button">Все</button>
+            <button class="filter-pill" type="button">2026</button>
+            <button class="filter-pill" type="button">2025</button>
+            <button class="filter-pill" type="button">С нарушениями</button>
+            <button class="filter-pill" type="button">Черновики</button>
+          </div>
+          <button class="btn-secondary" type="button" id="historyExportBtn">Экспорт списка</button>
+        </div>
+        <div class="card card--flush">
+          <table class="list-table">
+            <thead>
+              <tr>
+                <th>№</th>
+                <th>Дата</th>
+                <th>Организация</th>
+                <th>Объектов</th>
+                <th>Наруш.</th>
+                <th>Статус</th>
+                <th></th>
+              </tr>
+            </thead>
+              <tbody id="historyTableBody">
+                <tr>
+                  <td><strong>46</strong></td>
+                <td>15.05.2026</td>
+                <td>ООО «Газсервис-Север»</td>
+                <td>3</td>
+                <td>1</td>
+                <td><span class="badge badge-green">Завершён</span></td>
+                <td><button class="btn-ghost" type="button">📄</button></td>
+              </tr>
+              <tr>
+                <td><strong>45</strong></td>
+                <td>02.05.2026</td>
+                <td>АО «Теплоэнерго»</td>
+                <td>2</td>
+                <td>4</td>
+                <td><span class="badge badge-green">Завершён</span></td>
+                <td><button class="btn-ghost" type="button">📄</button></td>
+              </tr>
+              <tr>
+                <td><strong>47</strong></td>
+                <td>28.05.2026</td>
+                <td>2 организации</td>
+                <td>2</td>
+                <td>2</td>
+                <td><span class="badge badge-orange">Черновик</span></td>
+                <td><button class="btn-ghost" type="button">✏️</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-reports">
+        <div class="card">
+          <h3>Отчёты и аналитика</h3>
+          <p style="font-size:14px;color:var(--text-muted);margin-bottom:20px;">Сводные отчёты по нарушениям, графику проверок и устранению</p>
+          <div class="home-grid">
+            <div class="card stat-card stat-card--clickable">
+              <div class="stat-card-icon">📊</div>
+              <div class="stat-label">Отчёт по нарушениям</div>
+            </div>
+            <div class="card stat-card stat-card--clickable">
+              <div class="stat-card-icon">📅</div>
+              <div class="stat-label">График проверок</div>
+            </div>
+            <div class="card stat-card stat-card--clickable">
+              <div class="stat-card-icon">📁</div>
+              <div class="stat-label">Выгрузка в Excel</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-elimination">
+        <div class="toolbar">
+          <div class="toolbar-filters">
+            <button class="filter-pill active" type="button">Не устранено</button>
+            <button class="filter-pill" type="button">Устранено</button>
+          </div>
+        </div>
+        <div class="card card--flush">
+          <table class="list-table">
+            <thead>
+              <tr><th>Акт</th><th>Нарушение</th><th>Срок</th><th>Фото «до/после»</th><th></th></tr>
+            </thead>
+              <tbody id="eliminationTableBody">
+                <tr>
+                  <td>№ 45</td>
+                  <td>Неисправна вентиляция</td>
+                <td>30.06.2026</td>
+                <td>📷 / —</td>
+                <td><button class="btn-secondary btn-sm" type="button">Отметить</button></td>
+              </tr>
+              <tr>
+                <td>№ 44</td>
+                <td>Нет знаков безопасности</td>
+                <td class="text-danger">⚠ просрочено</td>
+                <td>📷 2 / 📷 1</td>
+                <td><button class="btn-secondary btn-sm" type="button">Отметить</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-settings">
+        <div class="card backup-import-card">
+          <h3>Резервная копия с iPhone</h3>
+          <p class="backup-import-hint">
+            Файлы <strong>.gazprombackup</strong> создаются в iOS-приложении автоматически. Чтобы перенести на компьютер:
+          </p>
+          <ol class="backup-steps">
+            <li>iPhone → <strong>Настройки</strong> → <strong>Восстановление по дате</strong> (календарь бэкапов)</li>
+            <li>Выберите дату → копию → <strong>Поделиться</strong></li>
+            <li>Отправьте себе на Mac (AirDrop, «Файлы», почта, iCloud Drive)</li>
+            <li>Загрузите файл ниже или перетащите на эту карточку</li>
+          </ol>
+          <p class="backup-import-hint">
+            <a href="assets/sample-demo.gazprombackup" download>Скачать демо-файл</a> для проверки (без фото, ~2 КБ).
+          </p>
+          <div id="backupLoading" class="backup-loading" hidden>
+            <div class="backup-loading-spinner"></div>
+            <span id="backupLoadingText">Импорт…</span>
+          </div>
+          <div class="backup-import-actions">
+            <label class="btn-primary backup-file-label">
+              📂 Выбрать файл резервной копии
+              <input type="file" id="backupFileInput" accept=".gazprombackup,.json,application/json" hidden>
+            </label>
+            <button type="button" class="btn-ghost" id="backupClearBtn">Очистить данные</button>
+          </div>
+          <label class="backup-merge-option">
+            <input type="checkbox" id="backupMergeCheckbox">
+            Объединить с уже загруженными (иначе — заменить все данные)
+          </label>
+          <div id="backupPreview" class="backup-preview" hidden></div>
+          <p id="backupImportMessage" class="backup-import-message" role="status"></p>
+        </div>
+        <div class="settings-grid">
+          <div class="card settings-tile" data-catalog="commission" role="button" tabindex="0"><div class="icon">👥</div><h4>Комиссия</h4><p>Члены комиссии</p><span class="tile-count"></span></div>
+          <div class="card settings-tile" data-catalog="organizations" role="button" tabindex="0"><div class="icon">🏢</div><h4>Организации</h4><p>Справочник</p><span class="tile-count"></span></div>
+          <div class="card settings-tile" data-catalog="objects" role="button" tabindex="0"><div class="icon">📍</div><h4>Объекты</h4><p>Объекты проверки</p><span class="tile-count"></span></div>
+          <div class="card settings-tile" data-catalog="violations" role="button" tabindex="0"><div class="icon">⚠️</div><h4>Нарушения</h4><p>Виды нарушений</p><span class="tile-count"></span></div>
+          <div class="card settings-tile" data-catalog="predstavitely" role="button" tabindex="0"><div class="icon">👤</div><h4>Представители</h4><p>Контактные лица</p><span class="tile-count"></span></div>
+          <div class="card settings-tile settings-tile--schedule" role="button" tabindex="0"><div class="icon">📅</div><h4>График</h4><p>План проверок</p><span class="tile-count"></span></div>
+          <div class="card settings-tile settings-tile--template" role="button" tabindex="0"><div class="icon">📄</div><h4>Шаблон акта</h4><p>Word-шаблон</p><span class="tile-count" data-template-status></span></div>
+          <input type="file" id="wordTemplateInput" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+          <div class="card settings-tile settings-tile--backup" role="button" tabindex="0"><div class="icon">💾</div><h4>Резервные копии</h4><p>Бэкап данных</p></div>
+          <div class="card settings-tile settings-tile--trash" role="button" tabindex="0"><div class="icon">🗑</div><h4>Корзина</h4><p>Удалённые акты</p><span class="tile-count" data-trash-count></span></div>
+          <div class="card settings-tile settings-tile--ml" role="button" tabindex="0" title="Функция не реализована"><div class="icon">🤖</div><h4>Обучение ML</h4><p>Модель по фото</p></div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-trash">
+        <div class="card">
+          <h3>Корзина</h3>
+          <p style="font-size:14px;color:var(--text-muted);margin-bottom:16px;">Акты, удалённые в iOS-приложении. Можно восстановить или удалить безвозвратно.</p>
+        </div>
+        <div class="card card--flush">
+          <table class="list-table">
+            <thead>
+              <tr><th>№</th><th>Дата</th><th>Организация</th><th>Наруш.</th><th></th></tr>
+            </thead>
+            <tbody id="trashTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <nav class="bottom-nav" aria-label="Мобильная навигация">
+    <button class="bottom-nav-item active" data-screen="home" type="button"><span class="nav-icon">✈</span><span>Главная</span></button>
+    <button class="bottom-nav-item" data-screen="wizard" type="button"><span class="nav-icon">📋</span><span>Акт</span></button>
+    <button class="bottom-nav-item" data-screen="history" type="button"><span class="nav-icon">🕐</span><span>История</span></button>
+    <button class="bottom-nav-item" data-screen="elimination" type="button"><span class="nav-icon">✓</span><span>Устран.</span></button>
+    <button class="bottom-nav-item" data-screen="settings" type="button"><span class="nav-icon">⚙</span><span>Ещё</span></button>
+  </nav>
+
+  <script src="js/data-store.js"></script>
+  <script src="js/photo-store.js"></script>
+  <script src="js/toast.js"></script>
+  <script src="js/akt-utils.js"></script>
+  <script src="js/violation-templates.js"></script>
+  <script src="js/catalog-service.js"></script>
+  <script src="js/backup-import.js"></script>
+  <script src="js/akt-search.js"></script>
+  <script src="js/ui-bindings.js"></script>
+  <script src="js/catalog-editor.js"></script>
+  <script src="js/schedule-editor.js"></script>
+  <script src="js/elimination-editor.js"></script>
+  <script src="js/doc-generator.js"></script>
+  <script src="js/report-exporter.js"></script>
+  <script src="js/wizard-modals.js"></script>
+  <script src="js/wizard.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

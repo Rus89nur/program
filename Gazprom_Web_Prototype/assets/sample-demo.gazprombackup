@@ -1,0 +1,124 @@
+{
+  "version": "1.2",
+  "timestamp": "2026-05-28T12:00:00Z",
+  "akts": [
+    {
+      "id": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+      "number": "47",
+      "date": "2026-05-28T10:00:00Z",
+      "comission": [
+        {
+          "id": "B2C3D4E5-F6A7-8901-BCDE-F12345678901",
+          "fio": "Иванов И.И.",
+          "jobTitle": "Председатель"
+        }
+      ],
+      "organization": {
+        "id": "C3D4E5F6-A7B8-9012-CDEF-123456789012",
+        "title": "ООО «Газсервис-Север»",
+        "shortTitle": "Газсервис-Север"
+      },
+      "objectsCheck": [
+        {
+          "id": "D4E5F6A7-B8C9-0123-DEF0-234567890123",
+          "title": "Котельная №2",
+          "subTitle": "ул. Промышленная, 14"
+        }
+      ],
+      "predstavitelyComission": [],
+      "violations": [
+        {
+          "id": "E5F6A7B8-C9D0-1234-EF01-345678901234",
+          "title": "Отсутствует ограждение",
+          "mesto": "Лестница",
+          "urlToPravilo": "",
+          "photo": [],
+          "vid": "",
+          "formulaFromRules": null
+        }
+      ],
+      "description": "Плановая проверка",
+      "actustranenDate": "2026-06-28T10:00:00Z",
+      "actPredostavlenDate": "2026-05-28T10:00:00Z",
+      "actUtverzdenDate": "2026-05-28T10:00:00Z",
+      "urlToFllACT": null,
+      "realDateCreate": "2026-05-28T10:00:00Z",
+      "uniqueID": "2026-05-28-47"
+    }
+  ],
+  "comissionPeople": [
+    {
+      "id": "B2C3D4E5-F6A7-8901-BCDE-F12345678901",
+      "fio": "Иванов И.И.",
+      "jobTitle": "Председатель"
+    },
+    {
+      "id": "F6A7B8C9-D0E1-2345-F012-456789012345",
+      "fio": "Петров П.П.",
+      "jobTitle": "Член комиссии"
+    }
+  ],
+  "organizations": [
+    {
+      "id": "C3D4E5F6-A7B8-9012-CDEF-123456789012",
+      "title": "ООО «Газсервис-Север»",
+      "shortTitle": "Газсервис-Север"
+    },
+    {
+      "id": "A7B8C9D0-E1F2-3456-0123-567890123456",
+      "title": "АО «Теплоэнерго»",
+      "shortTitle": "Теплоэнерго"
+    }
+  ],
+  "objects": [
+    {
+      "id": "D4E5F6A7-B8C9-0123-DEF0-234567890123",
+      "title": "Котельная №2",
+      "subTitle": "ул. Промышленная, 14"
+    }
+  ],
+  "predstavitely": [],
+  "trash": [],
+  "editableAkt": null,
+  "editableAktReference": {
+    "aktId": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+    "aktNumber": "47",
+    "lastModified": "2026-05-28T12:00:00Z"
+  },
+  "scheduleItems": [
+    {
+      "id": "12345678-1234-1234-1234-123456789abc",
+      "objectCheck": {
+        "id": "D4E5F6A7-B8C9-0123-DEF0-234567890123",
+        "title": "Котельная №2",
+        "subTitle": "ул. Промышленная, 14"
+      },
+      "scheduledDate": "2026-05-15T10:00:00Z",
+      "month": 5,
+      "year": 2026,
+      "actualDate": "2026-05-28T10:00:00Z"
+    }
+  ],
+  "violationEliminations": [
+    {
+      "id": "23456789-2345-2345-2345-234567890abc",
+      "aktId": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+      "aktNumber": "45",
+      "violationId": "34567890-3456-3456-3456-345678901abc",
+      "violationTitle": "Неисправна вентиляция",
+      "isEliminated": false,
+      "eliminationDate": null,
+      "deadlineHistory": [
+        {
+          "id": "45678901-4567-4567-4567-456789012abc",
+          "deadlineDate": "2026-06-30T10:00:00Z",
+          "changeDate": "2026-05-01T10:00:00Z",
+          "reason": null,
+          "isOriginal": true
+        }
+      ],
+      "originalEliminationDate": "2026-06-30T10:00:00Z",
+      "newEliminationDate": null
+    }
+  ]
+}

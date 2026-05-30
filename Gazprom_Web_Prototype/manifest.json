@@ -1,0 +1,25 @@
+{
+  "name": "АПК_ГИ — акты проверок",
+  "short_name": "АПК_ГИ",
+  "description": "Веб-приложение актов проверок Газпром",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#0d47a1",
+  "lang": "ru",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

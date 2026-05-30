@@ -1,0 +1,62 @@
+const CACHE_NAME = 'gazprom-web-v2';
+const STATIC_ASSETS = [
+  './',
+  './index.html',
+  './manifest.json',
+  './css/app.css',
+  './js/data-store.js',
+  './js/photo-store.js',
+  './js/akt-utils.js',
+  './js/toast.js',
+  './js/violation-templates.js',
+  './js/catalog-service.js',
+  './js/backup-import.js',
+  './js/akt-search.js',
+  './js/ui-bindings.js',
+  './js/catalog-editor.js',
+  './js/schedule-editor.js',
+  './js/elimination-editor.js',
+  './js/wizard-modals.js',
+  './js/wizard.js',
+  './js/doc-generator.js',
+  './js/report-exporter.js',
+  './js/app.js',
+  './assets/sample-demo.gazprombackup',
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)).then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  event.respondWith(
+    caches.match(request).then((cached) => {
+      const fetchPromise = fetch(request)
+        .then((response) => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => cached);
+      return cached || fetchPromise;
+    })
+  );
+});
