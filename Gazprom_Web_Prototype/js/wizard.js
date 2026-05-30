@@ -179,16 +179,15 @@ const WizardController = (() => {
   }
 
   function numberOptions() {
-    const occupied = AktUtils.occupiedNumbers(catalog.akts, draft.id);
+    const draftYear = draft.date ? new Date(draft.date).getFullYear() : new Date().getFullYear();
+    const occupied = AktUtils.occupiedNumbers(catalog.akts, draft.id, draftYear);
     const current = parseInt(draft.number, 10) || 1;
-    const nums = new Set();
-    for (let n = Math.max(1, current - 3); n <= current + 10; n++) nums.add(n);
-    occupied.forEach((s) => {
-      const n = parseInt(s, 10);
-      if (!Number.isNaN(n)) nums.add(n);
-    });
-    nums.add(current);
-    return [...nums].sort((a, b) => a - b);
+    const maxNum = Math.max(70, current, ...[...occupied].map((s) => parseInt(s, 10) || 0));
+    const nums = [];
+    for (let n = 1; n <= maxNum; n++) {
+      if (!occupied.has(String(n)) || n === current) nums.push(n);
+    }
+    return nums;
   }
 
   function renderStepDateCommission() {
@@ -198,16 +197,15 @@ const WizardController = (() => {
     const chips = (draft.comission || [])
       .map(
         (p) =>
-          `<span class="chip" data-person-id="${p.id}">${AktUtils.escapeHtml(p.fio)}${p.jobTitle ? ' — ' + AktUtils.escapeHtml(p.jobTitle) : ''}
-            <button type="button" class="chip-remove" data-remove-person="${p.id}">×</button></span>`
+          `<span class="chip chip-removable" draggable="true" data-remove-person="${p.id}" data-person-id="${p.id}" title="Удерживайте для перетаскивания, нажмите чтобы убрать">${AktUtils.escapeHtml(p.fio)}${p.jobTitle ? ' — ' + AktUtils.escapeHtml(p.jobTitle) : ''}</span>`
       )
       .join('');
 
-    const options = people
+    const catalogChips = people
       .filter((p) => !selectedIds.has(p.id))
       .map(
         (p) =>
-          `<option value="${p.id}">${AktUtils.escapeHtml(p.fio)} — ${AktUtils.escapeHtml(p.jobTitle || '')}</option>`
+          `<span class="chip chip-catalog" data-add-person="${p.id}" title="Нажмите, чтобы добавить">${AktUtils.escapeHtml(p.fio)}${p.jobTitle ? ' — ' + AktUtils.escapeHtml(p.jobTitle) : ''}</span>`
       )
       .join('');
 
@@ -227,17 +225,18 @@ const WizardController = (() => {
         </div>
         <div class="form-group">
           <label>Номер акта</label>
-          <select class="form-control" id="wNumber">${numOpts}</select>
+          <select class="form-control" id="wNumber" size="1">${numOpts}</select>
         </div>
       </div>
       <h3 style="margin-top:8px;">Состав комиссии</h3>
       <div class="chip-list" id="wCommissionChips">${chips || '<span class="wizard-hint">Добавьте членов комиссии</span>'}</div>
-      <div class="wizard-add-row">
-        <select class="form-control" id="wAddPerson" ${options ? '' : 'disabled'}>
-          <option value="">— выбрать из справочника —</option>${options}
-        </select>
-        <button type="button" class="btn-secondary" id="wAddPersonBtn" ${options ? '' : 'disabled'}>+ Добавить</button>
-        <button type="button" class="btn-ghost" id="wNewPersonBtn">+ Новый в справочник</button>
+      <div class="commission-divider"></div>
+      <div class="commission-catalog-section">
+        <div class="commission-catalog-header">
+          <span class="commission-catalog-label">Выбрать из справочника</span>
+          <button type="button" class="btn-ghost" id="wNewPersonBtn">+ Добавить в справочник</button>
+        </div>
+        <div class="chip-list">${catalogChips || '<span class="wizard-hint">Все из справочника уже добавлены</span>'}</div>
       </div>
     `;
   }
@@ -485,10 +484,67 @@ const WizardController = (() => {
     `;
   }
 
+  function bindCommissionDragDrop() {
+    const container = document.getElementById('wCommissionChips');
+    if (!container) return;
+
+    let dragSrcId = null;
+
+    container.querySelectorAll('.chip-removable[draggable]').forEach((chip) => {
+      chip.addEventListener('dragstart', (e) => {
+        dragSrcId = chip.dataset.personId;
+        e.dataTransfer.effectAllowed = 'move';
+        chip.classList.add('chip-dragging');
+      });
+
+      chip.addEventListener('dragend', () => {
+        chip.classList.remove('chip-dragging');
+        container.querySelectorAll('.chip-drag-over').forEach((el) => el.classList.remove('chip-drag-over'));
+      });
+
+      chip.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (chip.dataset.personId !== dragSrcId) {
+          container.querySelectorAll('.chip-drag-over').forEach((el) => el.classList.remove('chip-drag-over'));
+          chip.classList.add('chip-drag-over');
+        }
+      });
+
+      chip.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const targetId = chip.dataset.personId;
+        if (!dragSrcId || dragSrcId === targetId) return;
+
+        const commission = draft.comission || [];
+        const srcIdx = commission.findIndex((p) => p.id === dragSrcId);
+        const tgtIdx = commission.findIndex((p) => p.id === targetId);
+        if (srcIdx === -1 || tgtIdx === -1) return;
+
+        const [moved] = commission.splice(srcIdx, 1);
+        commission.splice(tgtIdx, 0, moved);
+        draft.comission = commission;
+        render();
+      });
+    });
+  }
+
   function bindPanelEvents() {
-    document.getElementById('wAddPersonBtn')?.addEventListener('click', addPersonFromSelect);
-    document.getElementById('wAddPerson')?.addEventListener('change', (e) => {
-      if (e.target.value) addPersonById(e.target.value);
+    panelsHost()?.querySelectorAll('[data-add-person]').forEach((chip) => {
+      chip.addEventListener('click', () => addPersonById(chip.dataset.addPerson));
+    });
+
+    document.getElementById('wDate')?.addEventListener('change', () => {
+      const dateEl = document.getElementById('wDate');
+      const numEl = document.getElementById('wNumber');
+      if (!dateEl?.value || !numEl) return;
+      draft.date = new Date(dateEl.value + 'T12:00:00').toISOString();
+      const opts = numberOptions();
+      const currentVal = numEl.value;
+      numEl.size = 1;
+      numEl.innerHTML = opts
+        .map((n) => `<option value="${n}" ${String(currentVal) === String(n) ? 'selected' : ''}>${n}</option>`)
+        .join('');
     });
     document.getElementById('wNewPersonBtn')?.addEventListener('click', () =>
       WizardModals.openQuickAdd('commission')
@@ -500,6 +556,8 @@ const WizardController = (() => {
     panelsHost()?.querySelectorAll('[data-remove-person]').forEach((btn) => {
       btn.addEventListener('click', () => removePerson(btn.dataset.removePerson));
     });
+
+    bindCommissionDragDrop();
 
     document.getElementById('wViolFilter')?.addEventListener('change', (e) => {
       commitStep(3);
@@ -677,9 +735,10 @@ const WizardController = (() => {
         GazpromToast.error('Добавьте хотя бы одного члена комиссии');
         return false;
       }
-      const occupied = AktUtils.occupiedNumbers(catalog.akts, draft.id);
+      const draftYear = draft.date ? new Date(draft.date).getFullYear() : new Date().getFullYear();
+      const occupied = AktUtils.occupiedNumbers(catalog.akts, draft.id, draftYear);
       if (occupied.has(String(draft.number))) {
-        GazpromToast.error(`Акт № ${draft.number} уже существует. Выберите другой номер.`);
+        GazpromToast.error(`Акт № ${draft.number} уже существует в ${draftYear} году. Выберите другой номер.`);
         return false;
       }
     }

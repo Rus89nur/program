@@ -836,10 +836,11 @@
       color: inherit;
     }
     .chip-removable {
-      cursor: grab;
+      cursor: pointer;
       transition: background 0.15s, transform 0.1s, opacity 0.15s;
     }
     .chip-removable:hover {
+      cursor: pointer;
       background: #fce4ec;
       color: #c62828;
       transform: translateY(-1px);

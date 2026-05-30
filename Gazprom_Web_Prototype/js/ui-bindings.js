@@ -256,22 +256,48 @@ const GazpromUI = (() => {
   }
 
   function renderSettingsTilesSync(data) {
-    const tiles = document.querySelectorAll('#screen-settings .settings-tile p');
-    const counts = {
-      0: data.comissionPeople?.length,
-      1: data.organizations?.length,
-      2: data.objects?.length,
-      4: data.predstavitely?.length,
-      5: `${data.scheduleItems?.length || 0} записей`,
-      6: data.wordTemplateName || (data[DocGenerator.TEMPLATE_KEY] ? 'загружен' : 'не задан'),
-      8: `${data.trash?.length || 0} в корзине`,
+    // Обновляем бейджи на тайлах справочников через data-catalog
+    const catalogCounts = {
+      commission:    data.comissionPeople?.length ?? 0,
+      organizations: data.organizations?.length ?? 0,
+      objects:       data.objects?.length ?? 0,
+      predstavitely: data.predstavitely?.length ?? 0,
+      violations:    data.violationRegistry?.length ?? 0,
     };
-    tiles.forEach((p, i) => {
-      if (counts[i] !== undefined) {
-        const n = counts[i];
-        p.textContent = typeof n === 'number' ? `${n} записей` : String(n);
-      }
+
+    Object.entries(catalogCounts).forEach(([key, count]) => {
+      const tile = document.querySelector(`[data-catalog="${key}"]`);
+      if (!tile) return;
+      const badge = tile.querySelector('.tile-count');
+      if (badge) badge.textContent = count > 0 ? String(count) : '';
     });
+
+    // График
+    const scheduleTile = document.querySelector('.settings-tile--schedule');
+    if (scheduleTile) {
+      const badge = scheduleTile.querySelector('.tile-count');
+      if (badge) {
+        const n = data.scheduleItems?.length || 0;
+        badge.textContent = n > 0 ? String(n) : '';
+      }
+    }
+
+    // Шаблон Word
+    const templateBadge = document.querySelector('[data-template-status]');
+    if (templateBadge) {
+      const hasTemplate = !!(data.wordTemplateName || data[DocGenerator?.TEMPLATE_KEY]);
+      templateBadge.textContent = hasTemplate
+        ? (data.wordTemplateName || 'загружен')
+        : '';
+      templateBadge.style.color = hasTemplate ? 'var(--success)' : '';
+    }
+
+    // Корзина
+    const trashBadge = document.querySelector('[data-trash-count]');
+    if (trashBadge) {
+      const n = data.trash?.length || 0;
+      trashBadge.textContent = n > 0 ? String(n) : '';
+    }
   }
 
   return {

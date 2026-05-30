@@ -37,7 +37,12 @@ const WizardModals = (() => {
     root.classList.add('show');
     document.getElementById('modalTitle').textContent = title;
     document.getElementById('modalBody').innerHTML = bodyHtml;
-    document.getElementById('modalFooter').innerHTML = footerHtml || '';
+    const footer = document.getElementById('modalFooter');
+    footer.innerHTML = footerHtml || '';
+    const closeEls = footer.querySelectorAll('[data-close]');
+    closeEls.forEach((el) => {
+      el.addEventListener('click', close);
+    });
   }
 
   function close() {
@@ -275,8 +280,8 @@ const WizardModals = (() => {
       org: {
         title: 'Новая организация',
         html: `
-          <div class="form-group"><label>Наименование</label><input class="form-control" id="qaTitle"></div>
-          <div class="form-group"><label>Краткое название</label><input class="form-control" id="qaSub"></div>
+          <div class="form-group"><label>Наименование</label><input class="form-control" id="qaTitle" placeholder="Например: ООО «Газпром трансгаз»"></div>
+          <div class="form-group"><label>Краткое название</label><input class="form-control" id="qaSub" placeholder="Например: КДТГ"></div>
         `,
         save: async () => {
           const title = document.getElementById('qaTitle')?.value?.trim();
@@ -288,8 +293,8 @@ const WizardModals = (() => {
       object: {
         title: 'Новый объект',
         html: `
-          <div class="form-group"><label>Название объекта</label><input class="form-control" id="qaTitle"></div>
-          <div class="form-group"><label>Адрес / примечание</label><input class="form-control" id="qaSub"></div>
+          <div class="form-group"><label>Название объекта</label><input class="form-control" id="qaTitle" placeholder="Например: КС Краснодарская"></div>
+          <div class="form-group"><label>Адрес / примечание</label><input class="form-control" id="qaSub" placeholder="Например: ул. Ленина, 1"></div>
         `,
         save: async () => {
           const title = document.getElementById('qaTitle')?.value?.trim();
@@ -301,8 +306,8 @@ const WizardModals = (() => {
       commission: {
         title: 'Новый член комиссии',
         html: `
-          <div class="form-group"><label>ФИО</label><input class="form-control" id="qaTitle"></div>
-          <div class="form-group"><label>Должность</label><input class="form-control" id="qaSub"></div>
+          <div class="form-group"><label>ФИО</label><input class="form-control" id="qaTitle" placeholder="Например: Иванов Иван Иванович"></div>
+          <div class="form-group"><label>Должность</label><input class="form-control" id="qaSub" placeholder="Например: Начальник участка"></div>
         `,
         save: async () => {
           const fio = document.getElementById('qaTitle')?.value?.trim();
@@ -314,8 +319,8 @@ const WizardModals = (() => {
       pred: {
         title: 'Новый представитель',
         html: `
-          <div class="form-group"><label>ФИО</label><input class="form-control" id="qaTitle"></div>
-          <div class="form-group"><label>Должность</label><input class="form-control" id="qaSub"></div>
+          <div class="form-group"><label>ФИО</label><input class="form-control" id="qaTitle" placeholder="Например: Петров Пётр Петрович"></div>
+          <div class="form-group"><label>Должность</label><input class="form-control" id="qaSub" placeholder="Например: Главный инженер"></div>
           <div class="form-group"><label>Организация</label><input class="form-control" id="qaOrg" value="${AktUtils.escapeHtml(ctx.getDraft().organization?.title || '')}"></div>
         `,
         save: async () => {

@@ -70,10 +70,15 @@ const AktUtils = (() => {
     return String(max + 1);
   }
 
-  function occupiedNumbers(akts, excludeId) {
+  function occupiedNumbers(akts, excludeId, year) {
     return new Set(
       (akts || [])
-        .filter((a) => a.id !== excludeId)
+        .filter((a) => {
+          if (a.id === excludeId) return false;
+          if (year == null) return true;
+          const aktYear = a.date ? new Date(a.date).getFullYear() : null;
+          return aktYear === year;
+        })
         .map((a) => String(a.number))
     );
   }
