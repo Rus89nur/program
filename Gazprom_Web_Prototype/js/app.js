@@ -7,6 +7,7 @@ const titles = {
   elimination: 'Устранение',
   settings: 'Настройки',
   trash: 'Корзина',
+  violations: 'Реестр нарушений',
 };
 
 function goTo(screenId, options = {}) {
@@ -19,6 +20,9 @@ function goTo(screenId, options = {}) {
 
   if (screenId === 'wizard' && !options.skipWizardReload) {
     WizardController.open(options.aktId ?? null);
+  }
+  if (screenId === 'violations') {
+    ViolationRegistry.renderScreen();
   }
 }
 
@@ -256,7 +260,14 @@ function init() {
     el.addEventListener('click', () => goTo(el.dataset.go));
   });
 
-  document.querySelector('.settings-tile--backup')?.addEventListener('click', scrollToBackupImport);
+  document.querySelector('.settings-tile--backup')?.addEventListener('click', async () => {
+    try {
+      await CatalogService.exportBackup();
+      GazpromToast.show('Резервная копия скачана', 'success');
+    } catch (e) {
+      GazpromToast.show('Ошибка экспорта: ' + e.message, 'error');
+    }
+  });
   document.querySelector('.settings-tile--schedule')?.addEventListener('click', () => ScheduleEditor.open());
 
   document.getElementById('backupFileInput')?.addEventListener('change', (e) => {
@@ -301,6 +312,7 @@ function init() {
   bindTrash();
   bindTemplateUpload();
   CatalogEditor.bindSettingsTiles();
+  ViolationRegistry.bindScreen();
   EliminationEditor.bindFilters();
   EliminationEditor.bindTableActions();
 
