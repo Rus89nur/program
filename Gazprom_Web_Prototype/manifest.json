@@ -1,7 +1,7 @@
 {
   "name": "АПК_ГИ — акты проверок",
   "short_name": "АПК_ГИ",
-  "description": "Веб-приложение актов проверок Газпром",
+  "description": "Веб-приложение актов проверок Р.И. Шелудько",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f1f5f9",
