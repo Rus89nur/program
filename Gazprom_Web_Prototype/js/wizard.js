@@ -89,6 +89,9 @@ const WizardController = (() => {
 
   async function open(aktId = null) {
     await loadCatalog();
+    // #region agent log
+    fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'wizard.js:open',message:'open() called',data:{aktId,hasCatalog:!!catalog,hasData:GazpromStore.hasData(catalog),aktsLen:(catalog?.akts||[]).length},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     if (!GazpromStore.hasData(catalog)) {
       showEmpty(true);
       return;
@@ -126,6 +129,9 @@ const WizardController = (() => {
     descEditMode = false;
     predOrgFilters = new Set();
     step = Math.max(0, Math.min(TOTAL_STEPS - 1, newStep));
+    // #region agent log
+    fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'wizard.js:setStep',message:'setStep called',data:{newStep,resolvedStep:step},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     syncStepperUI();
     render();
     updateSummary();
@@ -151,7 +157,15 @@ const WizardController = (() => {
   function render() {
     syncStepperUI();
     const host = panelsHost();
-    if (!host || !draft) return;
+    // #region agent log
+    fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'wizard.js:render-entry',message:'render() called',data:{step,hasHost:!!host,hasDraft:!!draft,draftId:draft?.id},timestamp:Date.now(),hypothesisId:'A,D'})}).catch(()=>{});
+    // #endregion
+    if (!host || !draft) {
+      // #region agent log
+      fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'wizard.js:render-early-exit',message:'render() early exit',data:{hasHost:!!host,hasDraft:!!draft},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      return;
+    }
 
     const renderers = [
       renderStepDateCommission,
@@ -161,7 +175,18 @@ const WizardController = (() => {
       renderStepDescription,
       renderStepGenerate,
     ];
-    host.innerHTML = `<div class="card wizard-panel-active">${renderers[step]()}</div>`;
+    try {
+      const html = renderers[step]();
+      host.innerHTML = `<div class="card wizard-panel-active">${html}</div>`;
+      // #region agent log
+      fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'wizard.js:render-ok',message:'render() innerHTML set',data:{step,htmlLen:html.length},timestamp:Date.now(),hypothesisId:'B,C,D'})}).catch(()=>{});
+      // #endregion
+    } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'wizard.js:render-error',message:'render() renderer threw',data:{step,error:String(err)},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      host.innerHTML = `<div class="card wizard-panel-active"><p style="color:red">Ошибка отрисовки: ${err}</p></div>`;
+    }
     bindPanelEvents();
     bindAutosaveOnPanel();
     hydrateViolationThumbs();
@@ -530,24 +555,27 @@ const WizardController = (() => {
     const isDone = !AktUtils.isDraft(draft);
     return `
       <h3>Генерация акта</h3>
-      <p style="font-size:14px;color:var(--text-muted);margin-bottom:16px">
-        Word-файл на вебе пока не формируется. Сохраните черновик или отметьте акт готовым и экспортируйте
-        <strong>.gazprombackup</strong> для переноса на iPhone.
-      </p>
-      <div class="wizard-checklist">
+      <div class="wizard-checklist" style="margin-bottom:16px">
         <div>✓ Акт № <strong>${AktUtils.escapeHtml(draft.number)}</strong> от ${AktUtils.formatDateShort(draft.date)}</div>
         <div>✓ ${AktUtils.escapeHtml(org)}</div>
         <div>✓ Комиссия: ${(draft.comission || []).length} чел. · Объектов: ${(draft.objectsCheck || []).length}</div>
         <div>✓ Нарушений: ${(draft.violations || []).length} · Фото: ${photos}</div>
         <div>✓ Статус: ${isDone ? '<span class="badge badge-green">Готов (веб)</span>' : '<span class="badge badge-orange">Черновик</span>'}</div>
       </div>
-      <h3 style="margin-top:16px;font-size:14px">Предпросмотр содержания</h3>
+
+      <div id="wDocxTemplateStatus" style="margin-bottom:16px;padding:12px 14px;border-radius:var(--radius);font-size:13px;background:var(--primary-soft);">
+        <span id="wDocxTemplateStatusText">⏳ Проверка шаблона…</span>
+        <button type="button" class="btn-ghost btn-sm" style="margin-left:12px;" data-go="settings">Открыть настройки</button>
+      </div>
+
+      <h3 style="margin-top:4px;font-size:14px">Предпросмотр содержания</h3>
       <div class="akt-preview-box">${buildAktPreviewHtml()}</div>
+
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:20px">
-        <button type="button" class="btn-primary" id="wSaveDraft">💾 Сохранить черновик</button>
+        <button type="button" class="btn-primary" id="wGenerateDocx" style="font-size:15px;padding:12px 24px;">📄 Сформировать акт Word</button>
+        <button type="button" class="btn-secondary" id="wSaveDraft">💾 Сохранить черновик</button>
         <button type="button" class="btn-secondary" id="wMarkReady">${isDone ? '↩ Вернуть в черновик' : '✓ Отметить готовым'}</button>
         <button type="button" class="btn-secondary" id="wExportBackup">📤 Экспорт .gazprombackup</button>
-        <button type="button" class="btn-secondary" id="wGenerateDocx">📄 Скачать Word</button>
         <button type="button" class="btn-ghost" id="wExportJson">JSON акта</button>
       </div>
     `;
@@ -912,12 +940,36 @@ const WizardController = (() => {
       await CatalogService.exportBackup(catalog);
       GazpromToast.success('Файл .gazprombackup скачан. Перенесите на iPhone через «Поделиться».');
     });
+    // Проверяем наличие шаблона и обновляем статус-блок
+    DocGenerator.hasTemplate().then((has) => {
+      const statusEl = document.getElementById('wDocxTemplateStatusText');
+      const generateBtn = document.getElementById('wGenerateDocx');
+      if (!statusEl) return;
+      if (has) {
+        DocGenerator.getTemplateName().then((name) => {
+          statusEl.textContent = `✅ Шаблон загружен${name ? ': ' + name : ''}. Нажмите «Сформировать акт Word» для генерации.`;
+          statusEl.closest('#wDocxTemplateStatus').style.background = 'var(--success-soft, #e8f5e9)';
+        });
+      } else {
+        statusEl.textContent = '⚠️ Шаблон Word не загружен. Загрузите .docx-шаблон в Настройках → Шаблон акта.';
+        statusEl.closest('#wDocxTemplateStatus').style.background = 'var(--warning-soft, #fff8e1)';
+        if (generateBtn) {
+          generateBtn.disabled = true;
+          generateBtn.style.opacity = '0.5';
+        }
+      }
+    });
+
     document.getElementById('wGenerateDocx')?.addEventListener('click', async () => {
+      const btn = document.getElementById('wGenerateDocx');
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Генерация…'; }
       try {
         await saveDraft();
         await DocGenerator.generateFromAkt(draft);
       } catch (e) {
         GazpromToast.error(e.message || 'Ошибка генерации Word');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '📄 Сформировать акт Word'; }
       }
     });
     document.getElementById('wMarkReady')?.addEventListener('click', async () => {
