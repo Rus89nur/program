@@ -205,6 +205,29 @@ const DocGenerator = (() => {
     ].join('');
   }
 
+  function removeMarkerFromXml(xml, marker) {
+    const pos = xml.indexOf(marker);
+    if (pos === -1) return xml;
+
+    const tStart = xml.lastIndexOf('<w:t', pos);
+    const tOpenEnd = tStart === -1 ? -1 : xml.indexOf('>', tStart);
+    const tEnd = tOpenEnd === -1 ? -1 : xml.indexOf('</w:t>', tOpenEnd);
+    if (tStart !== -1 && tOpenEnd !== -1 && tEnd !== -1) {
+      const tBody = xml.slice(tOpenEnd + 1, tEnd).split(marker).join('');
+      return xml.slice(0, tOpenEnd + 1) + tBody + xml.slice(tEnd);
+    }
+    return xml.split(marker).join('');
+  }
+
+  /** Конец таблицы с фото (после processPhotoTable). */
+  function findPhotoTableEndPos(xml) {
+    let anchor = xml.lastIndexOf('rIdImage');
+    if (anchor === -1) anchor = xml.lastIndexOf('w:drawing');
+    if (anchor === -1) return -1;
+    const tblEnd = xml.indexOf('</w:tbl>', anchor);
+    return tblEnd === -1 ? -1 : tblEnd + '</w:tbl>'.length;
+  }
+
   function replaceMarkerWithSignatureTable(xml, marker, lines) {
     const pos = xml.indexOf(marker);
     if (pos === -1) return { xml, tableEndPos: -1, found: false };
@@ -231,8 +254,19 @@ const DocGenerator = (() => {
     return { xml: newXml, tableEndPos: insertPos + tableXml.length, found: true };
   }
 
-  /** Подписи комиссии (PredVoice) и представителей (PedstavVoice) */
+  /** Подписи комиссии, затем представителей — после фототаблицы, если она есть */
   function applySignatureTables(xml, tplData) {
+    const commXml = buildSignatureTableXml(tplData.predVoiceLines || []);
+    const repXml = buildSignatureTableXml(tplData.pedstavVoiceLines || []);
+    const photoEnd = findPhotoTableEndPos(xml);
+
+    if (photoEnd > 0 && (commXml || repXml)) {
+      let cleaned = removeMarkerFromXml(xml, 'PredVoice');
+      cleaned = removeMarkerFromXml(cleaned, 'PedstavVoice');
+      const block = (commXml || '') + (repXml || '');
+      return cleaned.slice(0, photoEnd) + block + cleaned.slice(photoEnd);
+    }
+
     let result = xml;
 
     const commission = replaceMarkerWithSignatureTable(
@@ -248,7 +282,6 @@ const DocGenerator = (() => {
     const representatives = replaceMarkerWithSignatureTable(result, 'PedstavVoice', repLines);
     if (representatives.found) return representatives.xml;
 
-    // Шаблон без PedstavVoice — вставляем таблицу сразу после подписей комиссии
     if (commission.tableEndPos > 0) {
       const tableXml = buildSignatureTableXml(repLines);
       if (tableXml) {
