@@ -107,8 +107,35 @@ const GazpromBackup = (() => {
     };
   }
 
-  async function parseFile(file) {
-    const text = await file.text();
+  /** Чтение текста файла: iOS Safari теряет доступ к File после сброса input.value. */
+  async function readFileText(file) {
+    const viaReader = () =>
+      new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ''));
+        reader.onerror = () => reject(reader.error || new Error('Не удалось прочитать файл'));
+        reader.readAsText(file);
+      });
+
+    let text = '';
+    if (typeof file.text === 'function') {
+      try {
+        text = await file.text();
+      } catch {
+        text = await viaReader();
+      }
+    } else {
+      text = await viaReader();
+    }
+
+    text = text.replace(/^\uFEFF/, '').trim();
+    if (!text) {
+      throw new Error('Файл пустой или не удалось прочитать содержимое');
+    }
+    return text;
+  }
+
+  function parseJsonText(text, fileName) {
     let raw;
     try {
       raw = JSON.parse(text);
@@ -116,13 +143,18 @@ const GazpromBackup = (() => {
       throw new Error('Файл не является корректным JSON');
     }
     const backup = normalizeBackup(raw);
-    backup.sourceFileName = file.name;
+    if (fileName) backup.sourceFileName = fileName;
     restoreEditableReference(backup);
     return backup;
   }
 
-  async function importFile(file, { replace = true } = {}) {
-    const incoming = await parseFile(file);
+  async function parseFile(file) {
+    const text = await readFileText(file);
+    return parseJsonText(text, file.name);
+  }
+
+  async function importFile(file, { replace = true, parsed = null } = {}) {
+    const incoming = parsed || await parseFile(file);
     let merged = incoming;
 
     if (!replace) {
@@ -202,6 +234,7 @@ const GazpromBackup = (() => {
   return {
     ACCEPT,
     parseFile,
+    parseJsonText,
     importFile,
     getStats,
     formatBytes,

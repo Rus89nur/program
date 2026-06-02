@@ -70,6 +70,16 @@ describe('GazpromBackup', () => {
     expect(GazpromBackup.getStats(backup).photos).toBe(2);
   });
 
+  it('parseJsonText strips UTF-8 BOM', () => {
+    const raw = {
+      version: '1.0',
+      akts: [{ id: '1', number: '1', violations: [] }],
+    };
+    const out = GazpromBackup.parseJsonText('\uFEFF' + JSON.stringify(raw), 'test.json');
+    expect(out.akts).toHaveLength(1);
+    expect(out.sourceFileName).toBe('test.json');
+  });
+
   it('round-trip demo file parses', () => {
     const demo = JSON.parse(
       readFileSync(join(root, 'assets/sample-demo.gazprombackup'), 'utf8')

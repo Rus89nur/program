@@ -123,14 +123,17 @@ async function handleBackupFile(file) {
     showBackupPreview(GazpromBackup.getStats(preview), file.name, file.size);
 
     setBackupLoading(true, 'Сохранение в браузер…');
-    const { stats } = await GazpromBackup.importFile(file, { replace: !merge });
+    const { stats } = await GazpromBackup.importFile(file, { replace: !merge, parsed: preview });
 
+    GazpromStore.invalidateCache();
     await GazpromUI.refreshAll();
     setBackupMessage(
       `Готово: ${stats.akts} актов, ${stats.organizations} организаций, ${stats.photos} фото.`,
       'ok'
     );
     GazpromToast.success('Резервная копия загружена');
+    const backupModal = document.getElementById('backupModal');
+    if (backupModal) backupModal.hidden = true;
     goTo('home');
   } catch (err) {
     console.error(err);
@@ -307,8 +310,12 @@ function init() {
     backupFileInput?.click();
   });
   backupFileInput?.addEventListener('change', (e) => {
-    handleBackupFile(e.target.files?.[0]);
-    e.target.value = '';
+    const input = e.target;
+    const file = input.files?.[0];
+    if (!file) return;
+    handleBackupFile(file).finally(() => {
+      input.value = '';
+    });
   });
 
   const pasteArea = document.getElementById('backupPasteArea');
