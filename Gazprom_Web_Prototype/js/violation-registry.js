@@ -375,7 +375,7 @@ const ViolationRegistry = (() => {
         </div>
         <div class="form-group">
           <label class="form-label">Ссылка на нормативный документ</label>
-          <input class="form-control" data-field="subTitle" value="${escHtml(item?.subTitle || '')}" placeholder="п. 4.1 СП 12-135-2003">
+          <textarea class="form-control" data-field="subTitle" rows="2" placeholder="п. 4.1 СП 12-135-2003">${escHtml(item?.subTitle || '')}</textarea>
         </div>
         <div class="form-group">
           <label class="form-label">Примечание</label>
@@ -400,7 +400,21 @@ const ViolationRegistry = (() => {
     `;
     document.body.appendChild(form);
 
-    setTimeout(() => form.querySelector('textarea')?.focus(), 50);
+    function vrAutoResize(el) {
+      if (!el) return;
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    }
+
+    form.querySelectorAll('textarea.form-control').forEach((ta) => {
+      ta.addEventListener('input', () => vrAutoResize(ta));
+    });
+
+    // After layout — resize all textareas to fit their content
+    setTimeout(() => {
+      form.querySelectorAll('textarea.form-control').forEach((ta) => vrAutoResize(ta));
+      form.querySelector('textarea')?.focus();
+    }, 50);
 
     const remove = () => form.remove();
     form.querySelector('[data-cancel]').onclick = remove;

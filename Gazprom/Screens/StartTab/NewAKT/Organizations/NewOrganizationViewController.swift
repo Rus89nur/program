@@ -6,12 +6,17 @@
 //
 
 import UIKit
+import Combine
 
-class NewOrganizationViewController: UIViewController {
+// MARK: - Simple Realtime AKT System (Integrated)
+// Типы определены в MainAKTViewModel.swift для избежания дублирования
+
+class NewOrganizationViewController: UIViewController, SimpleRealtimeAKTObserver {
     
     let viewModel: MainAKTViewModel
     
-    let nameTextField = UIFactory.createTextField(placeholder: "Название организации")
+    // Realtime AKT Integration
+    var cancellables = Set<AnyCancellable>()
     
     init(viewModel: MainAKTViewModel) {
         self.viewModel = viewModel
@@ -24,52 +29,93 @@ class NewOrganizationViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
         setupUI()
+        setupRealtimeIntegration()
+    }
+    
+    deinit {
+        cleanupRealtimeIntegration()
+    }
+    
+    private func setupRealtimeIntegration() {
+        // Подключаемся к системе реального времени
+        SimpleRealtimeAKTObserverManager.shared.addObserver(self)
+        print("🔗 [REALTIME] Интеграция настроена для \(type(of: self))")
+    }
+    
+    private func cleanupRealtimeIntegration() {
+        // Отключаемся от системы реального времени
+        SimpleRealtimeAKTObserverManager.shared.removeObserver(self)
+        cancellables.removeAll()
+        print("🔗 [REALTIME] Интеграция очищена для \(type(of: self))")
     }
     
     private func setupUI() {
-        let topLabel = UIFactory.createlabel(title: "Новая организация")
-        view.addSubview(topLabel)
-        topLabel.snp.makeConstraints { make in
-            make.centerX.equalToSuperview()
-            make.top.equalToSuperview().inset(30)
-        }
+        let editType = EditType.singleField(
+            title: "Новая организация",
+            placeholder: "Введите название организации",
+            currentValue: ""
+        )
         
-        view.addSubview(nameTextField)
-        nameTextField.snp.makeConstraints { make in
-            make.left.right.equalToSuperview().inset(16)
-            make.height.equalTo(44)
-            make.top.equalTo(topLabel.snp.bottom).inset(-16)
-        }
-        
-        let saveButton = UIFactory.createButton(title: "Сохранить", color: .systemBlue)
-        view.addSubview(saveButton)
-        saveButton.snp.makeConstraints { make in
-            make.left.right.equalToSuperview().inset(16)
-            make.height.equalTo(54)
-            make.top.equalTo(nameTextField.snp.bottom).inset(-16)
-        }
-        saveButton.addTarget(self, action: #selector(saveTapped), for: .touchUpInside)
-    }
-    
-    @objc private func saveTapped() {
-        view.endEditing(true)
-        if nameTextField.text?.count ?? 0 <= 0 {
-            UIFactory.showAlert(vc: self, title: "Ошибка", description: "Заполните организацию")
-            return
-        }
-        
-        viewModel.createNewOrganization(title: nameTextField.text ?? "") { isOk in
-            if isOk {
-                self.viewModel.collectionReloadBinding?()
-                self.dismiss(animated: true)
-            } else {
-                UIFactory.showAlert(vc: self, title: "Ошибка", description: "Такая организация уже есть в системе!")
+        let editVC = UniversalEditViewController(editType: editType) { [weak self] newTitle, _, _ in
+            guard let self = self else { return }
+            
+            // Проверяем, что название не пустое
+            if newTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let errorAlert = UIAlertController(title: "Ошибка!", message: "Название организации не может быть пустым", preferredStyle: .alert)
+                let ok = UIAlertAction(title: "OK", style: .cancel)
+                errorAlert.addAction(ok)
+                self.present(errorAlert, animated: true)
+                return
+            }
+            
+            // Создаем новую организацию через viewModel
+            let trimmedTitle = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            self.viewModel.createNewOrganization(title: trimmedTitle) { isOk in
+                DispatchQueue.main.async {
+                    if isOk {
+                        // Обновляем в системе реального времени
+                        let newOrganization = Organization(title: trimmedTitle)
+                        SimpleRealtimeAKTManager.shared.updateOrganization(newOrganization)
+                        
+                        self.viewModel.collectionReloadBinding?()
+                        self.dismiss(animated: true)
+                    } else {
+                        let errorAlert = UIAlertController(title: "Ошибка!", message: "Организация с таким названием уже существует", preferredStyle: .alert)
+                        let ok = UIAlertAction(title: "OK", style: .cancel)
+                        errorAlert.addAction(ok)
+                        self.present(errorAlert, animated: true)
+                    }
+                }
             }
         }
         
+        // Добавляем editVC как дочерний контроллер
+        addChild(editVC)
+        view.addSubview(editVC.view)
+        editVC.view.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
+        }
+        editVC.didMove(toParent: self)
     }
-
-
+    
+    // MARK: - SimpleRealtimeAKTObserver Methods
+    
+    func aktDidChange(_ change: String) {
+        print("📝 [REALTIME] Получено изменение в NewOrganizationViewController: \(change)")
+        
+        // Обновляем UI при необходимости
+        DispatchQueue.main.async {
+            // Здесь можно добавить логику обновления UI
+        }
+    }
+    
+    func aktDidSave(_ akt: AKT) {
+        print("💾 [REALTIME] Акт сохранен в NewOrganizationViewController")
+        
+        // Обновляем локальное состояние при необходимости
+        DispatchQueue.main.async {
+            // Здесь можно добавить логику обновления UI после сохранения
+        }
+    }
 }

@@ -253,4 +253,43 @@ class TemplateModel {
     func hasUnsavedChanges() -> Bool {
         return Date().timeIntervalSince(lastSaveTime) > saveDelay
     }
+    
+    // MARK: - Get current AKT
+    func getCurrentAkt() -> AKT? {
+        // Проверяем, есть ли все необходимые данные для создания акта
+        guard let date = date,
+              let aktNumber = aktNumber,
+              let comissionPeople = comissionPeople,
+              let organizations = organizations,
+              let objectCheck = objectCheck,
+              let violations = violations,
+              let predstavitely = predstavitely,
+              let ustranenDate = ustranenDatePicker,
+              let predostavlenDate = predostavlenDatePicker,
+              let utverzdenDate = utverzdenDatePicker else {
+            return nil
+        }
+        
+        // Создаем акт из данных шаблона
+        let organization = organizations.first ?? Organization(title: "Не указана")
+        let description = descripUser ?? ""
+        let urlAct = URL(fileURLWithPath: "")
+        let realDateCreate = Date()
+        
+        return AKT(
+            number: aktNumber,
+            date: date,
+            comission: comissionPeople,
+            organization: organization,
+            objectsCheck: objectCheck,
+            predstavitelyComission: predstavitely,
+            violations: violations,
+            description: description,
+            actustranenDate: ustranenDate,
+            actPredostavlenDate: predostavlenDate,
+            actUtverzdenDate: utverzdenDate,
+            urlAct: urlAct,
+            realDateCreate: realDateCreate
+        )
+    }
 }

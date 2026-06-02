@@ -6,9 +6,10 @@ const WizardController = (() => {
   let catalog = null;
   let draft = null;
   let step = 0;
-  let violationObjectFilter = 'all';
   let autosaveTimer = null;
   let dirty = false;
+  let descEditMode = false;
+  let predOrgFilters = new Set();
 
   const panelsHost = () => document.getElementById('wizardPanels');
   const emptyEl = () => document.getElementById('wizardEmpty');
@@ -31,6 +32,7 @@ const WizardController = (() => {
       getCatalog: () => catalog,
       reloadCatalog,
       openLightbox,
+      saveDraft,
       onUpdate: () => {
         render();
         updateSummary();
@@ -46,7 +48,9 @@ const WizardController = (() => {
           draft.comission = [...(draft.comission || []), { ...item }];
         }
         if (type === 'pred') {
-          draft.predstavitelyComission = [{ ...item }];
+          if (!(draft.predstavitelyComission || []).some((x) => x.id === item.id)) {
+            draft.predstavitelyComission = [...(draft.predstavitelyComission || []), { ...item }];
+          }
         }
         render();
         updateSummary();
@@ -107,7 +111,6 @@ const WizardController = (() => {
     }
     setupModals();
     step = 0;
-    violationObjectFilter = 'all';
     dirty = false;
     render();
     updateSummary();
@@ -120,6 +123,8 @@ const WizardController = (() => {
 
   function setStep(newStep) {
     commitStep(step);
+    descEditMode = false;
+    predOrgFilters = new Set();
     step = Math.max(0, Math.min(TOTAL_STEPS - 1, newStep));
     syncStepperUI();
     render();
@@ -248,8 +253,10 @@ const WizardController = (() => {
     }
     const rows = orgs
       .map((o) => {
-        const checked = draft.organization?.id === o.id ? 'checked' : '';
-        return `<tr>
+        const selected = draft.organization?.id === o.id;
+        const checked = selected ? 'checked' : '';
+        const rowClass = selected ? 'wizard-select-row wizard-select-row--selected' : 'wizard-select-row';
+        return `<tr class="${rowClass}" data-org-id="${o.id}" role="button" tabindex="0">
           <td style="width:40px"><input type="radio" name="wOrg" value="${o.id}" ${checked}></td>
           <td>${AktUtils.escapeHtml(o.title)}</td>
           <td>${AktUtils.escapeHtml(o.shortTitle || '—')}</td>
@@ -280,6 +287,7 @@ const WizardController = (() => {
 
     const rows = objects
       .map((o) => {
+        const selected = selectedIds.has(o.id);
         const violCount = (draft.violations || []).filter(
           (v) => v.mesto === o.title || v.mesto === o.subTitle
         ).length;
@@ -287,8 +295,9 @@ const WizardController = (() => {
           violCount > 0
             ? `<span class="badge badge-blue">${violCount} наруш.</span>`
             : `<span class="badge badge-green">OK</span>`;
-        return `<tr>
-          <td style="width:40px"><input type="checkbox" name="wObj" value="${o.id}" ${selectedIds.has(o.id) ? 'checked' : ''}></td>
+        const rowClass = selected ? 'wizard-select-row wizard-select-row--selected' : 'wizard-select-row';
+        return `<tr class="${rowClass}" data-obj-id="${o.id}" role="button" tabindex="0">
+          <td style="width:40px"><input type="radio" name="wObj" value="${o.id}" ${selected ? 'checked' : ''}></td>
           <td>${AktUtils.escapeHtml(o.title)}</td>
           <td>${AktUtils.escapeHtml(o.subTitle || '—')}</td>
           <td>${badge}</td>
@@ -298,7 +307,7 @@ const WizardController = (() => {
 
     return `
       <h3>Объекты проверки</h3>
-      <p class="wizard-hint">Отметьте объекты, включённые в акт</p>
+      <p class="wizard-hint">Выберите один объект, включённый в акт</p>
       <table class="list-table">
         <thead><tr><th></th><th>Объект</th><th>Адрес / примечание</th><th></th></tr></thead>
         <tbody>${rows}</tbody>
@@ -310,99 +319,151 @@ const WizardController = (() => {
   }
 
   function renderStepViolations() {
-    const objects = draft.objectsCheck || [];
-    const filterOpts =
-      `<option value="all" ${violationObjectFilter === 'all' ? 'selected' : ''}>Все объекты</option>` +
-      objects
-        .map(
-          (o) =>
-            `<option value="${o.id}" ${violationObjectFilter === o.id ? 'selected' : ''}>${AktUtils.escapeHtml(o.title)}</option>`
-        )
-        .join('');
+    const allViolations = draft.violations || [];
 
-    let violations = draft.violations || [];
-    if (violationObjectFilter !== 'all') {
-      const obj = objects.find((o) => o.id === violationObjectFilter);
-      if (obj) {
-        violations = violations.filter(
-          (v) => v.mesto === obj.title || v.mesto === obj.subTitle
-        );
-      }
-    }
-
-    const rows = violations.length
-      ? violations
+    const cards = allViolations.length
+      ? allViolations
           .map((v, i) => {
             const photos = v.photo?.length || 0;
-            return `<tr data-violation-id="${v.id}">
-              <td>${i + 1}</td>
-              <td>${AktUtils.escapeHtml(v.title)}</td>
-              <td>${AktUtils.escapeHtml(v.mesto || '—')}</td>
-              <td>${photos ? `📷 ${photos}` : '—'}</td>
-              <td class="btn-row">
-                <button type="button" class="btn-ghost btn-sm w-viol-edit" data-vid="${v.id}">✏️</button>
-                <button type="button" class="btn-ghost btn-sm w-viol-view" data-vid="${v.id}">Фото</button>
-              </td>
-            </tr>`;
+            const vidBadge = v.vid
+              ? `<span class="viol-card-badge" title="${AktUtils.escapeHtml(v.vid)}">${AktUtils.escapeHtml(v.vid)}</span>`
+              : '';
+            const refLine = v.urlToPravilo
+              ? `<div class="viol-card-subtitle">📄 ${AktUtils.escapeHtml(v.urlToPravilo)}</div>`
+              : '';
+            const maxThumbs = 5;
+            const thumbsHtml = photos
+              ? `<div class="viol-card-thumbs">
+                  ${(v.photo || []).slice(0, maxThumbs).map((p, idx) =>
+                    `<div class="viol-card-thumb wizard-photo-thumb photo-slot filled" data-vid="${v.id}" data-pidx="${idx}">
+                      <img src="${AktUtils.photoSrc(p)}" alt="">
+                    </div>`
+                  ).join('')}
+                  ${photos > maxThumbs ? `<div class="viol-card-thumb viol-card-thumb-more">+${photos - maxThumbs}</div>` : ''}
+                </div>`
+              : '';
+            return `<div class="viol-card" data-violation-id="${v.id}" role="button" tabindex="0" title="Открыть карточку нарушения" draggable="true">
+              <div class="viol-card-num">${i + 1}</div>
+              <div class="viol-card-body">
+                <div class="viol-card-title">${AktUtils.escapeHtml(v.title)}</div>
+                ${refLine}
+                <div class="viol-card-meta">
+                  <span class="viol-card-mesto">📍 ${v.mesto ? AktUtils.escapeHtml(v.mesto) : '<span style="color:var(--border)">—</span>'}</span>
+                  ${vidBadge}
+                </div>
+                ${thumbsHtml}
+              </div>
+              <div class="viol-card-actions">
+                <button type="button" class="btn-ghost btn-sm w-viol-edit" data-vid="${v.id}" title="Редактировать">✏️</button>
+                <button type="button" class="btn-ghost btn-sm modal-btn-danger w-viol-del" data-vid="${v.id}" title="Удалить">🗑</button>
+              </div>
+            </div>`;
           })
           .join('')
-      : `<tr><td colspan="5" class="wizard-hint" style="text-align:center;padding:20px">Нет нарушений — нажмите «Добавить»</td></tr>`;
+      : `<div class="viol-empty">
+          <div class="viol-empty-icon">⚠️</div>
+          <div class="viol-empty-text">Нарушения не добавлены</div>
+          <div class="viol-empty-hint">Нажмите «+ Добавить нарушение» чтобы зафиксировать нарушение</div>
+        </div>`;
 
-    const allPhotos = (draft.violations || []).flatMap((v) =>
+    const allPhotos = allViolations.flatMap((v) =>
       (v.photo || []).map((p, idx) => ({ v, idx, src: AktUtils.photoSrc(p) }))
     );
-    const photoHtml = allPhotos.length
-      ? allPhotos
-          .slice(0, 16)
-          .map(
-            ({ src, v, idx }) =>
-              `<div class="photo-slot filled wizard-photo-thumb" data-vid="${v.id}" data-pidx="${idx}" title="${AktUtils.escapeHtml(v.title)}">
-                <img src="${src}" alt="">
-              </div>`
-          )
-          .join('') +
-        (allPhotos.length > 16 ? `<div class="photo-slot">+${allPhotos.length - 16}</div>` : '')
-      : `<div class="photo-slot wizard-photo-add">Фото добавляются<br>в карточке нарушения</div>`;
+    const photoSection = allPhotos.length
+      ? `<h3 style="margin-top:4px;font-size:14px;margin-bottom:12px">Все фото акта</h3>
+         <div class="photo-grid" id="wPhotoGrid">${
+           allPhotos
+             .slice(0, 16)
+             .map(
+               ({ src, v, idx }) =>
+                 `<div class="photo-slot filled wizard-photo-thumb" data-vid="${v.id}" data-pidx="${idx}" title="${AktUtils.escapeHtml(v.title)}">
+                   <img src="${src}" alt="">
+                 </div>`
+             )
+             .join('') + (allPhotos.length > 16 ? `<div class="photo-slot">+${allPhotos.length - 16}</div>` : '')
+         }</div>`
+      : '';
 
     return `
-      <h3>Нарушения</h3>
-      <div class="wizard-add-row">
-        <select class="form-control" id="wViolFilter" style="flex:1">${filterOpts}</select>
-        <button type="button" class="btn-secondary" id="wAddViolation">+ Добавить нарушение</button>
+      <div class="viol-step-header">
+        <h3 style="margin:0">Нарушения <span class="viol-total-badge">${allViolations.length}</span></h3>
+        <button type="button" class="btn-primary" id="wAddViolation">+ Добавить нарушение</button>
       </div>
-      <table class="list-table">
-        <thead><tr><th>№</th><th>Описание</th><th>Объект</th><th>Фото</th><th></th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <h3 style="margin-top:20px;">Все фото акта</h3>
-      <div class="photo-grid" id="wPhotoGrid">${photoHtml}</div>
+      <div class="viol-cards-list" id="wViolList">${cards}</div>
+      ${photoSection}
     `;
   }
 
   function renderStepDescription() {
-    const orgTitle = draft.organization?.title || '';
-    const preds = (catalog.predstavitely || []).filter(
-      (p) => !orgTitle || !p.organization || p.organization === orgTitle || orgTitle.includes(p.organization)
-    );
-    const predOpts =
-      preds.length > 0
-        ? preds
-            .map((p) => {
-              const label = `${p.fio}${p.jobTitle ? ' — ' + p.jobTitle : ''}`;
-              const sel = (draft.predstavitelyComission || []).some((x) => x.id === p.id)
-                ? 'selected'
-                : '';
-              return `<option value="${p.id}" ${sel}>${AktUtils.escapeHtml(label)}</option>`;
-            })
-            .join('')
-        : '<option value="">— нет в справочнике —</option>';
+    const allPreds = catalog.predstavitely || [];
+    const selectedPredIds = new Set((draft.predstavitelyComission || []).map((p) => p.id));
+
+    const predChips = (draft.predstavitelyComission || [])
+      .map(
+        (p) =>
+          `<span class="chip chip-removable" data-remove-pred="${p.id}" title="Нажмите, чтобы убрать">${AktUtils.escapeHtml(p.fio)}${p.jobTitle ? ' — ' + AktUtils.escapeHtml(p.jobTitle) : ''}</span>`
+      )
+      .join('');
+
+    const orgNames = [...new Set(allPreds.map((p) => p.organization).filter(Boolean))].sort();
+
+    const filteredPreds = allPreds.filter((p) => {
+      if (selectedPredIds.has(p.id)) return false;
+      if (predOrgFilters.size === 0) return true;
+      return predOrgFilters.has(p.organization || '');
+    });
+
+    const predCatalogChips = filteredPreds
+      .map(
+        (p) =>
+          `<span class="chip chip-catalog" data-add-pred="${p.id}" title="Нажмите, чтобы добавить">${AktUtils.escapeHtml(p.fio)}${p.jobTitle ? ' — ' + AktUtils.escapeHtml(p.jobTitle) : ''}</span>`
+      )
+      .join('');
+
+    const filterBtns = orgNames
+      .map((org) => {
+        const active = predOrgFilters.has(org);
+        return `<button type="button" class="btn-org-filter${active ? ' btn-org-filter-active' : ''}" data-org-filter="${AktUtils.escapeHtml(org)}">${AktUtils.escapeHtml(org)}</button>`;
+      })
+      .join('');
+
+    const resetBtn = predOrgFilters.size > 0
+      ? `<button type="button" class="btn-org-filter-reset" id="wPredFilterReset">✕ Сбросить</button>`
+      : '';
+
+    const filterRow = orgNames.length > 1
+      ? `<div class="pred-filter-row">${filterBtns}${resetBtn}</div>`
+      : '';
+
+    const templates = catalog.descriptionTemplates || ['', '', ''];
+    const isEdit = descEditMode;
+    const vyvody = AktUtils.escapeHtml(draft.komissijaVyvody || '');
+
+    const templateBtns = [0, 1, 2]
+      .map((i) => {
+        if (isEdit) {
+          return `<button type="button" class="btn-template-save" data-save-template="${i}" title="Сохранить текущий текст как Шаблон ${i + 1}">Сохранить в Шаблон ${i + 1}</button>`;
+        }
+        const hasTpl = templates[i] && templates[i].trim();
+        return `<button type="button" class="btn-template${hasTpl ? '' : ' btn-template-empty'}" data-load-template="${i}">Шаблон ${i + 1}</button>`;
+      })
+      .join('');
+
+    const editBtn = isEdit
+      ? `<button type="button" class="btn-edit-active" id="wVyvodyEditBtn">💾 Сохранить</button>`
+      : `<button type="button" class="btn-edit" id="wVyvodyEditBtn">✏ Редактировать</button>`;
 
     return `
-      <h3>Описание проверки</h3>
-      <div class="form-group" style="margin-bottom:16px">
-        <label>Общие замечания инспектора</label>
-        <textarea class="form-control" id="wDescription" rows="5" placeholder="Введите описание…">${AktUtils.escapeHtml(draft.description || '')}</textarea>
+      <h3>Выводы комиссии</h3>
+      <div class="form-group vyvody-group">
+        <label>Выводы комиссии</label>
+        <textarea class="form-control" id="wVyvody" rows="4" placeholder="Введите выводы комиссии…"${isEdit ? '' : ' readonly'}>${vyvody}</textarea>
+        <div class="vyvody-actions">
+          ${editBtn}
+          <div class="vyvody-templates">${templateBtns}</div>
+        </div>
       </div>
+
       <div class="form-row">
         <div class="form-group">
           <label>Срок устранения</label>
@@ -417,12 +478,17 @@ const WizardController = (() => {
         <label>Дата утверждения</label>
         <input class="form-control" type="date" id="wUtverDate" value="${AktUtils.toDateInputValue(draft.actUtverzdenDate)}">
       </div>
-      <div class="form-group">
-        <label>Представитель организации</label>
-        <select class="form-control" id="wPred">${predOpts}</select>
-      </div>
-      <div class="wizard-actions-row">
-        <button type="button" class="btn-ghost" id="wNewPredBtn">+ Новый представитель</button>
+
+      <h3 style="margin-top:8px;">Представители организации</h3>
+      <div class="chip-list" id="wPredChips">${predChips || '<span class="wizard-hint">Добавьте представителей организации</span>'}</div>
+      <div class="commission-divider"></div>
+      <div class="commission-catalog-section">
+        <div class="commission-catalog-header">
+          <span class="commission-catalog-label">Выбрать из справочника</span>
+          <button type="button" class="btn-ghost" id="wNewPredBtn">+ Новый представитель</button>
+        </div>
+        ${filterRow}
+        <div class="chip-list">${predCatalogChips || '<span class="wizard-hint">Все из справочника уже добавлены</span>'}</div>
       </div>
     `;
   }
@@ -447,6 +513,9 @@ const WizardController = (() => {
     });
     if (draft.description) {
       lines.push(`<br><strong>Заключение:</strong><br>${AktUtils.escapeHtml(draft.description)}`);
+    }
+    if (draft.komissijaVyvody) {
+      lines.push(`<br><strong>Выводы комиссии:</strong><br>${AktUtils.escapeHtml(draft.komissijaVyvody)}`);
     }
     (draft.predstavitelyComission || []).forEach((p) => {
       lines.push(`<br>Представитель: ${AktUtils.escapeHtml(p.fio)} — ${AktUtils.escapeHtml(p.jobTitle || '')}`);
@@ -482,6 +551,88 @@ const WizardController = (() => {
         <button type="button" class="btn-ghost" id="wExportJson">JSON акта</button>
       </div>
     `;
+  }
+
+  function bindViolationDragDrop() {
+    const container = document.getElementById('wViolList');
+    if (!container) return;
+
+    let dragSrcId = null;
+    let dragOverId = null;
+
+    function getCards() {
+      return [...container.querySelectorAll('.viol-card[data-violation-id]')];
+    }
+
+    function clearDropIndicators() {
+      container.querySelectorAll('.viol-card--drag-over-top, .viol-card--drag-over-bottom')
+        .forEach((el) => {
+          el.classList.remove('viol-card--drag-over-top', 'viol-card--drag-over-bottom');
+        });
+    }
+
+    getCards().forEach((card) => {
+      card.addEventListener('dragstart', (e) => {
+        dragSrcId = card.dataset.violationId;
+        container.dataset.dragging = '1';
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', dragSrcId);
+        setTimeout(() => card.classList.add('viol-card--dragging'), 0);
+      });
+
+      card.addEventListener('dragend', () => {
+        card.classList.remove('viol-card--dragging');
+        clearDropIndicators();
+        dragSrcId = null;
+        dragOverId = null;
+        setTimeout(() => { delete container.dataset.dragging; }, 0);
+      });
+
+      card.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (card.dataset.violationId === dragSrcId) return;
+        clearDropIndicators();
+        // Determine if dropping above or below the midpoint
+        const rect = card.getBoundingClientRect();
+        const mid = rect.top + rect.height / 2;
+        dragOverId = card.dataset.violationId;
+        if (e.clientY < mid) {
+          card.classList.add('viol-card--drag-over-top');
+        } else {
+          card.classList.add('viol-card--drag-over-bottom');
+        }
+      });
+
+      card.addEventListener('dragleave', (e) => {
+        if (!card.contains(e.relatedTarget)) {
+          card.classList.remove('viol-card--drag-over-top', 'viol-card--drag-over-bottom');
+        }
+      });
+
+      card.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (!dragSrcId || card.dataset.violationId === dragSrcId) return;
+
+        const violations = [...(draft.violations || [])];
+        const srcIdx = violations.findIndex((v) => v.id === dragSrcId);
+        const tgtIdx = violations.findIndex((v) => v.id === card.dataset.violationId);
+        if (srcIdx === -1 || tgtIdx === -1) return;
+
+        const rect = card.getBoundingClientRect();
+        const mid = rect.top + rect.height / 2;
+        const insertAfter = e.clientY >= mid;
+
+        const [moved] = violations.splice(srcIdx, 1);
+        const newTgtIdx = violations.findIndex((v) => v.id === card.dataset.violationId);
+        violations.splice(insertAfter ? newTgtIdx + 1 : newTgtIdx, 0, moved);
+
+        draft.violations = violations;
+        scheduleAutosave();
+        render();
+        updateSummary();
+      });
+    });
   }
 
   function bindCommissionDragDrop() {
@@ -529,6 +680,83 @@ const WizardController = (() => {
     });
   }
 
+  function selectOrganization(orgId) {
+    const radio = document.querySelector(`input[name="wOrg"][value="${CSS.escape(orgId)}"]`);
+    if (radio) radio.checked = true;
+    const org = (catalog.organizations || []).find((o) => o.id === orgId);
+    if (org) draft.organization = { ...org };
+    panelsHost()?.querySelectorAll('tr[data-org-id]').forEach((row) => {
+      row.classList.toggle('wizard-select-row--selected', row.dataset.orgId === orgId);
+    });
+    scheduleAutosave();
+    updateSummary();
+  }
+
+  function bindOrganizationRowSelect() {
+    panelsHost()?.querySelectorAll('tr[data-org-id]').forEach((row) => {
+      row.addEventListener('click', () => selectOrganization(row.dataset.orgId));
+      row.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectOrganization(row.dataset.orgId);
+        }
+      });
+    });
+    panelsHost()?.querySelectorAll('input[name="wOrg"]').forEach((radio) => {
+      radio.addEventListener('change', () => {
+        if (radio.checked) selectOrganization(radio.value);
+      });
+    });
+  }
+
+  function setObjectChecked(objId, checked) {
+    const obj = (catalog.objects || []).find((o) => o.id === objId);
+    if (!obj) return;
+    if (checked) {
+      // single-select: deselect all other rows in DOM
+      panelsHost()?.querySelectorAll('tr[data-obj-id]').forEach((r) => {
+        if (r.dataset.objId !== objId) {
+          r.classList.remove('wizard-select-row--selected');
+          const rb = r.querySelector('input[name="wObj"]');
+          if (rb) rb.checked = false;
+        }
+      });
+      draft.objectsCheck = [{ ...obj }];
+    } else {
+      draft.objectsCheck = (draft.objectsCheck || []).filter((o) => o.id !== objId);
+    }
+    const row = panelsHost()?.querySelector(`tr[data-obj-id="${CSS.escape(objId)}"]`);
+    if (row) {
+      row.classList.toggle('wizard-select-row--selected', checked);
+      const rb = row.querySelector('input[name="wObj"]');
+      if (rb) rb.checked = checked;
+    }
+    scheduleAutosave();
+    updateSummary();
+  }
+
+  function toggleObject(objId) {
+    setObjectChecked(objId, true);
+  }
+
+  function bindObjectRowSelect() {
+    panelsHost()?.querySelectorAll('tr[data-obj-id]').forEach((row) => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('input[type="radio"]')) return;
+        toggleObject(row.dataset.objId);
+      });
+      row.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggleObject(row.dataset.objId);
+        }
+      });
+    });
+    panelsHost()?.querySelectorAll('input[name="wObj"]').forEach((rb) => {
+      rb.addEventListener('change', () => setObjectChecked(rb.value, rb.checked));
+    });
+  }
+
   function bindPanelEvents() {
     panelsHost()?.querySelectorAll('[data-add-person]').forEach((chip) => {
       chip.addEventListener('click', () => addPersonById(chip.dataset.addPerson));
@@ -550,6 +778,9 @@ const WizardController = (() => {
       WizardModals.openQuickAdd('commission')
     );
     document.getElementById('wNewOrgBtn')?.addEventListener('click', () => WizardModals.openQuickAdd('org'));
+
+    bindOrganizationRowSelect();
+    bindObjectRowSelect();
     document.getElementById('wNewObjBtn')?.addEventListener('click', () => WizardModals.openQuickAdd('object'));
     document.getElementById('wNewPredBtn')?.addEventListener('click', () => WizardModals.openQuickAdd('pred'));
 
@@ -557,27 +788,114 @@ const WizardController = (() => {
       btn.addEventListener('click', () => removePerson(btn.dataset.removePerson));
     });
 
-    bindCommissionDragDrop();
-
-    document.getElementById('wViolFilter')?.addEventListener('change', (e) => {
-      commitStep(3);
-      violationObjectFilter = e.target.value;
-      render();
-      updateSummary();
+    panelsHost()?.querySelectorAll('[data-add-pred]').forEach((chip) => {
+      chip.addEventListener('click', () => addPredById(chip.dataset.addPred));
     });
+    panelsHost()?.querySelectorAll('[data-remove-pred]').forEach((chip) => {
+      chip.addEventListener('click', () => removePred(chip.dataset.removePred));
+    });
+
+    panelsHost()?.querySelectorAll('[data-org-filter]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const org = btn.dataset.orgFilter;
+        if (predOrgFilters.has(org)) {
+          predOrgFilters.delete(org);
+        } else {
+          predOrgFilters.add(org);
+        }
+        render();
+      });
+    });
+
+    document.getElementById('wPredFilterReset')?.addEventListener('click', () => {
+      predOrgFilters = new Set();
+      render();
+    });
+
+    document.getElementById('wVyvodyEditBtn')?.addEventListener('click', async () => {
+      const textarea = document.getElementById('wVyvody');
+      if (!descEditMode) {
+        descEditMode = true;
+        render();
+        document.getElementById('wVyvody')?.focus();
+      } else {
+        const val = textarea ? textarea.value : '';
+        draft.komissijaVyvody = val;
+        descEditMode = false;
+        await saveDraft();
+        render();
+      }
+    });
+
+    panelsHost()?.querySelectorAll('[data-load-template]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const idx = parseInt(btn.dataset.loadTemplate, 10);
+        const templates = catalog.descriptionTemplates || ['', '', ''];
+        const text = templates[idx] || '';
+        if (!text.trim()) {
+          GazpromToast.info(`Шаблон ${idx + 1} пуст. Войдите в режим редактирования и нажмите «Сохранить в Шаблон ${idx + 1}»`);
+          return;
+        }
+        draft.komissijaVyvody = text;
+        await saveDraft();
+        render();
+      });
+    });
+
+    panelsHost()?.querySelectorAll('[data-save-template]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const idx = parseInt(btn.dataset.saveTemplate, 10);
+        const textarea = document.getElementById('wVyvody');
+        const val = textarea ? textarea.value : '';
+        draft.komissijaVyvody = val;
+        if (!catalog.descriptionTemplates) catalog.descriptionTemplates = ['', '', ''];
+        catalog.descriptionTemplates[idx] = val;
+        descEditMode = false;
+        await saveDraft();
+        GazpromToast.success(`Текст сохранён как Шаблон ${idx + 1}`);
+        render();
+      });
+    });
+
+    bindCommissionDragDrop();
+    bindViolationDragDrop();
 
     document.getElementById('wAddViolation')?.addEventListener('click', () => {
-      if (!(draft.objectsCheck || []).length) {
-        GazpromToast.error('Сначала выберите объекты на шаге 3');
-        return;
-      }
       WizardModals.openViolationEditor(null);
     });
-    panelsHost()?.querySelectorAll('.w-viol-edit').forEach((btn) => {
-      btn.addEventListener('click', () => WizardModals.openViolationEditor(btn.dataset.vid));
+    panelsHost()?.querySelectorAll('.viol-card[data-violation-id]').forEach((card) => {
+      const openCard = () => WizardModals.openViolationEditor(card.dataset.violationId);
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.viol-card-actions')) return;
+        if (e.target.closest('.viol-card-thumbs')) return;
+        if (document.getElementById('wViolList')?.dataset.dragging) return;
+        openCard();
+      });
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openCard();
+        }
+      });
     });
-    panelsHost()?.querySelectorAll('.w-viol-view').forEach((btn) => {
-      btn.addEventListener('click', () => showViolationPhotos(btn.dataset.vid));
+    panelsHost()?.querySelectorAll('.w-viol-edit').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        WizardModals.openViolationEditor(btn.dataset.vid);
+      });
+    });
+    panelsHost()?.querySelectorAll('.w-viol-del').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const v = (draft.violations || []).find((x) => x.id === btn.dataset.vid);
+        GazpromToast.confirm(`Удалить нарушение?\n«${(v?.title || '').slice(0, 80)}»`, { confirmLabel: 'Удалить', danger: true }).then((ok) => {
+          if (!ok) return;
+          draft.violations = (draft.violations || []).filter((x) => x.id !== btn.dataset.vid);
+          ctx.setDraft(draft);
+          render();
+          updateSummary();
+        });
+      });
     });
     panelsHost()?.querySelectorAll('.wizard-photo-thumb').forEach((el) => {
       el.addEventListener('click', () => {
@@ -586,7 +904,6 @@ const WizardController = (() => {
         if (v?.photo?.[idx]) openLightbox(AktUtils.photoSrc(v.photo[idx]));
       });
     });
-
     document.getElementById('wSaveDraft')?.addEventListener('click', () => finish());
     document.getElementById('wExportJson')?.addEventListener('click', exportDraftJson);
     document.getElementById('wExportBackup')?.addEventListener('click', async () => {
@@ -631,6 +948,21 @@ const WizardController = (() => {
 
   function removePerson(id) {
     draft.comission = (draft.comission || []).filter((p) => p.id !== id);
+    render();
+    updateSummary();
+  }
+
+  function addPredById(id) {
+    const p = (catalog.predstavitely || []).find((x) => x.id === id);
+    if (!p) return;
+    if ((draft.predstavitelyComission || []).some((x) => x.id === id)) return;
+    draft.predstavitelyComission = [...(draft.predstavitelyComission || []), { ...p }];
+    render();
+    updateSummary();
+  }
+
+  function removePred(id) {
+    draft.predstavitelyComission = (draft.predstavitelyComission || []).filter((p) => p.id !== id);
     render();
     updateSummary();
   }
@@ -715,11 +1047,8 @@ const WizardController = (() => {
     if (s === 4) {
       const desc = document.getElementById('wDescription');
       if (desc) draft.description = desc.value;
-      const pred = document.getElementById('wPred');
-      if (pred?.value) {
-        const p = (catalog.predstavitely || []).find((x) => x.id === pred.value);
-        if (p) draft.predstavitelyComission = [{ ...p }];
-      }
+      const vyvody = document.getElementById('wVyvody');
+      if (vyvody) draft.komissijaVyvody = vyvody.value;
       const el = document.getElementById('wElimDate');
       const pd = document.getElementById('wPredDate');
       const ud = document.getElementById('wUtverDate');
@@ -747,7 +1076,7 @@ const WizardController = (() => {
       return false;
     }
     if (s === 2 && !(draft.objectsCheck || []).length) {
-      GazpromToast.error('Выберите хотя бы один объект проверки');
+      GazpromToast.error('Выберите объект проверки');
       return false;
     }
     return true;

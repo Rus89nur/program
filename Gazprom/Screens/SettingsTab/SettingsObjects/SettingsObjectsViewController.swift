@@ -6,21 +6,20 @@
 //
 
 import UIKit
+import SnapKit
 
 class SettingsObjectsViewController: UIViewController {
     
     let model: MainAKTViewModel
     
-    let collectionView: UICollectionView = {
-        let layout = UICollectionViewFlowLayout()
-        let collection = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        collection.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "1")
-        collection.backgroundColor = .clear
-        collection.contentInset = .init(top: 16, left: 0, bottom: 100, right: 0)
-        layout.scrollDirection = .vertical
-        return collection
+    private let tableView: UITableView = {
+        let tableView = UITableView(frame: .zero, style: .plain)
+        tableView.backgroundColor = .clear
+        tableView.separatorStyle = .none
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "ObjectCell")
+        tableView.contentInset = .init(top: 16, left: 0, bottom: 100, right: 0)
+        return tableView
     }()
-    
     
     init(model: MainAKTViewModel) {
         self.model = model
@@ -35,12 +34,37 @@ class SettingsObjectsViewController: UIViewController {
         super.viewWillAppear(animated)
         title = "Обьекты"
         
-        let plusButton = UIButton(type: .system)
-        plusButton.setBackgroundImage(UIImage(systemName: "plus"), for: .normal)
-        plusButton.snp.makeConstraints { make in
-            make.height.width.equalTo(24)
+        // Устанавливаем кнопку "назад" только со стрелочкой без текста
+        if let navController = navigationController, navController.viewControllers.count > 1 {
+            let previousVC = navController.viewControllers[navController.viewControllers.count - 2]
+            let backButton = UIBarButtonItem(title: "", style: .plain, target: nil, action: nil)
+            previousVC.navigationItem.backBarButtonItem = backButton
+            previousVC.navigationItem.backButtonTitle = ""
+            previousVC.navigationItem.backButtonDisplayMode = .minimal
         }
+        
+        // Создаем стильную кнопку добавления
+        let plusButton = UIButton(type: .system)
+        let plusImage = UIImage(systemName: "plus.circle.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 28, weight: .medium))
+        plusButton.setImage(plusImage, for: .normal)
+        plusButton.tintColor = .systemBlue
+        plusButton.backgroundColor = .clear
+        
+        // Добавляем тень для глубины
+        plusButton.layer.shadowColor = UIColor.systemBlue.cgColor
+        plusButton.layer.shadowOffset = CGSize(width: 0, height: 2)
+        plusButton.layer.shadowOpacity = 0.3
+        plusButton.layer.shadowRadius = 4
+        
+        // Анимация при нажатии
         plusButton.addTarget(self, action: #selector(addNew), for: .touchUpInside)
+        plusButton.addTarget(self, action: #selector(plusButtonPressed(_:)), for: .touchDown)
+        plusButton.addTarget(self, action: #selector(plusButtonReleased(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+        
+        plusButton.snp.makeConstraints { make in
+            make.height.width.equalTo(32)
+        }
+        
         let item = UIBarButtonItem(customView: plusButton)
         self.navigationItem.setRightBarButton(item, animated: true)
     }
@@ -52,103 +76,57 @@ class SettingsObjectsViewController: UIViewController {
     }
     
     private func setupUI() {
-        collectionView.delegate = self
-        collectionView.dataSource = self
-        view.addSubview(collectionView)
-        collectionView.snp.makeConstraints { make in
+        tableView.delegate = self
+        tableView.dataSource = self
+        view.addSubview(tableView)
+        tableView.snp.makeConstraints { make in
             make.left.right.equalToSuperview()
             make.bottom.equalToSuperview()
             make.top.equalTo(view.safeAreaLayoutGuide.snp.top)
         }
     }
     
+    @objc private func plusButtonPressed(_ sender: UIButton) {
+        UIView.animate(withDuration: 0.1, animations: {
+            sender.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
+        })
+    }
+    
+    @objc private func plusButtonReleased(_ sender: UIButton) {
+        UIView.animate(withDuration: 0.1, animations: {
+            sender.transform = .identity
+        })
+    }
+    
     @objc private func addNew() {
-        let alert = UIAlertController(title: "Добавление нового объекта проверки", message: "Введите название и описание", preferredStyle: .alert)
-        alert.addTextField()
-        alert.addTextField()
+        let editType = EditType.doubleField(
+            title1: "Название",
+            placeholder1: "Введите название объекта",
+            currentValue1: "",
+            title2: "Описание",
+            placeholder2: "Введите описание объекта",
+            currentValue2: ""
+        )
         
-        alert.textFields?.first?.placeholder = "Название"
-        alert.textFields?[1].placeholder = "Описание"
-        
-        let cancel = UIAlertAction(title: "Отмена", style: .cancel)
-        alert.addAction(cancel)
-        
-        let save = UIAlertAction(title: "Добавить", style: .default) { [weak self] _ in
+        let editVC = UniversalEditViewController(editType: editType) { [weak self] newTitle, newSubtitle, _ in
             guard let self = self else { return }
-            if let text = alert.textFields?.first?.text, let subTitle = alert.textFields?[1].text {
-                let newObj = ObjectCheck(title: text, subTitle: subTitle)
-                model.objectCheckArray.append(newObj)
-                DataFlowObjectsReview.saveArr(arr:  model.objectCheckArray)
-                collectionView.reloadData()
-            }
-        }
-        alert.addAction(save)
-        
-        self.present(alert, animated: true)
-    }
-    
-
-}
-
-
-extension SettingsObjectsViewController: UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return model.objectCheckArray.count
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "1", for: indexPath)
-        cell.subviews.forEach { $0.removeFromSuperview() }
-        cell.backgroundColor = .systemGray6
-        cell.clipsToBounds = true
-        cell.layer.cornerRadius = 20
-        
-        let item = model.objectCheckArray[indexPath.row]
-        
-        let titleLabel = UILabel()
-        titleLabel.text = item.title
-        titleLabel.textAlignment = .left
-        titleLabel.textColor = .label
-        titleLabel.font = .systemFont(ofSize: 16, weight: .semibold)
-        cell.addSubview(titleLabel)
-        titleLabel.snp.makeConstraints { make in
-            make.left.equalToSuperview().inset(16)
-            make.top.equalToSuperview().inset(16)
-            make.right.equalToSuperview().inset(16)
+            let subtitle = newSubtitle ?? ""
+            let newObj = ObjectCheck(title: newTitle, subTitle: subtitle)
+            self.model.objectCheckArray.append(newObj)
+            DataFlowObjectsReview.saveArr(arr: self.model.objectCheckArray)
+            self.tableView.reloadData()
         }
         
-        let subTitleLabel = UILabel()
-        subTitleLabel.text = item.subTitle
-        subTitleLabel.textAlignment = .left
-        subTitleLabel.textColor = .secondaryLabel
-        subTitleLabel.font = .systemFont(ofSize: 14, weight: .regular)
-        cell.addSubview(subTitleLabel)
-        subTitleLabel.snp.makeConstraints { make in
-            make.left.equalToSuperview().inset(16)
-            make.right.equalToSuperview().inset(16)
-            make.top.equalTo(titleLabel.snp.bottom).inset(-8)
+        let navController = UINavigationController(rootViewController: editVC)
+        navController.modalPresentationStyle = UIModalPresentationStyle.pageSheet
+        
+        if let sheet = navController.sheetPresentationController {
+            sheet.detents = [UISheetPresentationController.Detent.large()]
+            sheet.prefersGrabberVisible = true
+            sheet.preferredCornerRadius = 20
         }
         
-        return cell
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        return CGSize(width: collectionView.frame.width - 32, height: 80)
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        showEditAlert(for: indexPath)
-    }
-    
-    // MARK: - Long Press Actions
-    func collectionView(_ collectionView: UICollectionView, contextMenuConfigurationForItemAt indexPath: IndexPath, point: CGPoint) -> UIContextMenuConfiguration? {
-        return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ in
-            let deleteAction = UIAction(title: "Удалить", image: UIImage(systemName: "trash"), attributes: .destructive) { _ in
-                self.showDeleteConfirmation(for: indexPath)
-            }
-            
-            return UIMenu(title: "", children: [deleteAction])
-        }
+        present(navController, animated: true)
     }
     
     private func showDeleteConfirmation(for indexPath: IndexPath) {
@@ -158,7 +136,7 @@ extension SettingsObjectsViewController: UICollectionViewDelegate, UICollectionV
             guard let self = self else { return }
             self.model.objectCheckArray.remove(at: indexPath.row)
             DataFlowObjectsReview.saveArr(arr: self.model.objectCheckArray)
-            self.collectionView.deleteItems(at: [indexPath])
+            self.tableView.deleteRows(at: [indexPath], with: .fade)
         }
         
         let cancelAction = UIAlertAction(title: "Отмена", style: .cancel)
@@ -168,7 +146,6 @@ extension SettingsObjectsViewController: UICollectionViewDelegate, UICollectionV
         
         present(alert, animated: true)
     }
-    
     
     private func showEditAlert(for indexPath: IndexPath) {
         let object = model.objectCheckArray[indexPath.row]
@@ -181,13 +158,13 @@ extension SettingsObjectsViewController: UICollectionViewDelegate, UICollectionV
             currentValue2: object.subTitle
         )
         
-        let editVC = UniversalEditViewController(editType: editType) { [weak self] newTitle, newSubtitle in
+        let editVC = UniversalEditViewController(editType: editType) { [weak self] newTitle, newSubtitle, _ in
             guard let self = self else { return }
             let subtitle = newSubtitle ?? ""
             self.model.updateObjectCheck(at: indexPath.row, newTitle: newTitle, newSubtitle: subtitle) { success in
                 DispatchQueue.main.async {
                     if success {
-                        self.collectionView.reloadData()
+                        self.tableView.reloadData()
                     } else {
                         let errorAlert = UIAlertController(title: "Ошибка!", message: "Объект с таким названием уже существует", preferredStyle: .alert)
                         let ok = UIAlertAction(title: "OK", style: .cancel)
@@ -199,14 +176,139 @@ extension SettingsObjectsViewController: UICollectionViewDelegate, UICollectionV
         }
         
         let navController = UINavigationController(rootViewController: editVC)
-        navController.modalPresentationStyle = .pageSheet
+        navController.modalPresentationStyle = UIModalPresentationStyle.pageSheet
         
         if let sheet = navController.sheetPresentationController {
-            sheet.detents = [.large()]
+            sheet.detents = [UISheetPresentationController.Detent.large()]
             sheet.prefersGrabberVisible = true
             sheet.preferredCornerRadius = 20
         }
         
         present(navController, animated: true)
+    }
+}
+
+// MARK: - UITableViewDataSource
+extension SettingsObjectsViewController: UITableViewDataSource {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return model.objectCheckArray.count
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "ObjectCell", for: indexPath)
+        
+        // Очищаем содержимое ячейки
+        cell.contentView.subviews.forEach { $0.removeFromSuperview() }
+        cell.backgroundColor = .clear
+        
+        // Настройка внешнего вида ячейки
+        cell.layer.cornerRadius = 16
+        cell.layer.masksToBounds = false
+        cell.layer.shadowColor = UIColor.black.cgColor
+        cell.layer.shadowOffset = CGSize(width: 0, height: 2)
+        cell.layer.shadowOpacity = 0.1
+        cell.layer.shadowRadius = 4
+        
+        // Создаем контейнер для содержимого ячейки
+        let containerView = UIView()
+        
+        // Настройка для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            containerView.backgroundColor = .systemGray6
+            containerView.layer.cornerRadius = 16
+            containerView.layer.masksToBounds = true
+        } else {
+            containerView.backgroundColor = .systemGray6
+            containerView.layer.cornerRadius = 16
+            containerView.layer.masksToBounds = true
+        }
+        
+        cell.contentView.addSubview(containerView)
+        containerView.snp.makeConstraints { make in
+            make.edges.equalToSuperview().inset(4)
+        }
+        
+        let item = model.objectCheckArray[indexPath.row]
+        
+        // Заголовок объекта
+        let titleLabel = UILabel()
+        titleLabel.text = item.title
+        titleLabel.textAlignment = .left
+        titleLabel.numberOfLines = 3
+        if traitCollection.userInterfaceStyle == .dark {
+            titleLabel.textColor = .white
+        } else {
+            titleLabel.textColor = .label
+        }
+        titleLabel.font = .systemFont(ofSize: 16, weight: .semibold)
+        containerView.addSubview(titleLabel)
+        titleLabel.snp.makeConstraints { make in
+            make.left.right.equalToSuperview().inset(16)
+            make.top.equalToSuperview().inset(16)
+        }
+        
+        // Описание объекта
+        let subTitleLabel = UILabel()
+        subTitleLabel.text = item.subTitle
+        subTitleLabel.textAlignment = .left
+        if traitCollection.userInterfaceStyle == .dark {
+            subTitleLabel.textColor = .white.withAlphaComponent(0.7)
+        } else {
+            subTitleLabel.textColor = .secondaryLabel
+        }
+        subTitleLabel.font = .italicSystemFont(ofSize: 12)
+        containerView.addSubview(subTitleLabel)
+        subTitleLabel.snp.makeConstraints { make in
+            make.left.right.equalToSuperview().inset(16)
+            make.top.equalTo(titleLabel.snp.bottom).offset(8)
+            make.bottom.equalToSuperview().inset(16)
+        }
+        
+        return cell
+    }
+}
+
+// MARK: - UITableViewDelegate
+extension SettingsObjectsViewController: UITableViewDelegate {
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        // Редактирование теперь доступно только через свайп
+    }
+    
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        return 116
+    }
+    
+    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        guard indexPath.row >= 0 && indexPath.row < model.objectCheckArray.count else {
+            return UISwipeActionsConfiguration(actions: [])
+        }
+        
+        let editAction = UIContextualAction(style: .normal, title: "Редактировать") { [weak self] (_, _, completionHandler) in
+            guard let self = self else {
+                completionHandler(false)
+                return
+            }
+            self.showEditAlert(for: indexPath)
+            completionHandler(true)
+        }
+        editAction.backgroundColor = .systemBlue
+        editAction.image = UIImage(systemName: "pencil")
+        
+        let deleteAction = UIContextualAction(style: .destructive, title: "Удалить") { [weak self] (_, _, completionHandler) in
+            guard let self = self else {
+                completionHandler(false)
+                return
+            }
+            self.showDeleteConfirmation(for: indexPath)
+            completionHandler(true)
+        }
+        deleteAction.backgroundColor = .systemRed
+        deleteAction.image = UIImage(systemName: "trash")
+        
+        let configuration = UISwipeActionsConfiguration(actions: [deleteAction, editAction])
+        configuration.performsFirstActionWithFullSwipe = false
+        
+        return configuration
     }
 }

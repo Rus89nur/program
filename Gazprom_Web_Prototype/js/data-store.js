@@ -24,6 +24,7 @@ const GazpromStore = (() => {
       trash: [],
       editableAkt: null,
       editableAktReference: null,
+      descriptionTemplates: ['', '', ''],
     };
   }
 

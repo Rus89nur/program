@@ -35,6 +35,7 @@ const WizardModals = (() => {
     const root = ensureModalRoot();
     root.hidden = false;
     root.classList.add('show');
+    document.body.style.overflow = 'hidden';
     document.getElementById('modalTitle').textContent = title;
     document.getElementById('modalBody').innerHTML = bodyHtml;
     const footer = document.getElementById('modalFooter');
@@ -51,12 +52,24 @@ const WizardModals = (() => {
       root.classList.remove('show');
       root.hidden = true;
     }
+    document.body.style.overflow = '';
     editingViolationId = null;
     modalPhotos = [];
   }
 
   function init(context) {
     ctx = context;
+  }
+
+  function autoResize(el) {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }
+
+  function bindAutoResize(el) {
+    if (!el) return;
+    el.addEventListener('input', () => autoResize(el));
   }
 
   async function fileToBase64(file) {
@@ -92,9 +105,17 @@ const WizardModals = (() => {
 
     modalPhotos = v?.photo ? [...v.photo] : [];
 
-    const templates = ViolationTemplates.collectFromCatalog(catalog);
-    const templateOpts = templates.titles
-      .map((t) => `<option value="${AktUtils.escapeHtml(t)}">${AktUtils.escapeHtml(t.slice(0, 80))}${t.length > 80 ? '…' : ''}</option>`)
+    const registryItems = catalog?.violationRegistry || [];
+
+    // Unique mesto values from current act for autocomplete
+    const existingMesta = [...new Set(
+      (draft.violations || [])
+        .map((x) => x.mesto)
+        .filter(Boolean)
+    )];
+
+    const mestoDatalist = existingMesta
+      .map((m) => `<option value="${AktUtils.escapeHtml(m)}">`)
       .join('');
 
     const vidOpts = ViolationTemplates.VIOLATION_TYPES.map(
@@ -102,41 +123,90 @@ const WizardModals = (() => {
         `<option value="${AktUtils.escapeHtml(t)}" ${v?.vid === t ? 'selected' : ''}>${AktUtils.escapeHtml(t)}</option>`
     ).join('');
 
+    function renderRegistryResults(query) {
+      const q = query.trim().toLowerCase();
+      let items = registryItems;
+      if (q) {
+        items = items.filter(
+          (r) =>
+            (r.title || '').toLowerCase().includes(q) ||
+            (r.subTitle || '').toLowerCase().includes(q) ||
+            (r.vid || '').toLowerCase().includes(q) ||
+            (r.formulaFromRules || '').toLowerCase().includes(q)
+        );
+      }
+      if (!items.length && !q) {
+        return `<div class="viol-registry-empty">Реестр нарушений пуст</div>`;
+      }
+      if (!items.length && q) {
+        return `
+          <div class="viol-registry-empty">
+            Ничего не найдено
+            <br>
+            <button type="button" class="btn-ghost btn-sm" id="mvAddToRegistry" style="margin-top:10px">
+              + Добавить «${AktUtils.escapeHtml(q.slice(0, 60))}» в реестр
+            </button>
+          </div>`;
+      }
+      return items
+        .map(
+          (r, i) => `
+          <div class="viol-registry-result-item" data-reg-id="${AktUtils.escapeHtml(r.id)}">
+            <span class="vr-result-num">${r.number || i + 1}</span>
+            <div class="vr-result-body">
+              <div class="vr-result-title">${AktUtils.escapeHtml(r.title)}</div>
+              ${r.subTitle ? `<div class="vr-result-sub">📄 ${AktUtils.escapeHtml(r.subTitle)}</div>` : ''}
+              ${r.vid ? `<span class="vr-result-vid">${AktUtils.escapeHtml(r.vid)}</span>` : ''}
+            </div>
+          </div>`
+        )
+        .join('');
+    }
+
     const body = `
       <div class="form-group">
-        <label>Шаблон из прошлых актов</label>
-        <select class="form-control" id="mvTemplatePick">
-          <option value="">— выбрать формулировку —</option>${templateOpts}
-        </select>
+        <label class="form-label">Место нарушения</label>
+        <input class="form-control" id="mvMesto"
+          value="${AktUtils.escapeHtml(v?.mesto || '')}"
+          placeholder="Введите место нарушения…"
+          autocomplete="off"
+          list="mestoSuggestions">
+        <datalist id="mestoSuggestions">${mestoDatalist}</datalist>
+      </div>
+
+      <div class="mv-search-block form-group">
+        <label class="form-label">Нарушение</label>
+        <input type="search"
+          class="mv-search-block-input"
+          id="mvRegistrySearch"
+          placeholder="Начните вводить формулировку нарушения…"
+          autocomplete="off"
+          value="">
+        <div class="viol-registry-results" id="mvRegistryResults">
+          ${renderRegistryResults('')}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Формулировка нарушения <span style="color:var(--danger)">*</span></label>
+        <textarea class="form-control" id="mvTitle" rows="3" placeholder="Не проведён инструктаж по охране труда…">${AktUtils.escapeHtml(v?.title || '')}</textarea>
       </div>
       <div class="form-group">
-        <label>Формулировка нарушения</label>
-        <textarea class="form-control" id="mvTitle" rows="3" placeholder="Текст нарушения">${AktUtils.escapeHtml(v?.title || '')}</textarea>
+        <label class="form-label">Вид нарушения</label>
+        <select class="form-control" id="mvVid"><option value="">— не выбрано —</option>${vidOpts}</select>
       </div>
       <div class="form-group">
-        <label>Место нарушения (объект)</label>
-        <select class="form-control" id="mvMesto">${objectOptions(draft.objectsCheck, v?.mesto)}</select>
+        <label class="form-label">Пункт / ссылка на правило</label>
+        <textarea class="form-control" id="mvUrl" rows="2" placeholder="п. 4.1 СП 12-135-2003">${AktUtils.escapeHtml(v?.urlToPravilo || '')}</textarea>
       </div>
       <div class="form-group">
-        <label>Вид нарушения</label>
-        <select class="form-control" id="mvVid"><option value="">—</option>${vidOpts}</select>
+        <label class="form-label">Формулировка из правил</label>
+        <textarea class="form-control" id="mvFormula" rows="2" placeholder="Согласно п. …">${AktUtils.escapeHtml(v?.formulaFromRules || '')}</textarea>
       </div>
       <div class="form-group">
-        <label>Пункт / ссылка на правило</label>
-        <input class="form-control" id="mvUrl" value="${AktUtils.escapeHtml(v?.urlToPravilo || '')}" placeholder="Номер пункта или URL">
-      </div>
-      <div class="form-group">
-        <label>Формулировка из правил</label>
-        <input class="form-control" id="mvFormula" value="${AktUtils.escapeHtml(v?.formulaFromRules || '')}" list="violationFormulas">
-        <datalist id="violationFormulas">${templates.formulas.map((f) => `<option value="${AktUtils.escapeHtml(f)}">`).join('')}</datalist>
-      </div>
-      <div class="form-group">
-        <label>Фотофиксация</label>
+        <label class="form-label">Фотофиксация</label>
+        <input type="file" id="mvPhotoInput" accept="image/*" multiple hidden>
         <div class="photo-grid" id="mvPhotoGrid">${renderModalPhotos()}</div>
-        <label class="btn-ghost mv-upload-label">
-          📷 Добавить фото
-          <input type="file" id="mvPhotoInput" accept="image/*" multiple hidden>
-        </label>
       </div>
     `;
 
@@ -148,12 +218,136 @@ const WizardModals = (() => {
 
     open(violationId ? 'Редактирование нарушения' : 'Новое нарушение', body, footer);
 
-    document.getElementById('mvTemplatePick')?.addEventListener('change', (e) => {
-      if (e.target.value) {
-        const ta = document.getElementById('mvTitle');
-        if (ta) ta.value = e.target.value;
+    // Track the registry item that was last selected to detect manual edits
+    let selectedRegistryItem = null;
+
+    function getFormSnapshot() {
+      return {
+        title:            document.getElementById('mvTitle')?.value?.trim() || '',
+        subTitle:         document.getElementById('mvUrl')?.value?.trim() || '',
+        vid:              document.getElementById('mvVid')?.value || '',
+        formulaFromRules: document.getElementById('mvFormula')?.value?.trim() || '',
+      };
+    }
+
+    function isModifiedFromRegistry() {
+      if (!selectedRegistryItem) return false;
+      const s = getFormSnapshot();
+      return (
+        s.title            !== (selectedRegistryItem.title            || '') ||
+        s.subTitle         !== (selectedRegistryItem.subTitle         || '') ||
+        s.vid              !== (selectedRegistryItem.vid              || '') ||
+        s.formulaFromRules !== (selectedRegistryItem.formulaFromRules || '')
+      );
+    }
+
+    function updateSaveToRegistryHint() {
+      let hint = document.getElementById('mvSaveToRegistryHint');
+      if (isModifiedFromRegistry()) {
+        if (!hint) {
+          hint = document.createElement('div');
+          hint.id = 'mvSaveToRegistryHint';
+          hint.className = 'mv-save-registry-hint';
+          hint.innerHTML = `
+            <span class="mv-save-registry-hint-text">Данные отличаются от реестра</span>
+            <button type="button" class="btn-ghost btn-sm" id="mvSaveNewToRegistry">+ Сохранить как новое нарушение в реестр</button>
+          `;
+          const modalBody = document.getElementById('modalBody');
+          modalBody?.appendChild(hint);
+          document.getElementById('mvSaveNewToRegistry')?.addEventListener('click', saveCurrentToRegistry);
+        }
+      } else {
+        hint?.remove();
       }
+    }
+
+    async function saveCurrentToRegistry() {
+      const s = getFormSnapshot();
+      if (!s.title) { GazpromToast.error('Заполните формулировку нарушения'); return; }
+      await ViolationRegistry.addItem(s);
+      GazpromToast.success('Сохранено в реестр нарушений');
+      selectedRegistryItem = null;
+      document.getElementById('mvSaveToRegistryHint')?.remove();
+      await ctx.reloadCatalog();
+    }
+
+    function bindFieldChangeWatchers() {
+      ['mvTitle', 'mvUrl', 'mvVid', 'mvFormula'].forEach((id) => {
+        document.getElementById(id)?.addEventListener('input', updateSaveToRegistryHint);
+        document.getElementById(id)?.addEventListener('change', updateSaveToRegistryHint);
+      });
+    }
+
+    // Registry search
+    let searchTimer = null;
+    document.getElementById('mvRegistrySearch')?.addEventListener('input', (e) => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        const results = document.getElementById('mvRegistryResults');
+        if (results) results.innerHTML = renderRegistryResults(e.target.value);
+        bindRegistryResultClicks();
+        bindAddToRegistry();
+      }, 200);
     });
+
+    function bindRegistryResultClicks() {
+      document.querySelectorAll('#mvRegistryResults .viol-registry-result-item').forEach((el) => {
+        el.addEventListener('click', () => {
+          const item = registryItems.find((r) => r.id === el.dataset.regId);
+          if (!item) return;
+
+          const titleEl   = document.getElementById('mvTitle');
+          const urlEl     = document.getElementById('mvUrl');
+          const formulaEl = document.getElementById('mvFormula');
+          if (titleEl)   { titleEl.value   = item.title            || ''; autoResize(titleEl); }
+          if (urlEl)     { urlEl.value     = item.subTitle         || ''; autoResize(urlEl); }
+          document.getElementById('mvVid').value = item.vid || '';
+          if (formulaEl) { formulaEl.value = item.formulaFromRules || ''; autoResize(formulaEl); }
+
+          // Store snapshot for change detection
+          selectedRegistryItem = { ...item };
+
+          document.querySelectorAll('#mvRegistryResults .viol-registry-result-item').forEach((x) =>
+            x.classList.remove('selected')
+          );
+          el.classList.add('selected');
+
+          // Remove the hint since values now match registry
+          document.getElementById('mvSaveToRegistryHint')?.remove();
+
+          // Clear search and show full list again
+          const searchEl = document.getElementById('mvRegistrySearch');
+          if (searchEl) searchEl.value = '';
+          const results = document.getElementById('mvRegistryResults');
+          if (results) results.innerHTML = renderRegistryResults('');
+          bindRegistryResultClicks();
+        });
+      });
+    }
+
+    function bindAddToRegistry() {
+      document.getElementById('mvAddToRegistry')?.addEventListener('click', () => {
+        const q = document.getElementById('mvRegistrySearch')?.value?.trim() || '';
+        openAddToRegistryForm(q, renderRegistryResults, bindRegistryResultClicks);
+      });
+    }
+
+    bindRegistryResultClicks();
+    bindAddToRegistry();
+    bindFieldChangeWatchers();
+
+    // Bind input listeners
+    ['mvTitle', 'mvUrl', 'mvFormula'].forEach((id) => {
+      bindAutoResize(document.getElementById(id));
+    });
+
+    // After layout — resize all textareas to fit pre-filled content
+    setTimeout(() => {
+      ['mvTitle', 'mvUrl', 'mvFormula'].forEach((id) => {
+        autoResize(document.getElementById(id));
+      });
+    }, 50);
+
     document.getElementById('mvSave')?.addEventListener('click', saveViolation);
     document.getElementById('mvDelete')?.addEventListener('click', deleteViolation);
     document.getElementById('mvPhotoInput')?.addEventListener('change', onPhotoPick);
@@ -162,10 +356,7 @@ const WizardModals = (() => {
   }
 
   function renderModalPhotos() {
-    if (!modalPhotos.length) {
-      return `<div class="photo-slot wizard-photo-add">Нет фото</div>`;
-    }
-    return modalPhotos
+    const thumbs = modalPhotos
       .map(
         (p, i) => `
       <div class="photo-slot filled wizard-photo-thumb mv-photo-item" data-pidx="${i}">
@@ -174,6 +365,9 @@ const WizardModals = (() => {
       </div>`
       )
       .join('');
+    // Always append the "add" slot at the end
+    const addSlot = `<div class="photo-slot wizard-photo-add mv-photo-add-slot" title="Добавить фото">+</div>`;
+    return thumbs + addSlot;
   }
 
   function bindModalPhotoClicks() {
@@ -183,6 +377,7 @@ const WizardModals = (() => {
         modalPhotos.splice(parseInt(btn.dataset.rm, 10), 1);
         document.getElementById('mvPhotoGrid').innerHTML = renderModalPhotos();
         bindModalPhotoClicks();
+        hydrateModalPhotoThumbs();
       });
     });
     document.querySelectorAll('#mvPhotoGrid .mv-photo-item').forEach((el) => {
@@ -196,6 +391,9 @@ const WizardModals = (() => {
           });
         }
       });
+    });
+    document.querySelector('#mvPhotoGrid .mv-photo-add-slot')?.addEventListener('click', () => {
+      document.getElementById('mvPhotoInput')?.click();
     });
   }
 
@@ -223,13 +421,13 @@ const WizardModals = (() => {
     });
   }
 
-  function saveViolation() {
+  async function saveViolation() {
     const title = document.getElementById('mvTitle')?.value?.trim();
     if (!title) {
       GazpromToast.error('Укажите формулировку нарушения');
       return;
     }
-    const mesto = document.getElementById('mvMesto')?.value || '';
+    const mesto = document.getElementById('mvMesto')?.value?.trim() || '';
     const vid = document.getElementById('mvVid')?.value || '';
     const urlToPravilo = document.getElementById('mvUrl')?.value?.trim() || '';
     const formulaFromRules = document.getElementById('mvFormula')?.value?.trim() || null;
@@ -254,6 +452,7 @@ const WizardModals = (() => {
     }
 
     ctx.setDraft(draft);
+    await ctx.saveDraft();
     close();
     ctx.onUpdate();
   }
@@ -267,10 +466,11 @@ const WizardModals = (() => {
     return;
   }
 
-  function doDeleteViolation() {
+  async function doDeleteViolation() {
     const draft = ctx.getDraft();
     draft.violations = (draft.violations || []).filter((x) => x.id !== editingViolationId);
     ctx.setDraft(draft);
+    await ctx.saveDraft();
     close();
     ctx.onUpdate();
   }
@@ -350,6 +550,184 @@ const WizardModals = (() => {
       close();
       ctx.onQuickAdd(type, item);
     });
+  }
+
+  function openAddToRegistryForm(prefillTitle, renderRegistryResults, bindRegistryResultClicks) {
+    const catalog = ctx.getCatalog();
+    const registryItems = catalog?.violationRegistry || [];
+    const maxNum = Math.max(0, ...registryItems.map((x) => x.number || 0));
+    const nextNum = maxNum + 1;
+
+    // Unique subTitle values for datalist autocomplete
+    const uniqueSubTitles = [...new Set(registryItems.map((x) => x.subTitle).filter(Boolean))];
+    const subTitleDatalist = uniqueSubTitles
+      .map((s) => `<option value="${AktUtils.escapeHtml(s)}">`)
+      .join('');
+
+    const vidOpts = ViolationTemplates.VIOLATION_TYPES.map(
+      (t) => `<option value="${AktUtils.escapeHtml(t)}">${AktUtils.escapeHtml(t)}</option>`
+    ).join('');
+
+    // Registry items for the rule picker — unique subTitle entries, show only пункт правила
+    const seenSubTitles = new Set();
+    const rulePickerItems = registryItems
+      .filter((r) => r.subTitle && !seenSubTitles.has(r.subTitle) && seenSubTitles.add(r.subTitle))
+      .map(
+        (r) => `
+        <div class="arv-rule-pick-item"
+          data-rule-subtitle="${AktUtils.escapeHtml(r.subTitle || '')}"
+          data-rule-formula="${AktUtils.escapeHtml(r.formulaFromRules || '')}"
+          data-rule-vid="${AktUtils.escapeHtml(r.vid || '')}">
+          <div class="arv-rule-sub">📄 ${AktUtils.escapeHtml(r.subTitle)}</div>
+          ${r.formulaFromRules ? `<div class="arv-rule-formula">${AktUtils.escapeHtml(r.formulaFromRules.slice(0, 80))}${r.formulaFromRules.length > 80 ? '…' : ''}</div>` : ''}
+        </div>`
+      )
+      .join('');
+
+    const overlay = document.createElement('div');
+    overlay.className = 'vr-form-overlay';
+    overlay.innerHTML = `
+      <div class="vr-form-dialog card">
+        <h3>Добавить нарушение в реестр</h3>
+
+        <div class="form-group">
+          <label class="form-label">Номер нарушения</label>
+          <input class="form-control" id="arvNumber" type="number" min="1" value="${nextNum}" style="max-width:120px">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Формулировка нарушения <span style="color:var(--danger)">*</span></label>
+          <textarea class="form-control" id="arvTitle" rows="3"
+            placeholder="Не проведён инструктаж по охране труда…">${AktUtils.escapeHtml(prefillTitle)}</textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Пункт / ссылка на правило</label>
+          <input class="form-control" id="arvSubTitle" list="arvSubTitleList"
+            placeholder="п. 4.1 СП 12-135-2003" autocomplete="off">
+          <datalist id="arvSubTitleList">${subTitleDatalist}</datalist>
+          ${rulePickerItems ? `
+          <button type="button" class="btn-ghost btn-sm arv-pick-btn" id="arvPickRule"
+            style="margin-top:6px;width:100%;text-align:left;">
+            📋 Выбрать из реестра
+          </button>
+          <div id="arvRulePicker" hidden class="arv-rule-picker">
+            <input type="search" class="form-control arv-rule-search" placeholder="Поиск по пункту правила…"
+              style="margin-bottom:6px" autocomplete="off">
+            <div class="arv-rule-picker-list">${rulePickerItems}</div>
+          </div>` : ''}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Формулировка из правил</label>
+          <textarea class="form-control" id="arvFormulaFromRules" rows="2"
+            placeholder="Согласно п. …"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Примечание</label>
+          <input class="form-control" id="arvDescription" placeholder="Доп. информация">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Вид нарушения</label>
+          <select class="form-control" id="arvVid">
+            <option value="">— не выбрано —</option>
+            ${vidOpts}
+          </select>
+        </div>
+
+        <div class="catalog-form-actions">
+          <button type="button" class="btn-ghost" id="arvCancel">Отмена</button>
+          <button type="button" class="btn-primary" id="arvSave">Добавить в реестр</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // Auto-resize textareas to fit content while keeping manual resize
+    function autoResize(el) {
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    }
+    overlay.querySelectorAll('textarea').forEach((ta) => {
+      ta.style.resize = 'vertical';
+      ta.style.overflow = 'hidden';
+      autoResize(ta);
+      ta.addEventListener('input', () => autoResize(ta));
+    });
+
+    setTimeout(() => overlay.querySelector('#arvTitle')?.focus(), 50);
+
+    const remove = () => overlay.remove();
+    overlay.querySelector('#arvCancel').onclick = remove;
+    overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') remove(); });
+
+    // Toggle rule picker visibility
+    overlay.querySelector('#arvPickRule')?.addEventListener('click', () => {
+      const picker = overlay.querySelector('#arvRulePicker');
+      if (picker) {
+        picker.hidden = !picker.hidden;
+        if (!picker.hidden) picker.querySelector('.arv-rule-search')?.focus();
+      }
+    });
+
+    // Filter rule picker list on search input
+    overlay.querySelector('.arv-rule-search')?.addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase();
+      overlay.querySelectorAll('.arv-rule-pick-item').forEach((el) => {
+        const text = el.textContent.toLowerCase();
+        el.hidden = q ? !text.includes(q) : false;
+      });
+    });
+
+    // Select rule from picker — fills subTitle and formulaFromRules fields
+    overlay.querySelectorAll('.arv-rule-pick-item').forEach((el) => {
+      el.addEventListener('click', () => {
+        const subTitleInput = overlay.querySelector('#arvSubTitle');
+        if (subTitleInput) subTitleInput.value = el.dataset.ruleSubtitle || '';
+        const formulaInput = overlay.querySelector('#arvFormulaFromRules');
+        if (formulaInput && el.dataset.ruleFormula) {
+          formulaInput.value = el.dataset.ruleFormula;
+          autoResize(formulaInput);
+        }
+        const vidSelect = overlay.querySelector('#arvVid');
+        if (vidSelect && el.dataset.ruleVid) vidSelect.value = el.dataset.ruleVid;
+        const picker = overlay.querySelector('#arvRulePicker');
+        if (picker) picker.hidden = true;
+      });
+    });
+
+    // Save to registry
+    overlay.querySelector('#arvSave').onclick = async () => {
+      const title = overlay.querySelector('#arvTitle')?.value?.trim();
+      if (!title) { GazpromToast.error('Укажите формулировку нарушения'); return; }
+
+      const number = parseInt(overlay.querySelector('#arvNumber')?.value, 10) || nextNum;
+      const subTitle = overlay.querySelector('#arvSubTitle')?.value?.trim() || '';
+      const formulaFromRules = overlay.querySelector('#arvFormulaFromRules')?.value?.trim() || '';
+      const description = overlay.querySelector('#arvDescription')?.value?.trim() || '';
+      const vid = overlay.querySelector('#arvVid')?.value || '';
+
+      await ViolationRegistry.addItem({ number, title, subTitle, formulaFromRules, description, vid });
+      GazpromToast.success('Добавлено в реестр нарушений');
+      remove();
+
+      await ctx.reloadCatalog();
+
+      // Pre-fill violation title field if it's empty
+      const titleEl = document.getElementById('mvTitle');
+      if (titleEl && !titleEl.value) titleEl.value = title;
+
+      // Clear search and refresh registry results in violation editor
+      const searchEl = document.getElementById('mvRegistrySearch');
+      if (searchEl) searchEl.value = '';
+      const results = document.getElementById('mvRegistryResults');
+      if (results && renderRegistryResults && bindRegistryResultClicks) {
+        results.innerHTML = renderRegistryResults('');
+        bindRegistryResultClicks();
+      }
+    };
   }
 
   return { init, open, close, openViolationEditor, openQuickAdd };

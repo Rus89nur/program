@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Очистка кэша — макет меню</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+      background: #f2f2f7;
+      color: #1c1c1e;
+      min-height: 100vh;
+      padding: 0 0 2rem;
+    }
+    .device-frame {
+      max-width: 390px;
+      margin: 0 auto;
+      min-height: 100vh;
+      background: #fff;
+      box-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 20px 40px rgba(0,0,0,.12);
+      border-radius: 44px;
+      overflow: hidden;
+      position: relative;
+    }
+    .status-bar {
+      height: 44px;
+      background: #f2f2f7;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .nav-bar {
+      height: 44px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      padding: 0 8px 0 16px;
+      border-bottom: 0.5px solid rgba(0,0,0,.1);
+    }
+    .nav-back { font-size: 17px; color: #007aff; }
+    .nav-title { font-size: 17px; font-weight: 600; margin-left: 8px; }
+    .scroll {
+      overflow-y: auto;
+      padding-bottom: 24px;
+    }
+    .total-card {
+      margin: 16px 16px 8px;
+      padding: 20px 16px;
+      background: linear-gradient(145deg, #007aff 0%, #0051d5 100%);
+      border-radius: 12px;
+      color: #fff;
+      text-align: center;
+    }
+    .total-label { font-size: 13px; opacity: .9; margin-bottom: 4px; }
+    .total-value { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #8e8e93;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 24px 16px 8px;
+    }
+    .group {
+      background: #fff;
+      border-radius: 10px;
+      margin: 0 16px 8px;
+      overflow: hidden;
+      border: 0.5px solid rgba(0,0,0,.06);
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      min-height: 44px;
+      border-bottom: 0.5px solid rgba(0,0,0,.06);
+    }
+    .row:last-child { border-bottom: none; }
+    .row-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 12px;
+      font-size: 14px;
+    }
+    .row-label { font-size: 17px; color: #1c1c1e; flex: 1; }
+    .row-detail { font-size: 15px; color: #8e8e93; }
+    .row-wrap { display: flex; align-items: center; flex: 1; }
+    .action-btn {
+      display: block;
+      margin: 20px 16px 12px;
+      padding: 14px 20px;
+      background: #ff9500;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 17px;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+    }
+    .action-btn.secondary {
+      background: #e5e5ea;
+      color: #1c1c1e;
+    }
+    .footer-note {
+      font-size: 12px;
+      color: #8e8e93;
+      text-align: center;
+      padding: 8px 16px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="device-frame">
+    <div class="status-bar">
+      <span>9:41</span>
+      <span>📶 🔋</span>
+    </div>
+    <div class="nav-bar">
+      <span class="nav-back">‹ Назад</span>
+      <span class="nav-title">Очистка кэша</span>
+    </div>
+    <div class="scroll">
+      <div class="total-card">
+        <div class="total-label">Всего занято</div>
+        <div class="total-value">248,3 МБ</div>
+      </div>
+      <div class="section-title">Что занимает место</div>
+      <div class="group">
+        <div class="row">
+          <div class="row-wrap">
+            <div class="row-icon" style="background:#e8f4ff;">📋</div>
+            <span class="row-label">Данные актов</span>
+          </div>
+          <span class="row-detail">42,1 МБ</span>
+        </div>
+        <div class="row">
+          <div class="row-wrap">
+            <div class="row-icon" style="background:#e8f5e9;">💾</div>
+            <span class="row-label">Резервные копии</span>
+          </div>
+          <span class="row-detail">156 МБ</span>
+        </div>
+        <div class="row">
+          <div class="row-wrap">
+            <div class="row-icon" style="background:#fff3e0;">📄</div>
+            <span class="row-label">Сгенерированные документы</span>
+          </div>
+          <span class="row-detail">28,4 МБ</span>
+        </div>
+        <div class="row">
+          <div class="row-wrap">
+            <div class="row-icon" style="background:#f3e5f5;">🖼️</div>
+            <span class="row-label">Обучающая выборка (ML)</span>
+          </div>
+          <span class="row-detail">12,2 МБ</span>
+        </div>
+        <div class="row">
+          <div class="row-wrap">
+            <div class="row-icon" style="background:#eceff1;">📝</div>
+            <span class="row-label">Логи</span>
+          </div>
+          <span class="row-detail">1,8 МБ</span>
+        </div>
+        <div class="row">
+          <div class="row-wrap">
+            <div class="row-icon" style="background:#e0f7fa;">⏱</div>
+            <span class="row-label">Временные файлы</span>
+          </div>
+          <span class="row-detail">4,1 МБ</span>
+        </div>
+        <div class="row">
+          <div class="row-wrap">
+            <div class="row-icon" style="background:#fce4ec;">🗂</div>
+            <span class="row-label">Кэш приложения</span>
+          </div>
+          <span class="row-detail">3,7 МБ</span>
+        </div>
+      </div>
+      <button class="action-btn">Очистить кэш</button>
+      <div class="section-title">Ручное удаление</div>
+      <div class="group">
+        <div class="row">
+          <div class="row-wrap">
+            <div class="row-icon" style="background:#fff8e1;">📑</div>
+            <span class="row-label">Старые документы (.docx)</span>
+          </div>
+          <span class="row-detail">Выбрать</span>
+        </div>
+        <div class="row">
+          <div class="row-wrap">
+            <div class="row-icon" style="background:#e8f5e9;">📂</div>
+            <span class="row-label">Управление резервными копиями</span>
+          </div>
+          <span class="row-detail">›</span>
+        </div>
+      </div>
+      <p class="footer-note">Очистка не затрагивает историю актов и важные настройки.</p>
+    </div>
+  </div>
+</body>
+</html>

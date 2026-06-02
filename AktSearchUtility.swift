@@ -131,7 +131,7 @@ class AktSearchUtility {
         }
         
         // Если акт найден в корзине, восстанавливаем его
-        if let trashLocation = searchResult.locations.first(where: { $0.location == "Корзина" }) {
+        if searchResult.locations.contains(where: { $0.location == "Корзина" }) {
             print("🔄 [RESTORE] Восстанавливаем акт из корзины...")
             return TrashManager.restoreAktByNumber(number)
         }

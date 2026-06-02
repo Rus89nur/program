@@ -12,12 +12,15 @@ enum EditType {
     case singleField(title: String, placeholder: String, currentValue: String)
     case doubleField(title1: String, placeholder1: String, currentValue1: String,
                      title2: String, placeholder2: String, currentValue2: String)
+    case tripleField(title1: String, placeholder1: String, currentValue1: String,
+                     title2: String, placeholder2: String, currentValue2: String,
+                     title3: String, placeholder3: String, currentValue3: String)
 }
 
 class UniversalEditViewController: UIViewController {
     
     private let editType: EditType
-    private let onSave: (String, String?) -> Void
+    private let onSave: (String, String?, String?) -> Void
     
     private let scrollView: UIScrollView = {
         let scrollView = UIScrollView()
@@ -95,6 +98,37 @@ class UniversalEditViewController: UIViewController {
         return label
     }()
     
+    // Третье поле (для тройных записей)
+    private let thirdFieldLabel: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 18, weight: .semibold)
+        label.textColor = .label
+        return label
+    }()
+    
+    private let thirdTextView: UITextView = {
+        let textView = UITextView()
+        textView.font = .systemFont(ofSize: 16, weight: .regular)
+        textView.textColor = .label
+        textView.backgroundColor = .systemGray6
+        textView.layer.cornerRadius = 12
+        textView.layer.borderWidth = 1
+        textView.layer.borderColor = UIColor.systemGray4.cgColor
+        textView.textContainerInset = UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
+        textView.isScrollEnabled = true
+        textView.showsVerticalScrollIndicator = true
+        textView.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
+        return textView
+    }()
+    
+    private let thirdCharacterCountLabel: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 14, weight: .regular)
+        label.textColor = .secondaryLabel
+        label.textAlignment = .right
+        return label
+    }()
+    
     private let saveButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("Сохранить", for: .normal)
@@ -121,7 +155,7 @@ class UniversalEditViewController: UIViewController {
         return button
     }()
     
-    init(editType: EditType, onSave: @escaping (String, String?) -> Void) {
+    init(editType: EditType, onSave: @escaping (String, String?, String?) -> Void) {
         self.editType = editType
         self.onSave = onSave
         super.init(nibName: nil, bundle: nil)
@@ -172,6 +206,9 @@ class UniversalEditViewController: UIViewController {
         contentView.addSubview(secondFieldLabel)
         contentView.addSubview(secondTextView)
         contentView.addSubview(secondCharacterCountLabel)
+        contentView.addSubview(thirdFieldLabel)
+        contentView.addSubview(thirdTextView)
+        contentView.addSubview(thirdCharacterCountLabel)
         contentView.addSubview(saveButton)
         contentView.addSubview(cancelButton)
         
@@ -230,6 +267,7 @@ class UniversalEditViewController: UIViewController {
         // Применяем toolbar ко всем текстовым полям
         firstTextView.inputAccessoryView = toolbar
         secondTextView.inputAccessoryView = toolbar
+        thirdTextView.inputAccessoryView = toolbar
     }
     
     private func setupTapGesture() {
@@ -256,6 +294,8 @@ class UniversalEditViewController: UIViewController {
                 self.scrollToTextView(self.firstTextView)
             } else if self.secondTextView.isFirstResponder {
                 self.scrollToTextView(self.secondTextView)
+            } else if self.thirdTextView.isFirstResponder {
+                self.scrollToTextView(self.thirdTextView)
             }
         }
     }
@@ -312,8 +352,24 @@ class UniversalEditViewController: UIViewController {
             make.right.equalToSuperview().inset(20)
         }
         
+        thirdFieldLabel.snp.makeConstraints { make in
+            make.top.equalTo(secondCharacterCountLabel.snp.bottom).offset(20)
+            make.left.right.equalToSuperview().inset(20)
+        }
+        
+        thirdTextView.snp.makeConstraints { make in
+            make.top.equalTo(thirdFieldLabel.snp.bottom).offset(12)
+            make.left.right.equalToSuperview().inset(20)
+            make.height.greaterThanOrEqualTo(120)
+        }
+        
+        thirdCharacterCountLabel.snp.makeConstraints { make in
+            make.top.equalTo(thirdTextView.snp.bottom).offset(8)
+            make.right.equalToSuperview().inset(20)
+        }
+        
         saveButton.snp.makeConstraints { make in
-            make.top.equalTo(secondCharacterCountLabel.snp.bottom).offset(30)
+            make.top.equalTo(thirdCharacterCountLabel.snp.bottom).offset(30)
             make.left.right.equalToSuperview().inset(20)
             make.height.equalTo(50)
         }
@@ -333,6 +389,7 @@ class UniversalEditViewController: UIViewController {
         // Добавляем обработчики изменения текста
         firstTextView.delegate = self
         secondTextView.delegate = self
+        thirdTextView.delegate = self
     }
     
     private func configureContent() {
@@ -342,10 +399,13 @@ class UniversalEditViewController: UIViewController {
             firstTextView.text = currentValue
             setupPlaceholder(for: firstTextView, placeholder: placeholder)
             
-            // Скрываем второе поле
+            // Скрываем второе и третье поля
             secondFieldLabel.isHidden = true
             secondTextView.isHidden = true
             secondCharacterCountLabel.isHidden = true
+            thirdFieldLabel.isHidden = true
+            thirdTextView.isHidden = true
+            thirdCharacterCountLabel.isHidden = true
             
             // Обновляем констрейнты для одного поля
             saveButton.snp.remakeConstraints { make in
@@ -371,14 +431,54 @@ class UniversalEditViewController: UIViewController {
             secondTextView.text = currentValue2
             setupPlaceholder(for: secondTextView, placeholder: placeholder2)
             
-            // Показываем второе поле
+            // Показываем второе поле, скрываем третье
             secondFieldLabel.isHidden = false
             secondTextView.isHidden = false
             secondCharacterCountLabel.isHidden = false
+            thirdFieldLabel.isHidden = true
+            thirdTextView.isHidden = true
+            thirdCharacterCountLabel.isHidden = true
             
             // Обновляем констрейнты для двух полей
             saveButton.snp.remakeConstraints { make in
                 make.top.equalTo(secondCharacterCountLabel.snp.bottom).offset(30)
+                make.left.right.equalToSuperview().inset(20)
+                make.height.equalTo(50)
+            }
+            
+            cancelButton.snp.remakeConstraints { make in
+                make.top.equalTo(saveButton.snp.bottom).offset(12)
+                make.left.right.equalToSuperview().inset(20)
+                make.height.equalTo(50)
+                make.bottom.equalToSuperview().offset(-20)
+            }
+            
+        case .tripleField(let title1, let placeholder1, let currentValue1,
+                          let title2, let placeholder2, let currentValue2,
+                          let title3, let placeholder3, let currentValue3):
+            firstFieldLabel.text = "\(title1):"
+            firstTextView.text = currentValue1
+            setupPlaceholder(for: firstTextView, placeholder: placeholder1)
+            
+            secondFieldLabel.text = "\(title2):"
+            secondTextView.text = currentValue2
+            setupPlaceholder(for: secondTextView, placeholder: placeholder2)
+            
+            thirdFieldLabel.text = "\(title3):"
+            thirdTextView.text = currentValue3
+            setupPlaceholder(for: thirdTextView, placeholder: placeholder3)
+            
+            // Показываем все поля
+            secondFieldLabel.isHidden = false
+            secondTextView.isHidden = false
+            secondCharacterCountLabel.isHidden = false
+            thirdFieldLabel.isHidden = false
+            thirdTextView.isHidden = false
+            thirdCharacterCountLabel.isHidden = false
+            
+            // Обновляем констрейнты для трёх полей
+            saveButton.snp.remakeConstraints { make in
+                make.top.equalTo(thirdCharacterCountLabel.snp.bottom).offset(30)
                 make.left.right.equalToSuperview().inset(20)
                 make.height.equalTo(50)
             }
@@ -437,6 +537,11 @@ class UniversalEditViewController: UIViewController {
             let secondCount = secondTextView.text.count
             secondCharacterCountLabel.text = "\(secondCount) символов"
         }
+        
+        if !thirdTextView.isHidden {
+            let thirdCount = thirdTextView.text.count
+            thirdCharacterCountLabel.text = "\(thirdCount) символов"
+        }
     }
     
     @objc private func saveButtonTapped() {
@@ -455,7 +560,15 @@ class UniversalEditViewController: UIViewController {
             secondValue = nil
         }
         
-        onSave(firstValue, secondValue)
+        let thirdValue: String?
+        if !thirdTextView.isHidden {
+            let third = thirdTextView.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            thirdValue = third.isEmpty ? nil : third
+        } else {
+            thirdValue = nil
+        }
+        
+        onSave(firstValue, secondValue, thirdValue)
         dismiss(animated: true)
     }
     

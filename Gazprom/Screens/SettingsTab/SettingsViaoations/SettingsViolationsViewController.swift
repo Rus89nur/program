@@ -11,8 +11,17 @@ import AudioToolbox
 
 class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelegate {
     
-    var items = ViolationsModel.returnAvialableViolation()
+    var items: [ViolationsModel.Violation] = []
     private var filteredItems: [ViolationsModel.Violation] = []
+    
+    /// Поколение поиска: только результат последнего запроса применяется к UI (защита от race при быстром вводе).
+    private var searchGeneration = 0
+    
+    // Сохраняем путь к файлу Excel для защиты от потери при работе с модальными окнами
+    private var savedExcelFilePath: String?
+    
+    // Таймер для периодической проверки пути
+    private var pathCheckTimer: Timer?
     
     let tableView: UITableView = {
         let view = UITableView(frame: .zero, style: .plain)
@@ -36,12 +45,139 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         title = "Просмотр нарушений"
+        
+        // Сохраняем путь к файлу Excel при появлении экрана
+        savedExcelFilePath = UserDefaults.standard.string(forKey: "ImportedExcelFilePath")
+        print("📂 [SETTINGS_VIOLATIONS] Сохранен путь к файлу: \(savedExcelFilePath ?? "не найден")")
+        
+        // Восстанавливаем путь к файлу, если он был утерян
+        restoreExcelFilePathIfNeeded()
+        
+        // ЗАЩИТА: Восстанавливаем путь перед загрузкой нарушений
+        print("🔒 [SETTINGS_VIOLATIONS] Защита перед загрузкой нарушений")
+        restoreExcelFilePathIfNeeded()
+        
+        // Перезагружаем данные после возврата на экран (на случай если были изменения)
+        items = ViolationsModel.returnAvailableViolation()
+        
+        // ЗАЩИТА: Восстанавливаем путь после загрузки нарушений
+        print("🔒 [SETTINGS_VIOLATIONS] Защита после загрузки нарушений")
+        restoreExcelFilePathIfNeeded()
+        
+        filteredItems = items
+        tableView.reloadData()
+        
+        // Запускаем таймер проверки пути
+        startPathCheckTimer()
+        
+        // Ищем SettingsTabViewController в стеке навигации и устанавливаем backBarButtonItem из него
+        if let navController = navigationController {
+            // Проходим по всем контроллерам в стеке, начиная с конца (предыдущие)
+            let viewControllers = navController.viewControllers
+            for i in (0..<viewControllers.count).reversed() {
+                if i < viewControllers.count - 1, let settingsVC = viewControllers[i] as? SettingsTabViewController {
+                    // Нашли SettingsTabViewController в стеке, используем его backBarButtonItem
+                    let backButton = UIBarButtonItem(title: "", style: .plain, target: nil, action: nil)
+                    settingsVC.navigationItem.backBarButtonItem = backButton
+                    settingsVC.navigationItem.backButtonTitle = ""
+                    settingsVC.navigationItem.backButtonDisplayMode = .minimal
+                    break
+                }
+            }
+            
+            // Также устанавливаем напрямую в предыдущем контроллере
+            if let prevVC = viewControllers.dropLast().last {
+                let backButton = UIBarButtonItem(title: "", style: .plain, target: nil, action: nil)
+                prevVC.navigationItem.backBarButtonItem = backButton
+                prevVC.navigationItem.backButtonTitle = ""
+                prevVC.navigationItem.backButtonDisplayMode = .minimal
+            }
+        }
+    }
+    
+    /// Восстанавливает путь к файлу Excel, если он был утерян
+    private func restoreExcelFilePathIfNeeded() {
+        // Проверяем текущий путь в UserDefaults
+        let currentPath = UserDefaults.standard.string(forKey: "ImportedExcelFilePath")
+        
+        if currentPath == nil || currentPath?.isEmpty == true {
+            // Путь утерян, восстанавливаем из сохраненного значения
+            if let savedPath = savedExcelFilePath, !savedPath.isEmpty {
+                print("⚠️ [SETTINGS_VIOLATIONS] Обнаружена потеря пути к файлу Excel!")
+                print("   Текущий путь: \(currentPath ?? "отсутствует")")
+                print("   🔄 Восстанавливаем путь: \(savedPath)")
+                
+                UserDefaults.standard.set(savedPath, forKey: "ImportedExcelFilePath")
+                
+                print("   ✅ Путь к файлу Excel восстановлен")
+                
+                // Проверяем, что файл действительно существует
+                if FileManager.default.fileExists(atPath: savedPath) {
+                    print("   ✅ Файл существует по восстановленному пути")
+                } else {
+                    print("   ⚠️ ВНИМАНИЕ: Файл не существует по пути \(savedPath)")
+                    // Пытаемся найти файл автоматически
+                    print("   🔄 Пытаемся найти файл автоматически...")
+                    if ViolationsModel.autoFindAndSetExcelPath() {
+                        print("   ✅ Файл найден автоматически")
+                        savedExcelFilePath = UserDefaults.standard.string(forKey: "ImportedExcelFilePath")
+                    } else {
+                        print("   ❌ Не удалось найти файл автоматически")
+                    }
+                }
+            } else {
+                print("⚠️ [SETTINGS_VIOLATIONS] Путь к файлу отсутствует, пытаемся найти автоматически...")
+                if ViolationsModel.autoFindAndSetExcelPath() {
+                    print("   ✅ Файл найден автоматически")
+                    savedExcelFilePath = UserDefaults.standard.string(forKey: "ImportedExcelFilePath")
+                } else {
+                    print("   ❌ Не удалось найти файл автоматически")
+                }
+            }
+        } else {
+            print("✅ [SETTINGS_VIOLATIONS] Путь к файлу Excel сохранен корректно")
+            
+            // Дополнительная проверка существования файла
+            if let path = currentPath, !FileManager.default.fileExists(atPath: path) {
+                print("⚠️ [SETTINGS_VIOLATIONS] ВНИМАНИЕ: Файл не существует по сохраненному пути!")
+                print("   Путь: \(path)")
+                print("   🔄 Пытаемся найти файл автоматически...")
+                if ViolationsModel.autoFindAndSetExcelPath() {
+                    print("   ✅ Файл найден автоматически")
+                    savedExcelFilePath = UserDefaults.standard.string(forKey: "ImportedExcelFilePath")
+                } else {
+                    print("   ❌ Не удалось найти файл автоматически")
+                }
+            }
+        }
     }
     
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
+        
+        // Сохраняем путь к файлу Excel ДО загрузки данных
+        savedExcelFilePath = UserDefaults.standard.string(forKey: "ImportedExcelFilePath")
+        print("📂 [SETTINGS_VIOLATIONS] viewDidLoad - сохранен путь: \(savedExcelFilePath ?? "не найден")")
+        
+        // Добавляем наблюдатель за изменениями в UserDefaults
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(userDefaultsDidChange),
+            name: UserDefaults.didChangeNotification,
+            object: nil
+        )
+        // Обновляем список при любом изменении реестра нарушений (сохранение в настройках, добавление, удаление)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(violationsRegistryDidChange),
+            name: ViolationsModel.violationsDidChangeNotification,
+            object: nil
+        )
+        
+        // Загружаем данные синхронно (это быстрая операция)
+        items = ViolationsModel.returnAvailableViolation()
         
         // Настройка темной темы
         setupDarkTheme()
@@ -56,6 +192,61 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
         
         // Принудительно обновляем таблицу
         tableView.reloadData()
+        
+        // Запускаем таймер для периодической проверки пути (каждые 2 секунды)
+        startPathCheckTimer()
+    }
+    
+    private func startPathCheckTimer() {
+        // Останавливаем существующий таймер, если есть
+        pathCheckTimer?.invalidate()
+        
+        // Создаем новый таймер
+        pathCheckTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            self?.checkAndRestorePath()
+        }
+        
+        print("⏰ [SETTINGS_VIOLATIONS] Запущен таймер проверки пути")
+    }
+    
+    private func stopPathCheckTimer() {
+        pathCheckTimer?.invalidate()
+        pathCheckTimer = nil
+        print("⏰ [SETTINGS_VIOLATIONS] Остановлен таймер проверки пути")
+    }
+    
+    private func checkAndRestorePath() {
+        let currentPath = UserDefaults.standard.string(forKey: "ImportedExcelFilePath")
+        if currentPath == nil || currentPath?.isEmpty == true {
+            print("⚠️ [TIMER] Обнаружена потеря пути - восстанавливаем...")
+            restoreExcelFilePathIfNeeded()
+        }
+    }
+    
+    @objc private func userDefaultsDidChange() {
+        // Проверяем путь при каждом изменении UserDefaults
+        let currentPath = UserDefaults.standard.string(forKey: "ImportedExcelFilePath")
+        if currentPath == nil || currentPath?.isEmpty == true {
+            print("⚠️ [SETTINGS_VIOLATIONS] ОБНАРУЖЕНА ПОТЕРЯ ПУТИ в UserDefaults!")
+            print("   Немедленно восстанавливаем...")
+            restoreExcelFilePathIfNeeded()
+        }
+    }
+    
+    @objc private func violationsRegistryDidChange() {
+        items = ViolationsModel.returnAvailableViolation()
+        filteredItems = items
+        tableView.reloadData()
+    }
+    
+    deinit {
+        stopPathCheckTimer()
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        stopPathCheckTimer()
     }
     
     private func setupDarkTheme() {
@@ -75,6 +266,7 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
             tableView.reloadData()
         }
     }
+    
     
     private func setupSearchField() {
         searchTextField.delegate = self
@@ -110,7 +302,11 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
         loadButton.addTarget(self, action: #selector(importData), for: .touchUpInside)
         exportButton.addTarget(self, action: #selector(exportData), for: .touchUpInside)
         
+        // Сначала добавляем все view в hierarchy
         view.addSubview(loadButton)
+        view.addSubview(exportButton)
+        
+        // Затем создаем constraints для кнопок
         loadButton.snp.makeConstraints { make in
             make.height.equalTo(54)
             make.left.equalToSuperview().inset(16)
@@ -118,7 +314,6 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
             make.right.equalTo(view.safeAreaLayoutGuide.snp.centerX).offset(-4)
         }
         
-        view.addSubview(exportButton)
         exportButton.snp.makeConstraints { make in
             make.height.equalTo(54)
             make.right.equalToSuperview().inset(16)
@@ -126,6 +321,7 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
             make.left.equalTo(view.safeAreaLayoutGuide.snp.centerX).offset(4)
         }
     }
+    
     
     @objc private func importData() {
         let types: [UTType] = [UTType(filenameExtension: "xlsx")!, UTType(filenameExtension: "xls")!]
@@ -180,12 +376,23 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
             print("✅ Файл скопирован в: \(destinationURL.path)")
 
             UserDefaults.standard.set(destinationURL.path, forKey: "ImportedExcelFilePath")
+            // Принудительно синхронизируем UserDefaults для надежности
             print("✅ Путь сохранен в UserDefaults: \(destinationURL.path)")
 
             print("🔍 Загружаем нарушения из файла...")
-            items = ViolationsModel.returnAvialableViolation()
+            items = ViolationsModel.returnAvailableViolation()
             filteredItems = items
             print("📊 Загружено нарушений в UI: \(items.count)")
+            
+            // Проверяем, что данные действительно загружены
+            if items.isEmpty {
+                print("⚠️ Нарушения не загружены после импорта. Пытаемся найти файл автоматически...")
+                if ViolationsModel.autoFindAndSetExcelPath() {
+                    items = ViolationsModel.returnAvailableViolation()
+                    filteredItems = items
+                    print("📊 После автоматического поиска загружено нарушений: \(items.count)")
+                }
+            }
             
             tableView.reloadData()
             print("✅ Таблица обновлена")
@@ -202,59 +409,80 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
     
     
     func checkitems() {
-        if items.count > 0 {
-            let plusButton = UIButton(type: .system)
-            plusButton.setBackgroundImage(UIImage(systemName: "plus"), for: .normal)
-            plusButton.snp.makeConstraints { make in
-                make.height.width.equalTo(24)
-            }
-            plusButton.addTarget(self, action: #selector(addNew), for: .touchUpInside)
-            let item = UIBarButtonItem(customView: plusButton)
-            self.navigationItem.setRightBarButton(item, animated: true)
-        } else {
-            self.navigationItem.rightBarButtonItem = nil
-        }
+        // Кнопка добавления нарушения
+        let plusButton = UIButton(type: .system)
+        let plusImage = UIImage(systemName: "plus")
+        plusButton.setImage(plusImage, for: .normal)
+        plusButton.tintColor = .systemBlue
+        // Используем intrinsic content size вместо явных ограничений
+        // Это предотвращает конфликты с системными ограничениями navigation bar
+        // Система автоматически установит правильный размер для кнопок в navigation bar
+        plusButton.addTarget(self, action: #selector(addNew), for: .touchUpInside)
+        
+        // Кнопка обучения модели по фото (иконка: голова с мозгами)
+        let mlTrainingButton = UIButton(type: .system)
+        let mlTrainingImage = UIImage(systemName: "brain.head.profile")
+        mlTrainingButton.setImage(mlTrainingImage, for: .normal)
+        mlTrainingButton.tintColor = .systemBlue
+        mlTrainingButton.addTarget(self, action: #selector(openMLTraining), for: .touchUpInside)
+        
+        let plusItem = UIBarButtonItem(customView: plusButton)
+        let mlTrainingItem = UIBarButtonItem(customView: mlTrainingButton)
+        
+        self.navigationItem.setRightBarButtonItems([plusItem, mlTrainingItem], animated: true)
+    }
+    
+    @objc private func openMLTraining() {
+        let trainingVC = ViolationMLTrainingViewController()
+        navigationController?.pushViewController(trainingVC, animated: true)
     }
     
     
     @objc private func addNew() {
-        let alert = UIAlertController(title: "Добавление нарушения", message: "Заполните все поля", preferredStyle: .alert)
+        // Сохраняем путь к файлу Excel перед открытием модального окна
+        savedExcelFilePath = UserDefaults.standard.string(forKey: "ImportedExcelFilePath")
+        print("📂 [SETTINGS_VIOLATIONS] Сохраняем путь перед добавлением нарушения: \(savedExcelFilePath ?? "не найден")")
         
-        alert.addTextField() //0
-        alert.addTextField() //1
-        alert.addTextField() //2
-        alert.addTextField() //3
-        alert.addTextField() //4
-        
-        let cancel = UIAlertAction(title: "Отмена", style: .cancel)
-        alert.addAction(cancel)
-        
-        alert.textFields?[0].placeholder = "Номер"
-        alert.textFields?[1].placeholder = "Формулировка"
-        alert.textFields?[2].placeholder = "Ссылка на норм. документ"
-        alert.textFields?[3].placeholder = "Примечание"
-        alert.textFields?[4].placeholder = "Вид нарушения"
-        
-        let save = UIAlertAction(title: "Сохранить", style: .default) { [weak self] _ in
+        let unifiedFormVC = UnifiedViolationFormViewController { [weak self] violation in
             guard let self = self else { return }
             
-            let number: Int =  Int(alert.textFields?[0].text ?? "0") ?? 0
-            let form: String =  alert.textFields?[1].text ?? "-"
-            let url: String =  alert.textFields?[2].text ?? "-"
-            let desc: String =  alert.textFields?[3].text ?? "-"
-            let vid: String =  alert.textFields?[4].text ?? "-"
+            // Восстанавливаем путь к файлу перед сохранением
+            self.restoreExcelFilePathIfNeeded()
             
-            let violataion = ViolationsModel.Violation(number: number, titie: form, subTitle: url, description: desc, vid: vid)
-            ViolationsModel.addNewViolation(violation: violataion)
+            // Добавляем нарушение - файл Excel автоматически сохраняется внутри метода
+            ViolationsModel.addNewViolation(violation: violation)
             
-            items = ViolationsModel.returnAvialableViolation()
-            filteredItems = items
-            tableView.reloadData()
+            // Обновляем UI
+            self.items = ViolationsModel.returnAvailableViolation()
+            self.filteredItems = self.items
+            self.tableView.reloadData()
             
+            // Показываем уведомление после закрытия модального окна
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                guard let self = self else { return }
+                let alert = UIAlertController(
+                    title: "Успешно",
+                    message: "Нарушение добавлено в реестр. Файл Excel автоматически сохранен.",
+                    preferredStyle: .alert
+                )
+                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                self.present(alert, animated: true)
+            }
         }
-        alert.addAction(save)
         
-        present(alert, animated: true)
+        let navController = UINavigationController(rootViewController: unifiedFormVC)
+        navController.modalPresentationStyle = .pageSheet
+        
+        if let sheet = navController.sheetPresentationController {
+            sheet.detents = [.large()]
+            sheet.prefersGrabberVisible = true
+            sheet.preferredCornerRadius = 20
+        }
+        
+        present(navController, animated: true) { [weak self] in
+            // После открытия модального окна проверяем, что путь не был утерян
+            self?.restoreExcelFilePathIfNeeded()
+        }
     }
     
     @objc private func addNewViolationFromSearch() {
@@ -273,56 +501,57 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
     }
     
     private func addNewWithSearchText(_ searchText: String) {
-        // Подсчитываем количество нарушений в базе для автоматического номера
-        let allViolations = ViolationsModel.returnAvialableViolation()
-        let nextNumber = allViolations.count + 1
+        // Сохраняем путь к файлу Excel перед открытием модального окна
+        savedExcelFilePath = UserDefaults.standard.string(forKey: "ImportedExcelFilePath")
+        print("📂 [SETTINGS_VIOLATIONS] Сохраняем путь перед добавлением нарушения с поиском: \(savedExcelFilePath ?? "не найден")")
         
-        let alert = UIAlertController(title: "Добавление нарушения", message: "Заполните все поля", preferredStyle: .alert)
-        
-        alert.addTextField() //0 - Номер
-        alert.addTextField() //1 - Формулировка
-        alert.addTextField() //2 - Ссылка на норм. документ
-        alert.addTextField() //3 - Примечание
-        alert.addTextField() //4 - Вид нарушения
-        
-        let cancel = UIAlertAction(title: "Отмена", style: .cancel)
-        alert.addAction(cancel)
-        
-        alert.textFields?[0].placeholder = "Номер"
-        alert.textFields?[1].placeholder = "Формулировка"
-        alert.textFields?[2].placeholder = "Ссылка на норм. документ"
-        alert.textFields?[3].placeholder = "Примечание"
-        alert.textFields?[4].placeholder = "Вид нарушения"
-        
-        // Предзаполняем поля
-        alert.textFields?[0].text = "\(nextNumber)"
-        alert.textFields?[1].text = searchText.isEmpty ? "" : searchText
-        
-        let save = UIAlertAction(title: "Сохранить", style: .default) { [weak self] _ in
+        let unifiedFormVC = UnifiedViolationFormViewController(searchText: searchText) { [weak self] violation in
             guard let self = self else { return }
             
-            let number: Int = Int(alert.textFields?[0].text ?? "0") ?? 0
-            let form: String = alert.textFields?[1].text ?? "-"
-            let url: String = alert.textFields?[2].text ?? "-"
-            let desc: String = alert.textFields?[3].text ?? "-"
-            let vid: String = alert.textFields?[4].text ?? "-"
+            // Восстанавливаем путь к файлу перед сохранением
+            self.restoreExcelFilePathIfNeeded()
             
-            let violation = ViolationsModel.Violation(number: number, titie: form, subTitle: url, description: desc, vid: vid)
+            // Добавляем нарушение - файл Excel автоматически сохраняется внутри метода
             ViolationsModel.addNewViolation(violation: violation)
-            self.items = ViolationsModel.returnAvialableViolation()
+            
+            // Обновляем UI
+            self.items = ViolationsModel.returnAvailableViolation()
             self.filteredItems = self.items
             self.tableView.reloadData()
+            
+            // Показываем уведомление после закрытия модального окна
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                guard let self = self else { return }
+                let alert = UIAlertController(
+                    title: "Успешно",
+                    message: "Нарушение добавлено в реестр. Файл Excel автоматически сохранен.",
+                    preferredStyle: .alert
+                )
+                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                self.present(alert, animated: true)
+            }
         }
-        alert.addAction(save)
         
-        present(alert, animated: true)
+        let navController = UINavigationController(rootViewController: unifiedFormVC)
+        navController.modalPresentationStyle = .pageSheet
+        
+        if let sheet = navController.sheetPresentationController {
+            sheet.detents = [.large()]
+            sheet.prefersGrabberVisible = true
+            sheet.preferredCornerRadius = 20
+        }
+        
+        present(navController, animated: true) { [weak self] in
+            // После открытия модального окна проверяем, что путь не был утерян
+            self?.restoreExcelFilePathIfNeeded()
+        }
     }
     
     private func showViolationInfo(for violation: ViolationsModel.Violation) {
         // Вибрационный отклик для просмотра
         triggerHapticFeedback(.light)
         
-        let previewVC = ViolationPreviewViewController(violation: violation)
+        let previewVC = SettingsViolationPreviewViewController(violation: violation)
         previewVC.modalPresentationStyle = .pageSheet
         
         if let sheet = previewVC.sheetPresentationController {
@@ -376,7 +605,7 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
             if gestureRecognizer.state == .ended {
                 let violation = filteredItems[indexPath.row]
                 // Находим индекс в оригинальном массиве для корректного обновления
-                if let originalIndex = items.firstIndex(where: { $0.titie == violation.titie && $0.subTitle == violation.subTitle }) {
+                if let originalIndex = items.firstIndex(where: { $0.title == violation.title && $0.subTitle == violation.subTitle }) {
                     let originalIndexPath = IndexPath(row: originalIndex, section: 0)
                     openEditAlert(for: violation, at: originalIndexPath)
                 }
@@ -391,21 +620,39 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
         // Вибрационный отклик для редактирования
         triggerHapticFeedback(.medium)
         
-        let editVC = SettingsEditViolationViewController(violation: violation) { [weak self] updatedViolation in
+        // Сохраняем путь к файлу Excel перед открытием модального окна
+        savedExcelFilePath = UserDefaults.standard.string(forKey: "ImportedExcelFilePath")
+        print("📂 [SETTINGS_VIOLATIONS] Сохраняем путь перед редактированием: \(savedExcelFilePath ?? "не найден")")
+        
+        let editVC = UnifiedViolationFormViewController(existingViolation: violation) { [weak self] updatedViolation in
             guard let self = self else { return }
             
             print("🔄 Обновляем нарушение в настройках:")
-            print("   Старое: \(violation.titie)")
-            print("   Новое: \(updatedViolation.titie)")
+            print("   Старое: \(violation.title)")
+            print("   Новое: \(updatedViolation.title)")
             
-            // Используем новый метод для обновления нарушения
+            // Восстанавливаем путь к файлу перед сохранением
+            self.restoreExcelFilePathIfNeeded()
+            
+            // Используем новый метод для обновления нарушения - файл Excel автоматически сохраняется внутри метода
             ViolationsModel.updateViolation(oldViolation: violation, newViolation: updatedViolation)
             
             // Обновляем локальный массив
-            self.items = ViolationsModel.returnAvialableViolation()
+            self.items = ViolationsModel.returnAvailableViolation()
             self.filteredItems = self.items
             print("📊 Количество нарушений после обновления: \(self.items.count)")
             self.tableView.reloadData()
+            
+            // Показываем уведомление о том, что файл сохранен
+            DispatchQueue.main.async {
+                let alert = UIAlertController(
+                    title: "Успешно",
+                    message: "Нарушение обновлено. Файл Excel автоматически сохранен.",
+                    preferredStyle: .alert
+                )
+                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                self.present(alert, animated: true)
+            }
         }
         
         let navController = UINavigationController(rootViewController: editVC)
@@ -417,40 +664,57 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
             sheet.preferredCornerRadius = 20
         }
         
-        present(navController, animated: true)
+        present(navController, animated: true) { [weak self] in
+            // После открытия модального окна проверяем, что путь не был утерян
+            self?.restoreExcelFilePathIfNeeded()
+        }
     }
     
     // MARK: - Search Methods
     @objc private func searchTextChanged(_ textField: UITextField) {
-        guard let query = textField.text?.lowercased(), !query.isEmpty else {
+        let query = textField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        
+        AppLogger.shared.info("[ПОИСК] searchTextChanged запрос=\(query.prefix(50)) queryLength=\(query.count) itemsCount=\(items.count)")
+        
+        guard !query.isEmpty else {
+            AppLogger.shared.info("[ПОИСК] запрос пустой — сбрасываем фильтр")
             filteredItems = items
             tableView.reloadData()
             return
         }
         
-        filteredItems = items.filter { violation in
-            // Поиск по формулировке нарушения
-            let titleMatch = violation.titie.lowercased().contains(query)
-            
-            // Поиск по нормативному документу
-            let documentMatch = violation.subTitle.lowercased().contains(query)
-            
-            // Поиск по примечанию
-            let descriptionMatch = violation.description?.lowercased().contains(query) ?? false
-            
-            // Поиск по виду нарушения
-            let typeMatch = violation.vid?.lowercased().contains(query) ?? false
-            
-            // Поиск по номеру нарушения
-            let numberMatch = violation.number?.description.contains(query) ?? false
-            
-            // Возвращаем true если хотя бы одно поле содержит запрос
-            return titleMatch || documentMatch || descriptionMatch || typeMatch || numberMatch
-        }
+        searchGeneration += 1
+        let currentGeneration = searchGeneration
+        AppLogger.shared.info("[ПОИСК] поколение=\(currentGeneration) уход в фоновый поиск")
         
-        // Принудительно обновляем таблицу
-        DispatchQueue.main.async {
-            self.tableView.reloadData()
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            AppLogger.shared.info("[ПОИСК] фоновый поток: вызов ViolationContextSearchEngine.search")
+            let context = SearchContext(
+                searchQuery: query,
+                objectName: nil,
+                relatedViolationIds: [],
+                commonRules: nil
+            )
+            let scoredResults = ViolationContextSearchEngine.shared.search(
+                query: query,
+                violations: self.items,
+                context: context
+            )
+            let filtered = scoredResults.map { $0.violation }
+            AppLogger.shared.info("[ПОИСК] фоновый поток: поиск завершён, найдено=\(filtered.count)")
+            
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                AppLogger.shared.info("[ПОИСК] main: поколение=\(currentGeneration) текущее=\(self.searchGeneration) filteredCount=\(filtered.count)")
+                if currentGeneration != self.searchGeneration {
+                    AppLogger.shared.info("[ПОИСК] main: устаревшее поколение, не обновляем UI")
+                    return
+                }
+                self.filteredItems = filtered
+                self.tableView.reloadData()
+                AppLogger.shared.info("[ПОИСК] main: UI обновлён, строк=\(filtered.count)")
+            }
         }
     }
     
@@ -531,6 +795,8 @@ class SettingsViolationsViewController: UIViewController, UIDocumentPickerDelega
         }
     }
     
+    
+    
 }
 
 // MARK: - UISearchTextFieldDelegate
@@ -607,9 +873,9 @@ extension SettingsViolationsViewController: UITableViewDelegate, UITableViewData
         let numbLabel = UILabel()
         // Подсвечиваем найденный текст в заголовке
         if let searchText = searchTextField.text, !searchText.isEmpty {
-            numbLabel.attributedText = highlightText(item.titie, searchText: searchText)
+            numbLabel.attributedText = highlightText(item.title, searchText: searchText)
         } else {
-            numbLabel.text = item.titie
+            numbLabel.text = item.title
         }
         numbLabel.textAlignment = .left
         // Улучшенный контраст для темной темы
@@ -790,7 +1056,7 @@ extension SettingsViolationsViewController: UITableViewDelegate, UITableViewData
         if editingStyle == .delete {
             let itemToDelete = filteredItems[indexPath.row]
             // Находим и удаляем из оригинального массива
-            if let originalIndex = items.firstIndex(where: { $0.titie == itemToDelete.titie && $0.subTitle == itemToDelete.subTitle }) {
+            if let originalIndex = items.firstIndex(where: { $0.title == itemToDelete.title && $0.subTitle == itemToDelete.subTitle }) {
                 items.remove(at: originalIndex)
             }
             // Обновляем отфильтрованный массив
@@ -802,11 +1068,25 @@ extension SettingsViolationsViewController: UITableViewDelegate, UITableViewData
     }
     
     func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        let editAction = UIContextualAction(style: .normal, title: "Редактировать") { [weak self] (_, _, completionHandler) in
+            guard let self = self else { return }
+            let violation = self.filteredItems[indexPath.row]
+            // Находим индекс в оригинальном массиве для корректного обновления
+            if let originalIndex = self.items.firstIndex(where: { $0.title == violation.title && $0.subTitle == violation.subTitle }) {
+                let originalIndexPath = IndexPath(row: originalIndex, section: 0)
+                self.openEditAlert(for: violation, at: originalIndexPath)
+            }
+            completionHandler(true)
+        }
+        
+        editAction.backgroundColor = .systemBlue
+        editAction.image = UIImage(systemName: "pencil")
+        
         let deleteAction = UIContextualAction(style: .destructive, title: "Удалить") { [weak self] (_, _, completionHandler) in
             guard let self = self else { return }
             let itemToDelete = self.filteredItems[indexPath.row]
             // Находим и удаляем из оригинального массива
-            if let originalIndex = self.items.firstIndex(where: { $0.titie == itemToDelete.titie && $0.subTitle == itemToDelete.subTitle }) {
+            if let originalIndex = self.items.firstIndex(where: { $0.title == itemToDelete.title && $0.subTitle == itemToDelete.subTitle }) {
                 self.items.remove(at: originalIndex)
             }
             // Обновляем отфильтрованный массив
@@ -820,8 +1100,10 @@ extension SettingsViolationsViewController: UITableViewDelegate, UITableViewData
         deleteAction.backgroundColor = .systemRed
         deleteAction.image = UIImage(systemName: "trash")
         
-        let configuration = UISwipeActionsConfiguration(actions: [deleteAction])
-        configuration.performsFirstActionWithFullSwipe = true
+        // Порядок в массиве: сначала "Удалить" (будет справа), потом "Редактировать" (будет слева)
+        // В iOS trailing swipe actions отображаются справа налево в обратном порядке массива
+        let configuration = UISwipeActionsConfiguration(actions: [deleteAction, editAction])
+        configuration.performsFirstActionWithFullSwipe = false
         return configuration
     }
 

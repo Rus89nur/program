@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>E2E Home Test</title>
+</head>
+<body>
+  <pre id="e2e-results">RUNNING...</pre>
+
+  <!-- Минимальный DOM главной страницы -->
+  <div id="dataStatusBar"></div>
+  <div id="pageTitle"></div>
+  <section id="screen-home" class="screen active">
+    <div class="card home-hero">
+      <div id="liveClock">—</div>
+      <div class="progress-block">
+        <div id="progressFill" style="width:0"></div>
+        <div id="progressLabel">График проверок</div>
+      </div>
+      <button class="btn-primary" data-go="wizard">Создать новый акт</button>
+      <p id="homeSubAction" hidden>или <button class="btn-ghost" data-go="wizard">начать новый акт</button></p>
+    </div>
+    <div id="homeStatCurrent">—</div>
+    <div id="homeStatTotal">0</div>
+    <div id="homeStatDrafts">0</div>
+  </section>
+  <section id="screen-wizard" class="screen"></section>
+  <section id="screen-history" class="screen">
+    <tbody id="historyTableBody"></tbody>
+    <input id="historySearch">
+  </section>
+  <input id="globalSearch">
+  <button class="nav-item active" data-screen="home"></button>
+  <button class="nav-item" data-screen="wizard"></button>
+  <button class="nav-item" data-screen="history"></button>
+
+  <script src="../js/data-store.js"></script>
+  <script src="../js/photo-store.js"></script>
+  <script src="../js/toast.js"></script>
+  <script src="../js/akt-utils.js"></script>
+  <script src="../js/violation-templates.js"></script>
+  <script src="../js/violation-registry.js"></script>
+  <script src="../js/catalog-service.js"></script>
+  <script src="../js/backup-import.js"></script>
+  <script src="../js/akt-search.js"></script>
+  <script src="../js/ui-bindings.js"></script>
+  <script src="../js/wizard-modals.js"></script>
+  <script src="../js/wizard.js"></script>
+  <script src="../js/app.js"></script>
+
+  <script>
+    (async () => {
+      const results = [];
+      const pass = (name, detail = '') => results.push({ status: 'pass', name, detail });
+      const fail = (name, detail = '') => results.push({ status: 'fail', name, detail });
+      const warn = (name, detail = '') => results.push({ status: 'warn', name, detail });
+
+      try {
+        // 1. Импорт демо-данных
+        const resp = await fetch('../assets/sample-demo.gazprombackup');
+        const blob = await resp.blob();
+        const file = new File([blob], 'sample-demo.gazprombackup', { type: 'application/json' });
+        await GazpromBackup.importFile(file, { replace: true });
+        await GazpromUI.refreshAll();
+        pass('Импорт демо-бэкапа');
+
+        // 2. Главная активна по умолчанию
+        const homeActive = document.getElementById('screen-home')?.classList.contains('active');
+        homeActive ? pass('Экран «Главная» активен по умолчанию') : fail('Экран «Главная» не активен');
+
+        // 3. Часы
+        const clock = document.getElementById('liveClock')?.textContent;
+        clock && clock !== '—' ? pass('Живые часы', clock) : fail('Часы не обновились', clock);
+
+        // 4. Статистика
+        const total = document.getElementById('homeStatTotal')?.textContent;
+        total === '1' ? pass('Счётчик актов', total) : fail('Неверный счётчик актов', total);
+
+        const current = document.getElementById('homeStatCurrent')?.textContent;
+        current === '47' ? pass('Текущий номер акта', current) : fail('Неверный номер акта', current);
+
+        const drafts = document.getElementById('homeStatDrafts')?.textContent;
+        drafts === '0' ? pass('Черновики', drafts) : warn('Черновики', drafts);
+
+        // 5. График проверок
+        const label = document.getElementById('progressLabel')?.textContent || '';
+        label.includes('100%') || label.includes('1/1')
+          ? pass('Прогресс графика', label)
+          : warn('Прогресс графика', label);
+
+        const fillWidth = document.getElementById('progressFill')?.style.width;
+        fillWidth === '100%' ? pass('Полоса прогресса 100%', fillWidth) : warn('Полоса прогресса', fillWidth);
+
+        // 6. Клик по полосе — переключение месяц/год
+        const block = document.querySelector('.progress-block');
+        block?.click();
+        const monthLabel = document.getElementById('progressLabel')?.textContent || '';
+        monthLabel.includes('май') || monthLabel.includes('Май') || monthLabel.includes('за')
+          ? pass('Переключение графика на месяц', monthLabel)
+          : warn('Переключение на месяц', monthLabel);
+        block?.click(); // обратно на год
+
+        // 7. Кнопка «Создать новый акт»
+        const btn = document.querySelector('#screen-home .btn-primary[data-go="wizard"]');
+        btn?.click();
+        await new Promise(r => setTimeout(r, 100));
+        const wizardActive = document.getElementById('screen-wizard')?.classList.contains('active');
+        wizardActive ? pass('Кнопка «Создать акт» → мастер') : fail('Переход в мастер не сработал');
+
+        // 8. Возврат на главную
+        goTo('home');
+        const backHome = document.getElementById('screen-home')?.classList.contains('active');
+        backHome ? pass('Навигация «Главная»') : fail('Возврат на главную не сработал');
+
+        // 9. Глобальный поиск
+        const search = document.getElementById('globalSearch');
+        if (search) {
+          search.value = '47';
+          search.dispatchEvent(new Event('input', { bubbles: true }));
+          await new Promise(r => setTimeout(r, 400));
+          const histActive = document.getElementById('screen-history')?.classList.contains('active');
+          histActive ? pass('Глобальный поиск → История') : fail('Поиск не переключил на историю');
+          goTo('home');
+          search.value = '';
+        }
+
+        // 10. Строка статуса данных
+        const status = document.getElementById('dataStatusBar')?.textContent || '';
+        status.includes('Данные загружены') || status.includes('✓')
+          ? pass('Строка статуса данных', status.slice(0, 80))
+          : fail('Строка статуса', status.slice(0, 80));
+
+      } catch (e) {
+        fail('Критическая ошибка', e.message);
+      }
+
+      const passed = results.filter(r => r.status === 'pass').length;
+      const failed = results.filter(r => r.status === 'fail').length;
+      const warnings = results.filter(r => r.status === 'warn').length;
+      const summary = { passed, failed, warnings, results };
+      document.getElementById('e2e-results').textContent = JSON.stringify(summary, null, 2);
+      document.title = failed === 0 ? 'E2E_PASS' : 'E2E_FAIL';
+    })();
+  </script>
+</body>
+</html>

@@ -13,6 +13,7 @@ class NewPredstavitelyViewController: UIViewController {
     
     private let fullNameTextField = UIFactory.createTextField(placeholder: "ФИО")
     private let jobTextField = UIFactory.createTextField(placeholder: "Должность")
+    private let organizationTextField = UIFactory.createTextField(placeholder: "Организация")
 
     init(viewModel: MainAKTViewModel) {
         self.viewModel = viewModel
@@ -51,12 +52,19 @@ class NewPredstavitelyViewController: UIViewController {
             make.top.equalTo(fullNameTextField.snp.bottom).inset(-8)
         }
         
+        view.addSubview(organizationTextField)
+        organizationTextField.snp.makeConstraints { make in
+            make.left.right.equalToSuperview().inset(16)
+            make.height.equalTo(44)
+            make.top.equalTo(jobTextField.snp.bottom).inset(-8)
+        }
+        
         let saveButton = UIFactory.createButton(title: "Сохранить", color: .systemBlue)
         view.addSubview(saveButton)
         saveButton.snp.makeConstraints { make in
             make.left.right.equalToSuperview().inset(16)
             make.height.equalTo(54)
-            make.top.equalTo(jobTextField.snp.bottom).inset(-16)
+            make.top.equalTo(organizationTextField.snp.bottom).inset(-16)
         }
         saveButton.addTarget(self, action: #selector(saveTapped), for: .touchUpInside)
     }
@@ -64,16 +72,17 @@ class NewPredstavitelyViewController: UIViewController {
     @objc private func saveTapped() {
         view.endEditing(true)
         if fullNameTextField.text?.count ?? 0 <= 0 || jobTextField.text?.count ?? 0 <= 0 {
-            UIFactory.showAlert(vc: self, title: "Ошибка", description: "Заполните все поля")
+            UIFactory.showAlert(vc: self, title: "Ошибка", description: "Заполните обязательные поля")
             return
         }
         
-        viewModel.createNewPredstavitel(title: fullNameTextField.text ?? "", subtitle: jobTextField.text ?? "") { isOk in
+        let organization = organizationTextField.text ?? ""
+        viewModel.createNewPredstavitel(title: fullNameTextField.text ?? "", subtitle: jobTextField.text ?? "", organization: organization) { isOk in
             if isOk {
                 self.viewModel.collectionReloadBinding?()
                 self.dismiss(animated: true)
             } else {
-                UIFactory.showAlert(vc: self, title: "Ошибка", description: "Такой обьект есть в системе!")
+                UIFactory.showAlert(vc: self, title: "Ошибка", description: "Такой представитель есть в системе!")
             }
         }
         

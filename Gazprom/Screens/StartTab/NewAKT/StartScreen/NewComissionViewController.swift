@@ -6,10 +6,12 @@
 //
 
 import UIKit
+import Combine
 
-class NewComissionViewController: UIViewController {
+class NewComissionViewController: UIViewController, SimpleRealtimeAKTObserver {
     
     let viewModel: MainAKTViewModel
+    private var cancellables = Set<AnyCancellable>()
     
     private let fullNameTextField = UIFactory.createTextField(placeholder: "ФИО")
     private let jobTextField = UIFactory.createTextField(placeholder: "Должность")
@@ -27,6 +29,11 @@ class NewComissionViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .white
         setupUI()
+        setupRealtimeIntegration()
+    }
+    
+    deinit {
+        cleanupRealtimeIntegration()
     }
     
     private func setupUI() {
@@ -48,7 +55,7 @@ class NewComissionViewController: UIViewController {
         jobTextField.snp.makeConstraints { make in
             make.left.right.equalToSuperview().inset(16)
             make.height.equalTo(44)
-            make.top.equalTo(fullNameTextField.snp.bottom).inset(-8)
+            make.top.equalTo(fullNameTextField.snp.bottom).inset(-16)
         }
         
         let saveButton = UIFactory.createButton(title: "Сохранить", color: .systemBlue)
@@ -68,18 +75,64 @@ class NewComissionViewController: UIViewController {
             return
         }
         
+        print("🔄 [COMMISSION] Сохраняем нового члена комиссии")
+        print("   👤 ФИО: \(fullNameTextField.text ?? "")")
+        print("   💼 Должность: \(jobTextField.text ?? "")")
+        
         viewModel.createNewEmployer(fio: fullNameTextField.text ?? "", jobTitle: jobTextField.text ?? "") { isOk in
             if isOk {
+                print("   ✅ Новый член комиссии сохранен")
+                
+                // Обновляем комиссию в реальном времени
+                print("   🔄 Обновляем комиссию в реальном времени...")
+                SimpleRealtimeAKTManager.shared.updateCommission(self.viewModel.comissionArray)
+                print("   ✅ Комиссия обновлена в реальном времени")
+                
                 self.viewModel.collectionReloadBinding?()
                 self.dismiss(animated: true)
             } else {
+                print("   ❌ Ошибка: такой работник уже есть в системе")
                 UIFactory.showAlert(vc: self, title: "Ошибка", description: "Такой работник есть в системе!")
             }
         }
         
     }
-    
-    
+}
 
-
+// MARK: - SimpleRealtimeAKTObserver Methods
+extension NewComissionViewController {
+    
+    func aktDidChange(_ change: String) {
+        print("📝 [COMMISSION] Получено изменение: \(change)")
+        
+        // Обновляем UI при необходимости
+        DispatchQueue.main.async {
+            // Можно добавить обновление UI если нужно
+        }
+    }
+    
+    func aktDidSave(_ akt: AKT) {
+        print("💾 [COMMISSION] Акт сохранен")
+        
+        // Обновляем локальное состояние
+        DispatchQueue.main.async {
+            // Можно добавить обновление UI если нужно
+        }
+    }
+    
+    // MARK: - Realtime Integration Methods
+    
+    private func setupRealtimeIntegration() {
+        // Подключаемся к системе реального времени
+        SimpleRealtimeAKTObserverManager.shared.addObserver(self)
+        
+        print("🔗 [COMMISSION] Интеграция с системой реального времени настроена")
+    }
+    
+    private func cleanupRealtimeIntegration() {
+        // Отключаемся от системы реального времени
+        SimpleRealtimeAKTObserverManager.shared.removeObserver(self)
+        
+        print("🔗 [COMMISSION] Интеграция с системой реального времени очищена")
+    }
 }

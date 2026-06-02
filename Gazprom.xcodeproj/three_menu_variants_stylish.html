@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Три стильных варианта меню — Газпром АКТ</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+            background: #1c1c1e;
+            color: #fff;
+            padding: 32px 24px 48px;
+            min-height: 100vh;
+        }
+        h1 {
+            text-align: center;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #8e8e93;
+            font-size: 15px;
+            margin-bottom: 40px;
+        }
+        .variants { display: flex; flex-direction: column; gap: 56px; max-width: 1200px; margin: 0 auto; }
+        .variant-block { display: flex; flex-direction: column; gap: 20px; }
+        .variant-block h2 {
+            font-size: 22px;
+            font-weight: 600;
+            padding-bottom: 8px;
+            border-bottom: 2px solid;
+        }
+        .phones-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 24px;
+            align-items: flex-start;
+        }
+        .phone-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+        .phone-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #8e8e93;
+        }
+        .phone {
+            width: 280px;
+            min-height: 560px;
+            background: #000;
+            border-radius: 36px;
+            padding: 8px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+        .screen {
+            width: 100%;
+            min-height: 544px;
+            border-radius: 28px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        .safe-top { height: 52px; flex-shrink: 0; }
+        .content {
+            flex: 1;
+            padding: 0 14px 14px;
+            overflow-y: auto;
+        }
+        .tab-bar {
+            height: 70px;
+            flex-shrink: 0;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding-bottom: 18px;
+            font-size: 10px;
+        }
+        .tab-item { display: flex; flex-direction: column; align-items: center; color: #8e8e93; }
+        .tab-item.active { color: #007aff; }
+        .tab-icon { font-size: 22px; margin-bottom: 2px; }
+
+        /* ——— Вариант 1: Утончённый iOS (как в программе, но стильнее) ——— */
+        .v1 .screen { background: #ffffff; }
+        .v1 .variant-block h2 { color: #007aff; border-color: #007aff; }
+        .v1 .date-time { text-align: center; font-size: 18px; font-weight: 300; color: #000; margin: 12px 0 14px; line-height: 1.35; }
+        .v1 .progress-wrap { height: 6px; background: #e5e5ea; border-radius: 3px; margin-bottom: 6px; overflow: hidden; }
+        .v1 .progress-fill { height: 100%; width: 35%; background: #007aff; border-radius: 3px; }
+        .v1 .progress-label { text-align: center; font-size: 11px; font-weight: 600; color: #000; margin-bottom: 20px; }
+        .v1 .btn { height: 48px; border: none; border-radius: 14px; font-size: 17px; font-weight: 600; color: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+        .v1 .btn-new { background: #34c759; }
+        .v1 .btn-continue { background: #007aff; }
+        .v1 .akt-num { text-align: center; font-size: 12px; color: #8e8e93; margin-bottom: 16px; }
+        .v1 .bottom-txt { text-align: center; font-size: 11px; color: #007aff; margin-bottom: 4px; }
+        .v1 .backup-txt { text-align: center; font-size: 10px; color: #34c759; margin-bottom: 6px; }
+        .v1 .fio-txt { text-align: center; font-size: 13px; font-weight: 600; color: #8e8e93; }
+        .v1 .nav-title { font-size: 20px; font-weight: 700; color: #000; padding: 12px 0 14px; text-align: center; }
+        .v1 .list-group { background: #f2f2f7; border-radius: 14px; overflow: hidden; margin-bottom: 20px; }
+        .v1 .list-row { padding: 14px 16px; background: #fff; border-bottom: 0.5px solid #c6c6c8; font-size: 15px; color: #000; display: flex; justify-content: space-between; align-items: center; }
+        .v1 .list-row:last-child { border-bottom: none; }
+        .v1 .list-row .chevron { color: #c7c7cc; font-size: 14px; }
+        .v1 .tab-bar { background: rgba(248,248,248,0.92); border-top: 0.5px solid rgba(0,0,0,0.1); }
+
+        /* ——— Вариант 2: Корпоративный Газпром ——— */
+        .v2 .screen { background: #f8f9fa; }
+        .v2 .variant-block h2 { color: #00a651; border-color: #00a651; }
+        .v2 .logo-small { width: 48px; height: 48px; background: linear-gradient(135deg, #00a651 0%, #00843d 100%); border-radius: 12px; margin: 12px auto 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22px; font-weight: 800; box-shadow: 0 4px 12px rgba(0,166,81,0.3); }
+        .v2 .date-time { text-align: center; font-size: 16px; font-weight: 600; color: #1a1a1a; margin-bottom: 12px; }
+        .v2 .card { background: #fff; border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); border: 1px solid #e8e8ed; }
+        .v2 .progress-wrap { height: 6px; background: #e8e8ed; border-radius: 3px; margin-bottom: 6px; overflow: hidden; }
+        .v2 .progress-fill { height: 100%; width: 35%; background: linear-gradient(90deg, #00a651, #00843d); border-radius: 3px; }
+        .v2 .progress-label { text-align: center; font-size: 11px; font-weight: 600; color: #1a1a1a; margin-bottom: 14px; }
+        .v2 .btn { height: 48px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; color: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; box-shadow: 0 4px 12px rgba(0,166,81,0.25); }
+        .v2 .btn-main { background: linear-gradient(135deg, #00a651 0%, #00843d 100%); }
+        .v2 .backup-txt { text-align: center; font-size: 10px; color: #00a651; margin: 8px 0 4px; }
+        .v2 .nav-title { font-size: 20px; font-weight: 700; color: #1a1a1a; padding: 12px 0 14px; text-align: center; }
+        .v2 .list-row { padding: 14px 16px; background: #fff; border-radius: 10px; margin-bottom: 8px; font-size: 14px; color: #1a1a1a; font-weight: 500; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border: 1px solid #e8e8ed; }
+        .v2 .list-row .icon { width: 32px; height: 32px; background: linear-gradient(135deg, #00a651, #00843d); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; margin-right: 12px; }
+        .v2 .list-row .cell { display: flex; align-items: center; flex: 1; }
+        .v2 .list-row .chevron { color: #8e8e93; font-size: 14px; }
+        .v2 .tab-bar { background: rgba(255,255,255,0.95); border-top: 1px solid rgba(0,0,0,0.08); }
+        .v2 .tab-item.active { color: #00a651; }
+
+        /* ——— Вариант 3: Современный карточный ——— */
+        .v3 .screen { background: #f2f2f7; }
+        .v3 .variant-block h2 { color: #5856d6; border-color: #5856d6; }
+        .v3 .date-time { text-align: center; font-size: 19px; font-weight: 700; color: #1d1d1f; margin: 14px 0 16px; letter-spacing: -0.3px; }
+        .v3 .progress-wrap { height: 8px; background: #e5e5ea; border-radius: 4px; margin-bottom: 8px; overflow: hidden; }
+        .v3 .progress-fill { height: 100%; width: 35%; background: linear-gradient(90deg, #5856d6, #007aff); border-radius: 4px; }
+        .v3 .progress-label { text-align: center; font-size: 11px; font-weight: 600; color: #1d1d1f; margin-bottom: 20px; }
+        .v3 .card { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+        .v3 .btn { height: 52px; border: none; border-radius: 16px; font-size: 17px; font-weight: 700; color: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; box-shadow: 0 6px 20px rgba(88,86,214,0.35); background: linear-gradient(135deg, #5856d6 0%, #007aff 100%); }
+        .v3 .backup-txt { text-align: center; font-size: 11px; color: #34c759; font-weight: 500; margin: 8px 0 4px; }
+        .v3 .nav-title { font-size: 22px; font-weight: 800; color: #1d1d1f; padding: 14px 0 16px; text-align: center; letter-spacing: -0.5px; }
+        .v3 .list-row { padding: 16px; background: #fff; border-radius: 14px; margin-bottom: 8px; font-size: 15px; font-weight: 600; color: #1d1d1f; display: flex; align-items: center; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .v3 .list-row .icon { width: 40px; height: 40px; background: linear-gradient(135deg, #5856d6, #007aff); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; margin-right: 14px; }
+        .v3 .list-row .chevron { color: #8e8e93; margin-left: auto; font-size: 14px; }
+        .v3 .tab-bar { background: rgba(255,255,255,0.95); border-top: 0.5px solid rgba(0,0,0,0.1); }
+        .v3 .tab-item.active { color: #5856d6; }
+    </style>
+</head>
+<body>
+    <h1>Три стильных варианта меню</h1>
+    <p class="subtitle">На основе текущего стиля приложения. Нижняя панель вкладок не изменена.</p>
+
+    <div class="variants">
+        <!-- Вариант 1: Утончённый iOS -->
+        <div class="variant-block v1">
+            <h2>Вариант 1 — Утончённый iOS</h2>
+            <div class="phones-row">
+                <div class="phone-wrap">
+                    <span class="phone-label">Главная</span>
+                    <div class="phone">
+                        <div class="screen">
+                            <div class="safe-top"></div>
+                            <div class="content">
+                                <div class="date-time">Суббота, 7 февраля 2026 г.<br>14:32</div>
+                                <div class="progress-wrap"><div class="progress-fill"></div></div>
+                                <div class="progress-label">График проверок: 35% (7/20)</div>
+                                <button type="button" class="btn btn-new">Новый АКТ</button>
+                                <button type="button" class="btn btn-continue">Продолжить заполнение</button>
+                                <div class="akt-num">АКТ № 12</div>
+                                <div class="bottom-txt">Версия 1.0.0</div>
+                                <div class="backup-txt">Резервное копирование: 06.02.2026 14:30</div>
+                                <div class="fio-txt">Шелудько Руслан Игоревич</div>
+                            </div>
+                            <div class="tab-bar">
+                                <div class="tab-item active"><span class="tab-icon">🏠</span>Главная</div>
+                                <div class="tab-item"><span class="tab-icon">📋</span>История</div>
+                                <div class="tab-item"><span class="tab-icon">📊</span>Отчёты</div>
+                                <div class="tab-item"><span class="tab-icon">⚙️</span>Настройки</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="phone-wrap">
+                    <span class="phone-label">История</span>
+                    <div class="phone">
+                        <div class="screen">
+                            <div class="safe-top"></div>
+                            <div class="content">
+                                <div class="nav-title">История</div>
+                                <div class="list-group">
+                                    <div class="list-row">АКТ № 12 — 06.02.2026 <span class="chevron">›</span></div>
+                                    <div class="list-row">АКТ № 11 — 05.02.2026 <span class="chevron">›</span></div>
+                                    <div class="list-row">АКТ № 10 — 04.02.2026 <span class="chevron">›</span></div>
+                                    <div class="list-row">АКТ № 9 — 03.02.2026 <span class="chevron">›</span></div>
+                                </div>
+                            </div>
+                            <div class="tab-bar">
+                                <div class="tab-item"><span class="tab-icon">🏠</span>Главная</div>
+                                <div class="tab-item active"><span class="tab-icon">📋</span>История</div>
+                                <div class="tab-item"><span class="tab-icon">📊</span>Отчёты</div>
+                                <div class="tab-item"><span class="tab-icon">⚙️</span>Настройки</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="phone-wrap">
+                    <span class="phone-label">Настройки</span>
+                    <div class="phone">
+                        <div class="screen">
+                            <div class="safe-top"></div>
+                            <div class="content">
+                                <div class="nav-title">Настройки</div>
+                                <div class="list-group">
+                                    <div class="list-row">Нарушения <span class="chevron">›</span></div>
+                                    <div class="list-row">Организации <span class="chevron">›</span></div>
+                                    <div class="list-row">Объекты проверки <span class="chevron">›</span></div>
+                                    <div class="list-row">Представители <span class="chevron">›</span></div>
+                                    <div class="list-row">Члены комиссии <span class="chevron">›</span></div>
+                                    <div class="list-row">График <span class="chevron">›</span></div>
+                                    <div class="list-row">Уведомления <span class="chevron">›</span></div>
+                                    <div class="list-row">Загрузить шаблон <span class="chevron">›</span></div>
+                                    <div class="list-row">Очистить кэш <span class="chevron">›</span></div>
+                                </div>
+                            </div>
+                            <div class="tab-bar">
+                                <div class="tab-item"><span class="tab-icon">🏠</span>Главная</div>
+                                <div class="tab-item"><span class="tab-icon">📋</span>История</div>
+                                <div class="tab-item"><span class="tab-icon">📊</span>Отчёты</div>
+                                <div class="tab-item active"><span class="tab-icon">⚙️</span>Настройки</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вариант 2: Корпоративный Газпром -->
+        <div class="variant-block v2">
+            <h2>Вариант 2 — Корпоративный Газпром</h2>
+            <div class="phones-row">
+                <div class="phone-wrap">
+                    <span class="phone-label">Главная</span>
+                    <div class="phone">
+                        <div class="screen">
+                            <div class="safe-top"></div>
+                            <div class="content">
+                                <div class="logo-small">Г</div>
+                                <div class="date-time">Суббота, 7 февраля 2026 · 14:32</div>
+                                <div class="card">
+                                    <div class="progress-wrap"><div class="progress-fill"></div></div>
+                                    <div class="progress-label">График проверок: 35% (7/20)</div>
+                                </div>
+                                <button type="button" class="btn btn-main">➕ Создать новый АКТ</button>
+                                <div class="backup-txt">✓ Резервное копирование: 06.02.2026 14:30</div>
+                            </div>
+                            <div class="tab-bar">
+                                <div class="tab-item active"><span class="tab-icon">🏠</span>Главная</div>
+                                <div class="tab-item"><span class="tab-icon">📋</span>История</div>
+                                <div class="tab-item"><span class="tab-icon">📊</span>Отчёты</div>
+                                <div class="tab-item"><span class="tab-icon">⚙️</span>Настройки</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="phone-wrap">
+                    <span class="phone-label">История</span>
+                    <div class="phone">
+                        <div class="screen">
+                            <div class="safe-top"></div>
+                            <div class="content">
+                                <div class="nav-title">История</div>
+                                <div class="list-row"><span class="icon">📋</span><span class="cell">АКТ № 12 — 06.02.2026</span><span class="chevron">›</span></div>
+                                <div class="list-row"><span class="icon">📋</span><span class="cell">АКТ № 11 — 05.02.2026</span><span class="chevron">›</span></div>
+                                <div class="list-row"><span class="icon">📋</span><span class="cell">АКТ № 10 — 04.02.2026</span><span class="chevron">›</span></div>
+                                <div class="list-row"><span class="icon">📋</span><span class="cell">АКТ № 9 — 03.02.2026</span><span class="chevron">›</span></div>
+                            </div>
+                            <div class="tab-bar">
+                                <div class="tab-item"><span class="tab-icon">🏠</span>Главная</div>
+                                <div class="tab-item active"><span class="tab-icon">📋</span>История</div>
+                                <div class="tab-item"><span class="tab-icon">📊</span>Отчёты</div>
+                                <div class="tab-item"><span class="tab-icon">⚙️</span>Настройки</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="phone-wrap">
+                    <span class="phone-label">Настройки</span>
+                    <div class="phone">
+                        <div class="screen">
+                            <div class="safe-top"></div>
+                            <div class="content">
+                                <div class="nav-title">Настройки</div>
+                                <div class="list-row"><span class="icon">⚠️</span><span class="cell">Нарушения</span><span class="chevron">›</span></div>
+                                <div class="list-row"><span class="icon">🏢</span><span class="cell">Организации</span><span class="chevron">›</span></div>
+                                <div class="list-row"><span class="icon">🏗️</span><span class="cell">Объекты проверки</span><span class="chevron">›</span></div>
+                                <div class="list-row"><span class="icon">👥</span><span class="cell">Представители</span><span class="chevron">›</span></div>
+                                <div class="list-row"><span class="icon">📋</span><span class="cell">Члены комиссии</span><span class="chevron">›</span></div>
+                                <div class="list-row"><span class="icon">📅</span><span class="cell">График</span><span class="chevron">›</span></div>
+                                <div class="list-row"><span class="icon">🔔</span><span class="cell">Уведомления</span><span class="chevron">›</span></div>
+                                <div class="list-row"><span class="icon">📥</span><span class="cell">Загрузить шаблон</span><span class="chevron">›</span></div>
+                                <div class="list-row"><span class="icon">🗑️</span><span class="cell">Очистить кэш</span><span class="chevron">›</span></div>
+                            </div>
+                            <div class="tab-bar">
+                                <div class="tab-item"><span class="tab-icon">🏠</span>Главная</div>
+                                <div class="tab-item"><span class="tab-icon">📋</span>История</div>
+                                <div class="tab-item"><span class="tab-icon">📊</span>Отчёты</div>
+                                <div class="tab-item active"><span class="tab-icon">⚙️</span>Настройки</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вариант 3: Современный карточный -->
+        <div class="variant-block v3">
+            <h2>Вариант 3 — Современный карточный</h2>
+            <div class="phones-row">
+                <div class="phone-wrap">
+                    <span class="phone-label">Главная</span>
+                    <div class="phone">
+                        <div class="screen">
+                            <div class="safe-top"></div>
+                            <div class="content">
+                                <div class="date-time">Суббота, 7 февраля 2026</div>
+                                <div class="progress-wrap"><div class="progress-fill"></div></div>
+                                <div class="progress-label">График проверок: 35% (7/20)</div>
+                                <div class="card"></div>
+                                <button type="button" class="btn">Новый АКТ</button>
+                                <div class="backup-txt">✓ Резерв: 06.02.2026 14:30</div>
+                            </div>
+                            <div class="tab-bar">
+                                <div class="tab-item active"><span class="tab-icon">🏠</span>Главная</div>
+                                <div class="tab-item"><span class="tab-icon">📋</span>История</div>
+                                <div class="tab-item"><span class="tab-icon">📊</span>Отчёты</div>
+                                <div class="tab-item"><span class="tab-icon">⚙️</span>Настройки</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="phone-wrap">
+                    <span class="phone-label">История</span>
+                    <div class="phone">
+                        <div class="screen">
+                            <div class="safe-top"></div>
+                            <div class="content">
+                                <div class="nav-title">История</div>
+                                <div class="list-row"><span class="icon">📋</span>АКТ № 12 — 06.02.2026</div>
+                                <div class="list-row"><span class="icon">📋</span>АКТ № 11 — 05.02.2026</div>
+                                <div class="list-row"><span class="icon">📋</span>АКТ № 10 — 04.02.2026</div>
+                                <div class="list-row"><span class="icon">📋</span>АКТ № 9 — 03.02.2026</div>
+                            </div>
+                            <div class="tab-bar">
+                                <div class="tab-item"><span class="tab-icon">🏠</span>Главная</div>
+                                <div class="tab-item active"><span class="tab-icon">📋</span>История</div>
+                                <div class="tab-item"><span class="tab-icon">📊</span>Отчёты</div>
+                                <div class="tab-item"><span class="tab-icon">⚙️</span>Настройки</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="phone-wrap">
+                    <span class="phone-label">Настройки</span>
+                    <div class="phone">
+                        <div class="screen">
+                            <div class="safe-top"></div>
+                            <div class="content">
+                                <div class="nav-title">Настройки</div>
+                                <div class="list-row"><span class="icon">⚠️</span>Нарушения</div>
+                                <div class="list-row"><span class="icon">🏢</span>Организации</div>
+                                <div class="list-row"><span class="icon">🏗️</span>Объекты проверки</div>
+                                <div class="list-row"><span class="icon">👥</span>Представители</div>
+                                <div class="list-row"><span class="icon">📋</span>Члены комиссии</div>
+                                <div class="list-row"><span class="icon">📅</span>График</div>
+                                <div class="list-row"><span class="icon">🔔</span>Уведомления</div>
+                                <div class="list-row"><span class="icon">📥</span>Загрузить шаблон</div>
+                                <div class="list-row"><span class="icon">🗑️</span>Очистить кэш</div>
+                            </div>
+                            <div class="tab-bar">
+                                <div class="tab-item"><span class="tab-icon">🏠</span>Главная</div>
+                                <div class="tab-item"><span class="tab-icon">📋</span>История</div>
+                                <div class="tab-item"><span class="tab-icon">📊</span>Отчёты</div>
+                                <div class="tab-item active"><span class="tab-icon">⚙️</span>Настройки</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

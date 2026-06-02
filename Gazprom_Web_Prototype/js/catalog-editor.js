@@ -113,71 +113,25 @@ const CatalogEditor = (() => {
 
   /* ——— Стандартный CRUD список ——— */
 
-  function renderList(cfg, catalog, query) {
-    const el = ensureRoot();
-    el.hidden = false;
-    addEscListener();
-
-    const all = [...(catalog[cfg.listKey] || [])];
-    const q = query.toLowerCase();
-    const filtered = q
-      ? all.filter((item) => (cfg.searchText ? cfg.searchText(item) : cfg.label(item).toLowerCase()).includes(q))
-      : all;
-
-    const rows = filtered
-      .map(
-        (item) => `
+  function buildRowsHtml(cfg, fields, items, emptyMsg) {
+    if (!items.length) {
+      return `<tr><td colspan="${fields.length + 1}" style="text-align:center;padding:32px;color:var(--text-muted);">${emptyMsg}</td></tr>`;
+    }
+    return items.map((item) => `
       <tr data-id="${item.id}">
-        <td>${escHtml(cfg.label(item))}</td>
+        ${fields.map((f) => `<td>${escHtml(item[f.key] || '—')}</td>`).join('')}
         <td class="btn-row">
           <button type="button" class="btn-ghost btn-sm" data-edit="${item.id}">Изменить</button>
           <button type="button" class="btn-ghost btn-sm modal-btn-danger" data-del="${item.id}">Удалить</button>
         </td>
-      </tr>`
-      )
-      .join('');
+      </tr>`).join('');
+  }
 
-    const countHint = query
-      ? `${filtered.length} из ${all.length}`
-      : `${all.length} записей`;
-
-    el.innerHTML = `
-      <div class="catalog-editor-backdrop" data-close></div>
-      <div class="catalog-editor-panel card">
-        <div class="catalog-editor-header">
-          <div>
-            <h3>${cfg.icon || ''} ${cfg.title}</h3>
-            <small class="catalog-editor-count" style="color:var(--text-muted);">${countHint}</small>
-          </div>
-          <button type="button" class="modal-close" data-close>×</button>
-        </div>
-        <div class="catalog-editor-search-bar">
-          <input type="search" class="form-control catalog-search-input" placeholder="🔍 Поиск…" value="${escHtml(query)}" autocomplete="off">
-        </div>
-        <div class="catalog-editor-body">
-          <table class="list-table">
-            <thead><tr><th>Запись</th><th></th></tr></thead>
-            <tbody>${rows || `<tr><td colspan="2" style="text-align:center;padding:32px;color:var(--text-muted);">${query ? 'Ничего не найдено' : 'Нет записей — нажмите «+ Добавить»'}</td></tr>`}</tbody>
-          </table>
-        </div>
-        <div class="catalog-editor-footer">
-          <button type="button" class="btn-primary" data-add>+ Добавить</button>
-          <button type="button" class="btn-ghost" data-close>Закрыть</button>
-        </div>
-      </div>
-    `;
-
-    el.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', close));
-
-    const searchInput = el.querySelector('.catalog-search-input');
-    searchInput?.addEventListener('input', (e) => renderList(cfg, catalog, e.target.value.trim()));
-
-    el.querySelector('[data-add]')?.addEventListener('click', () => openForm(cfg, catalog, null, query));
-
+  function bindRowButtons(el, all, cfg, catalog, getQuery) {
     el.querySelectorAll('[data-edit]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const item = all.find((x) => x.id === btn.dataset.edit);
-        openForm(cfg, catalog, item, query);
+        openForm(cfg, catalog, item, getQuery());
       });
     });
 
@@ -192,9 +146,82 @@ const CatalogEditor = (() => {
         const next = all.filter((x) => x.id !== btn.dataset.del);
         await saveList(catalog, cfg.listKey, next);
         const fresh = await GazpromStore.get();
-        renderList(cfg, fresh, query);
+        renderList(cfg, fresh, getQuery());
       });
     });
+  }
+
+  function renderList(cfg, catalog, query) {
+    const el = ensureRoot();
+    el.hidden = false;
+    addEscListener();
+
+    const all = [...(catalog[cfg.listKey] || [])];
+    const fields = cfg.fields || [];
+
+    const filterItems = (q) => {
+      const lq = q.toLowerCase();
+      return lq
+        ? all.filter((item) => (cfg.searchText ? cfg.searchText(item) : cfg.label(item).toLowerCase()).includes(lq))
+        : all;
+    };
+
+    const filtered = filterItems(query);
+    const countHint = (q, f) => q ? `${f.length} из ${all.length}` : `${all.length} записей`;
+
+    el.innerHTML = `
+      <div class="catalog-editor-backdrop" data-close></div>
+      <div class="catalog-editor-panel card">
+        <div class="catalog-editor-header">
+          <div>
+            <h3>${cfg.icon || ''} ${cfg.title}</h3>
+            <small class="catalog-editor-count" style="color:var(--text-muted);">${countHint(query, filtered)}</small>
+          </div>
+          <button type="button" class="modal-close" data-close>×</button>
+        </div>
+        <div class="catalog-editor-search-bar">
+          <input type="search" class="form-control catalog-search-input" placeholder="🔍 Поиск…" value="${escHtml(query)}" autocomplete="off">
+        </div>
+        <div class="catalog-editor-body">
+          <table class="list-table">
+            <thead><tr>${fields.map((f) => `<th>${escHtml(f.label)}</th>`).join('')}<th></th></tr></thead>
+            <tbody>${buildRowsHtml(cfg, fields, filtered, query ? 'Ничего не найдено' : 'Нет записей — нажмите «+ Добавить»')}</tbody>
+          </table>
+        </div>
+        <div class="catalog-editor-footer">
+          <button type="button" class="btn-primary" data-add>+ Добавить</button>
+          <button type="button" class="btn-ghost" data-close>Закрыть</button>
+        </div>
+      </div>
+    `;
+
+    el.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', close));
+
+    const tbody = el.querySelector('tbody');
+    const countEl = el.querySelector('.catalog-editor-count');
+    const searchInput = el.querySelector('.catalog-search-input');
+    const panelEl = el.querySelector('.catalog-editor-panel');
+    const bodyEl = el.querySelector('.catalog-editor-body');
+    const tableEl = el.querySelector('.list-table');
+
+    // #region agent log
+    fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'34659e'},body:JSON.stringify({sessionId:'34659e',location:'catalog-editor.js:open',message:'initial widths',data:{panelW:panelEl?.offsetWidth,bodyW:bodyEl?.offsetWidth,inputW:searchInput?.offsetWidth,tableW:tableEl?.offsetWidth},timestamp:Date.now(),hypothesisId:'H-A,H-B,H-C',runId:'run2'})}).catch(()=>{});
+    // #endregion
+
+    searchInput?.addEventListener('input', (e) => {
+      const q = e.target.value;
+      const f = filterItems(q);
+      tbody.innerHTML = buildRowsHtml(cfg, fields, f, q ? 'Ничего не найдено' : 'Нет записей — нажмите «+ Добавить»');
+      countEl.textContent = countHint(q, f);
+      bindRowButtons(tbody, all, cfg, catalog, () => searchInput.value);
+      // #region agent log
+      fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'34659e'},body:JSON.stringify({sessionId:'34659e',location:'catalog-editor.js:input',message:'widths after filter',data:{q,panelW:panelEl?.offsetWidth,bodyW:bodyEl?.offsetWidth,inputW:searchInput?.offsetWidth,tableW:tableEl?.offsetWidth,count:f.length},timestamp:Date.now(),hypothesisId:'H-A,H-B',runId:'run2'})}).catch(()=>{});
+      // #endregion
+    });
+
+    el.querySelector('[data-add]')?.addEventListener('click', () => openForm(cfg, catalog, null, searchInput?.value ?? query));
+
+    bindRowButtons(el, all, cfg, catalog, () => searchInput?.value ?? query);
   }
 
   /* ——— Форма добавления / редактирования ——— */

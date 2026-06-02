@@ -341,7 +341,7 @@ class SettingsEditViolationViewController: UIViewController {
     
     private func configureContent() {
         numberTextField.text = violation.number?.description ?? ""
-        formulationTextView.text = violation.titie
+        formulationTextView.text = violation.title
         referenceTextView.text = violation.subTitle
         noteTextView.text = violation.description
         typeTextView.text = violation.vid
@@ -425,7 +425,7 @@ class SettingsEditViolationViewController: UIViewController {
         // Создаем обновленное нарушение
         let updatedViolation = ViolationsModel.Violation(
             number: number,
-            titie: formulation,
+            title: formulation,
             subTitle: reference,
             description: note.isEmpty ? nil : note,
             vid: type.isEmpty ? nil : type

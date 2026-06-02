@@ -8,15 +8,22 @@
 import UIKit
 import SnapKit
 import PhotosUI
+import Combine
 
-class EditViolationViewController: UIViewController {
+// MARK: - Simple Realtime AKT System (Integrated)
+// Типы определены в MainAKTViewModel.swift для избежания дублирования
+
+class EditViolationViewController: UIViewController, SimpleRealtimeAKTObserver {
     
     private let violation: Violations
     private let onSave: (Violations) -> Void
     private var photos: [UIImage] = []
-    private var violations: [ViolationsModel.Violation] = ViolationsModel.returnAvialableViolation()
+    private var violations: [ViolationsModel.Violation] = ViolationsModel.returnAvailableViolation()
     private var filteredViolations: [ViolationsModel.Violation] = []
     private var selectedViolation: ViolationsModel.Violation?
+    
+    // Realtime AKT Integration
+    var cancellables = Set<AnyCancellable>()
     
     private let scrollView: UIScrollView = {
         let scrollView = UIScrollView()
@@ -95,6 +102,54 @@ class EditViolationViewController: UIViewController {
         label.textColor = .label
         return label
     }()
+    
+    // Поле для вида нарушения
+    private let violationTypeLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Вид нарушения:"
+        label.font = .systemFont(ofSize: 18, weight: .semibold)
+        label.textColor = .label
+        return label
+    }()
+    
+    private let violationTypeButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.backgroundColor = .systemGray6
+        button.layer.cornerRadius = 12
+        button.layer.borderWidth = 1
+        button.layer.borderColor = UIColor.systemGray4.cgColor
+        
+        // Используем современный UIButton.Configuration вместо устаревшего titleEdgeInsets
+        var config = UIButton.Configuration.plain()
+        config.title = "Выберите вид нарушения"
+        config.baseForegroundColor = .label
+        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+            var outgoing = incoming
+            outgoing.font = .systemFont(ofSize: 16, weight: .regular)
+            return outgoing
+        }
+        config.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16)
+        config.baseBackgroundColor = .clear
+        button.configuration = config
+        
+        button.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
+        
+        // Добавляем стрелку вниз
+        let arrowImageView = UIImageView(image: UIImage(systemName: "chevron.down"))
+        arrowImageView.tintColor = .systemGray3
+        arrowImageView.translatesAutoresizingMaskIntoConstraints = false
+        button.addSubview(arrowImageView)
+        NSLayoutConstraint.activate([
+            arrowImageView.trailingAnchor.constraint(equalTo: button.trailingAnchor, constant: -16),
+            arrowImageView.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+            arrowImageView.widthAnchor.constraint(equalToConstant: 16),
+            arrowImageView.heightAnchor.constraint(equalToConstant: 16)
+        ])
+        
+        return button
+    }()
+    
+    private var selectedViolationType: ViolationType?
     
     private let violationPointTextField: UITextView = {
         let textView = UITextView()
@@ -197,6 +252,14 @@ class EditViolationViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
     
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // Обновляем реестр нарушений при каждом появлении экрана
+        violations = ViolationsModel.returnAvailableViolation()
+        filteredViolations = violations
+        tableView.reloadData()
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
@@ -205,6 +268,24 @@ class EditViolationViewController: UIViewController {
         
         // Настройка темной темы
         setupDarkTheme()
+        
+        // Настройка интеграции с системой реального времени
+        setupRealtimeIntegration()
+        setupRealtimeTextFields()
+        
+        // Обновляем список при изменении реестра нарушений (редактирование в настройках)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(violationsRegistryDidChange),
+            name: ViolationsModel.violationsDidChangeNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func violationsRegistryDidChange() {
+        violations = ViolationsModel.returnAvailableViolation()
+        filteredViolations = violations
+        tableView.reloadData()
     }
     
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -229,6 +310,7 @@ class EditViolationViewController: UIViewController {
             violationTitleLabel.textColor = .white
             mestoLabel.textColor = .white
             violationPointLabel.textColor = .white
+            violationTypeLabel.textColor = .white
             photosLabel.textColor = .white
             characterCountLabel.textColor = .white.withAlphaComponent(0.7)
             
@@ -242,6 +324,9 @@ class EditViolationViewController: UIViewController {
             violationPointTextField.textColor = .white
             violationPointTextField.backgroundColor = .systemGray6
             violationPointTextField.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
+            violationTypeButton.configuration?.baseForegroundColor = .white
+            violationTypeButton.backgroundColor = .systemGray6
+            violationTypeButton.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
             searchTextField.textColor = .white
             searchTextField.backgroundColor = .systemGray6
             searchTextField.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
@@ -250,6 +335,7 @@ class EditViolationViewController: UIViewController {
             violationTitleLabel.textColor = .label
             mestoLabel.textColor = .label
             violationPointLabel.textColor = .label
+            violationTypeLabel.textColor = .label
             photosLabel.textColor = .label
             characterCountLabel.textColor = .secondaryLabel
             
@@ -262,6 +348,9 @@ class EditViolationViewController: UIViewController {
             violationPointTextField.textColor = .label
             violationPointTextField.backgroundColor = .systemGray6
             violationPointTextField.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
+            violationTypeButton.configuration?.baseForegroundColor = .label
+            violationTypeButton.backgroundColor = .systemGray6
+            violationTypeButton.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
             searchTextField.textColor = .label
             searchTextField.backgroundColor = .systemGray6
             searchTextField.tintColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) // Золотой курсор
@@ -270,6 +359,7 @@ class EditViolationViewController: UIViewController {
     
     deinit {
         NotificationCenter.default.removeObserver(self)
+        cleanupRealtimeIntegration()
     }
     
     private func setupUI() {
@@ -286,6 +376,9 @@ class EditViolationViewController: UIViewController {
         
         // Настройка клавиатуры с кнопкой "Готово"
         setupKeyboardToolbar()
+        
+        // Добавление обработчика нажатия вне поля ввода
+        setupTapGesture()
         
         // Добавление scroll view
         view.addSubview(scrollView)
@@ -308,6 +401,8 @@ class EditViolationViewController: UIViewController {
         contentView.addSubview(violationPointLabel)
         contentView.addSubview(violationPointTextField)
         contentView.addSubview(violationPointButton)
+        contentView.addSubview(violationTypeLabel)
+        contentView.addSubview(violationTypeButton)
         contentView.addSubview(photosLabel)
         contentView.addSubview(photoCollection)
         contentView.addSubview(searchTextField)
@@ -368,9 +463,21 @@ class EditViolationViewController: UIViewController {
             make.height.equalTo(36)
         }
         
+        // Вид нарушения
+        violationTypeLabel.snp.makeConstraints { make in
+            make.top.equalTo(violationPointButton.snp.bottom).offset(30)
+            make.left.right.equalToSuperview().inset(20)
+        }
+        
+        violationTypeButton.snp.makeConstraints { make in
+            make.top.equalTo(violationTypeLabel.snp.bottom).offset(12)
+            make.left.right.equalToSuperview().inset(20)
+            make.height.equalTo(50)
+        }
+        
         // Фотографии
         photosLabel.snp.makeConstraints { make in
-            make.top.equalTo(violationPointButton.snp.bottom).offset(30)
+            make.top.equalTo(violationTypeButton.snp.bottom).offset(30)
             make.left.right.equalToSuperview().inset(20)
         }
         
@@ -412,9 +519,13 @@ class EditViolationViewController: UIViewController {
         saveButton.addTarget(self, action: #selector(saveButtonTapped), for: .touchUpInside)
         cancelButton.addTarget(self, action: #selector(cancelButtonTapped), for: .touchUpInside)
         violationPointButton.addTarget(self, action: #selector(violationPointButtonTapped), for: .touchUpInside)
+        violationTypeButton.addTarget(self, action: #selector(violationTypeButtonTapped), for: .touchUpInside)
         
         // Добавляем обработчик изменения текста
         textView.delegate = self
+        
+        // Интегрируем текстовые поля с системой реального времени
+        setupRealtimeTextFields()
     }
     
     private func setupDelegates() {
@@ -432,6 +543,21 @@ class EditViolationViewController: UIViewController {
         textView.text = violation.title
         violationPointTextField.text = violation.urlToPravilo
         
+        // Устанавливаем вид нарушения
+        if !violation.vid.isEmpty {
+            let vid = violation.vid
+            // Пытаемся найти соответствующий тип нарушения
+            if let violationType = ViolationType.allCases.first(where: { $0.rawValue == vid }) {
+                selectedViolationType = violationType
+                violationTypeButton.configuration?.title = violationType.displayName
+            } else {
+                // Если тип не найден в enum, показываем как есть
+                violationTypeButton.configuration?.title = vid
+            }
+        } else {
+            violationTypeButton.configuration?.title = "Выберите вид нарушения"
+        }
+        
         // Загружаем фотографии
         photos = violation.photo.compactMap { UIImage(data: $0) }
         photoCollection.reloadData()
@@ -443,39 +569,22 @@ class EditViolationViewController: UIViewController {
     }
     
     private func setupKeyboardToolbar() {
-        let toolbar = UIToolbar()
-        toolbar.sizeToFit()
-        toolbar.translatesAutoresizingMaskIntoConstraints = false
-        
-        let doneButton = UIBarButtonItem(
-            title: "Готово",
-            style: .done,
-            target: self,
-            action: #selector(dismissKeyboard)
-        )
-        
-        // Настройка цвета кнопки "Готово" для ночного режима
-        doneButton.setTitleTextAttributes([
-            .foregroundColor: UIColor.systemBlue
-        ], for: .normal)
-        
-        let flexibleSpace = UIBarButtonItem(
-            barButtonSystemItem: .flexibleSpace,
-            target: nil,
-            action: nil
-        )
-        
-        toolbar.items = [flexibleSpace, doneButton]
-        
-        // Применяем toolbar ко всем текстовым полям
-        textView.inputAccessoryView = toolbar
-        mestoTextField.inputAccessoryView = toolbar
-        violationPointTextField.inputAccessoryView = toolbar
-        searchTextField.inputAccessoryView = toolbar
+        // Убираем toolbar - кнопка "Готово" больше не нужна
+        // Клавиатура будет закрываться при нажатии на пустое место или свайпом
+        textView.inputAccessoryView = nil
+        mestoTextField.inputAccessoryView = nil
+        violationPointTextField.inputAccessoryView = nil
+        searchTextField.inputAccessoryView = nil
     }
     
     @objc private func dismissKeyboard() {
         view.endEditing(true)
+    }
+    
+    private func setupTapGesture() {
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        tapGesture.cancelsTouchesInView = false
+        view.addGestureRecognizer(tapGesture)
     }
     
     private func setupKeyboardObservers() {
@@ -500,9 +609,28 @@ class EditViolationViewController: UIViewController {
     }
     
     @objc private func saveButtonTapped() {
+        // #region agent log
+        let logDict: [String: Any] = ["location": "EditViolationViewController.swift:saveButtonTapped:start", "message": "НАЧАЛО СОХРАНЕНИЯ НАРУШЕНИЯ", "data": ["violation_id": violation.id.uuidString, "old_vid": violation.vid, "selected_violation_type": selectedViolationType?.rawValue ?? "nil"], "timestamp": Int(Date().timeIntervalSince1970 * 1000), "sessionId": "debug-session", "runId": "run1", "hypothesisId": "E"]
+        DataFlowAKT.writeDebugLog(logDict)
+        // #endregion
+        
         let newMesto = mestoTextField.text.trimmingCharacters(in: .whitespacesAndNewlines)
         let newTitle = textView.text.trimmingCharacters(in: .whitespacesAndNewlines)
         let newUrlToPravilo = violationPointTextField.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Получаем вид нарушения из выбранного типа или текста кнопки
+        let newVid: String
+        if let selectedType = selectedViolationType {
+            newVid = selectedType.rawValue
+        } else {
+            let buttonTitle = violationTypeButton.configuration?.title ?? ""
+            newVid = buttonTitle == "Выберите вид нарушения" ? "" : buttonTitle
+        }
+        
+        print("💾 [EDIT_VIOLATION] Сохранение нарушения")
+        print("   🆔 ID нарушения: \(violation.id.uuidString)")
+        print("   📋 Старый тип (vid): \(violation.vid)")
+        print("   📋 Новый тип (vid): \(newVid)")
         
         if newMesto.isEmpty {
             showAlert(title: "Ошибка", message: "Место нарушения не может быть пустым")
@@ -519,13 +647,42 @@ class EditViolationViewController: UIViewController {
             return
         }
         
-        // Создаем обновленное нарушение
+        // Создаем обновленное нарушение с сохранением вида нарушения и формулировки из правил
         let updatedViolation = Violations(
             title: newTitle,
             mesto: newMesto,
             urlToPravilo: newUrlToPravilo,
-            photo: photos.map { $0.jpegData(compressionQuality: 0.5) ?? Data() }
+            photo: photos.map { $0.jpegData(compressionQuality: 0.5) ?? Data() },
+            vid: newVid,
+            formulaFromRules: violation.formulaFromRules
         )
+        
+        // ИСПРАВЛЕНИЕ: Обновляем нарушение в системе реального времени перед вызовом onSave
+        // Это гарантирует, что изменения сохраняются независимо от способа открытия акта
+        print("   🔄 Обновляем нарушение в системе реального времени перед сохранением...")
+        if let currentAkt = SimpleRealtimeAKTManager.shared.currentAkt {
+            var updatedViolations = currentAkt.violations
+            
+            // Находим и обновляем нарушение
+            if let index = updatedViolations.firstIndex(where: { $0.id == violation.id }) {
+                print("   ✅ Найдено нарушение в акте на позиции \(index)")
+                updatedViolations[index] = updatedViolation
+                SimpleRealtimeAKTManager.shared.updateViolations(updatedViolations)
+                print("   ✅ Нарушение обновлено в системе реального времени")
+            } else {
+                print("   ⚠️ Нарушение не найдено в акте, добавляем новое")
+                updatedViolations.append(updatedViolation)
+                SimpleRealtimeAKTManager.shared.updateViolations(updatedViolations)
+                print("   ✅ Новое нарушение добавлено в систему реального времени")
+            }
+        } else {
+            print("   ⚠️ currentAkt is nil в SimpleRealtimeAKTManager, изменения могут не сохраниться")
+        }
+        
+        // #region agent log
+        let logDict2: [String: Any] = ["location": "EditViolationViewController.swift:saveButtonTapped:end", "message": "СОХРАНЕНИЕ НАРУШЕНИЯ ЗАВЕРШЕНО", "data": ["violation_id": violation.id.uuidString, "new_vid": newVid, "has_realtime_akt": SimpleRealtimeAKTManager.shared.currentAkt != nil], "timestamp": Int(Date().timeIntervalSince1970 * 1000), "sessionId": "debug-session", "runId": "run1", "hypothesisId": "E"]
+        DataFlowAKT.writeDebugLog(logDict2)
+        // #endregion
         
         onSave(updatedViolation)
         dismiss(animated: true)
@@ -549,6 +706,60 @@ class EditViolationViewController: UIViewController {
             tableView.reloadData()
             searchTextField.becomeFirstResponder()
         }
+    }
+    
+    @objc private func violationTypeButtonTapped() {
+        // #region agent log
+        let logDict: [String: Any] = ["location": "EditViolationViewController.swift:violationTypeButtonTapped", "message": "НАЧАЛО ВЫБОРА ТИПА НАРУШЕНИЯ", "data": ["violation_id": violation.id.uuidString, "current_vid": violation.vid], "timestamp": Int(Date().timeIntervalSince1970 * 1000), "sessionId": "debug-session", "runId": "run1", "hypothesisId": "E"]
+        DataFlowAKT.writeDebugLog(logDict)
+        // #endregion
+        
+        let alert = UIAlertController(title: "Выберите вид нарушения", message: nil, preferredStyle: .actionSheet)
+        
+        // Настройка цветов для темной темы
+        if traitCollection.userInterfaceStyle == .dark {
+            alert.view.tintColor = .white
+        }
+        
+        // Добавляем опции для каждого типа нарушения
+        for violationType in ViolationType.allCases {
+            let action = UIAlertAction(title: violationType.displayName, style: .default) { [weak self] _ in
+                guard let self = self else { return }
+                
+                // #region agent log
+                let logDict2: [String: Any] = ["location": "EditViolationViewController.swift:violationTypeButtonTapped:selected", "message": "ВЫБРАН ТИП НАРУШЕНИЯ", "data": ["violation_id": self.violation.id.uuidString, "old_vid": self.violation.vid, "new_vid": violationType.rawValue, "new_display_name": violationType.displayName], "timestamp": Int(Date().timeIntervalSince1970 * 1000), "sessionId": "debug-session", "runId": "run1", "hypothesisId": "E"]
+                DataFlowAKT.writeDebugLog(logDict2)
+                // #endregion
+                
+                print("🔄 [EDIT_VIOLATION] Изменение типа нарушения")
+                print("   🆔 ID нарушения: \(self.violation.id.uuidString)")
+                print("   📋 Старый тип (vid): \(self.violation.vid)")
+                print("   📋 Новый тип (vid): \(violationType.rawValue)")
+                print("   📋 Новый тип (displayName): \(violationType.displayName)")
+                
+                self.selectedViolationType = violationType
+                self.violationTypeButton.configuration?.title = violationType.displayName
+                
+                // ИСПРАВЛЕНИЕ: Немедленно обновляем нарушение в системе реального времени
+                // Это исправляет проблему с сохранением при открытии через историю
+                print("   🔄 Обновляем нарушение в системе реального времени...")
+                self.updateViolationInRealtime()
+                print("   ✅ Нарушение обновлено в системе реального времени")
+            }
+            alert.addAction(action)
+        }
+        
+        // Добавляем отмену
+        let cancelAction = UIAlertAction(title: "Отмена", style: .cancel)
+        alert.addAction(cancelAction)
+        
+        // Настройка для iPad
+        if let popover = alert.popoverPresentationController {
+            popover.sourceView = violationTypeButton
+            popover.sourceRect = violationTypeButton.bounds
+        }
+        
+        present(alert, animated: true)
     }
     
     @objc private func addPhotoTapped() {
@@ -607,7 +818,7 @@ class EditViolationViewController: UIViewController {
         
         filteredViolations = violations.filter { violation in
             // Поиск по формулировке нарушения
-            let titleMatch = violation.titie.lowercased().contains(query)
+            let titleMatch = violation.title.lowercased().contains(query)
             
             // Поиск по нормативному документу
             let documentMatch = violation.subTitle.lowercased().contains(query)
@@ -722,111 +933,62 @@ class EditViolationViewController: UIViewController {
     }
     
     private func addNewViolationWithSearchText(_ searchText: String) {
-        // Подсчитываем количество нарушений в базе для автоматического номера
-        let allViolations = ViolationsModel.returnAvialableViolation()
-        let nextNumber = allViolations.count + 1
-        
-        let alert = UIAlertController(title: "Добавление нарушения", message: "Заполните все поля", preferredStyle: .alert)
-        
-        alert.addTextField() //0 - Номер
-        alert.addTextField() //1 - Формулировка
-        alert.addTextField() //2 - Ссылка на норм. документ
-        alert.addTextField() //3 - Примечание
-        alert.addTextField() //4 - Вид нарушения
-        
-        let cancel = UIAlertAction(title: "Отмена", style: .cancel)
-        alert.addAction(cancel)
-        
-        alert.textFields?[0].placeholder = "Номер"
-        alert.textFields?[1].placeholder = "Формулировка"
-        alert.textFields?[2].placeholder = "Ссылка на норм. документ"
-        alert.textFields?[3].placeholder = "Примечание"
-        alert.textFields?[4].placeholder = "Вид нарушения"
-        
-        // Предзаполняем поля
-        alert.textFields?[0].text = "\(nextNumber)"
-        alert.textFields?[1].text = searchText.isEmpty ? "" : searchText
-        
-        let save = UIAlertAction(title: "Сохранить", style: .default) { [weak self] _ in
+        let unifiedFormVC = UnifiedViolationFormViewController(searchText: searchText) { [weak self] violation in
             guard let self = self else { return }
             
-            let number: Int = Int(alert.textFields?[0].text ?? "0") ?? 0
-            let form: String = alert.textFields?[1].text ?? "-"
-            let url: String = alert.textFields?[2].text ?? "-"
-            let desc: String = alert.textFields?[3].text ?? "-"
-            let vid: String = alert.textFields?[4].text ?? "-"
-            
-            let violation = ViolationsModel.Violation(number: number, titie: form, subTitle: url, description: desc, vid: vid)
             ViolationsModel.addNewViolation(violation: violation)
-            self.violations = ViolationsModel.returnAvialableViolation()
+            self.violations = ViolationsModel.returnAvailableViolation()
             self.filteredViolations = self.violations
             self.tableView.reloadData()
         }
-        alert.addAction(save)
         
-        present(alert, animated: true)
+        let navController = UINavigationController(rootViewController: unifiedFormVC)
+        navController.modalPresentationStyle = .pageSheet
+        
+        if let sheet = navController.sheetPresentationController {
+            sheet.detents = [.large()]
+            sheet.prefersGrabberVisible = true
+            sheet.preferredCornerRadius = 20
+        }
+        
+        present(navController, animated: true)
     }
     
     @objc private func addNewViol() {
-        let alert = UIAlertController(title: "Добавление нарушения", message: "Заполните все поля", preferredStyle: .alert)
-        
-        alert.addTextField() //0
-        alert.addTextField() //1
-        alert.addTextField() //2
-        alert.addTextField() //3
-        alert.addTextField() //4
-        
-        let cancel = UIAlertAction(title: "Отмена", style: .cancel)
-        alert.addAction(cancel)
-        
-        // Получаем текст из поиска
         let searchText = searchTextField.text ?? ""
         
-        // Автоматически рассчитываем следующий номер
-        let nextNumber = getNextViolationNumber()
-        
-        // Заполняем поля автоматически
-        alert.textFields?[0].text = "\(nextNumber)"
-        alert.textFields?[1].text = searchText.isEmpty ? "" : searchText
-        alert.textFields?[2].text = ""
-        alert.textFields?[3].text = ""
-        alert.textFields?[4].text = ""
-        
-        alert.textFields?[0].placeholder = "Номер"
-        alert.textFields?[1].placeholder = "Формулировка"
-        alert.textFields?[2].placeholder = "Ссылка на норм. документ"
-        alert.textFields?[3].placeholder = "Примечание"
-        alert.textFields?[4].placeholder = "Вид нарушения"
-        
-        let save = UIAlertAction(title: "Сохранить", style: .default) { [weak self] _ in
+        let unifiedFormVC = UnifiedViolationFormViewController(searchText: searchText) { [weak self] violation in
             guard let self = self else { return }
             
-            let number: Int =  Int(alert.textFields?[0].text ?? "0") ?? 0
-            let form: String =  alert.textFields?[1].text ?? "-"
-            let url: String =  alert.textFields?[2].text ?? "-"
-            let desc: String =  alert.textFields?[3].text ?? "-"
-            let vid: String =  alert.textFields?[4].text ?? "-"
-            
-            let violataion = ViolationsModel.Violation(number: number, titie: form, subTitle: url, description: desc, vid: vid)
-            ViolationsModel.addNewViolation(violation: violataion)
-            
-            self.violations = ViolationsModel.returnAvialableViolation()
+            ViolationsModel.addNewViolation(violation: violation)
+            self.violations = ViolationsModel.returnAvailableViolation()
             self.filteredViolations = self.violations
             self.tableView.reloadData()
-            
         }
-        alert.addAction(save)
         
-        present(alert, animated: true)
+        let navController = UINavigationController(rootViewController: unifiedFormVC)
+        navController.modalPresentationStyle = .pageSheet
+        
+        if let sheet = navController.sheetPresentationController {
+            sheet.detents = [.large()]
+            sheet.prefersGrabberVisible = true
+            sheet.preferredCornerRadius = 20
+        }
+        
+        present(navController, animated: true)
     }
     
     // MARK: - Helper Methods
     private func getNextViolationNumber() -> Int {
-        let allViolations = ViolationsModel.returnAvialableViolation()
+        let allViolations = ViolationsModel.returnAvailableViolation()
         let maxNumber = allViolations.compactMap { $0.number }.max() ?? 0
         return maxNumber + 1
     }
+    
+    
+    
 }
+
 
 // MARK: - UITextViewDelegate
 extension EditViolationViewController: UITextViewDelegate {
@@ -1013,7 +1175,7 @@ extension EditViolationViewController: UITableViewDataSource, UITableViewDelegat
         let violation = filteredViolations[indexPath.row]
         
         let numbLabel = UILabel()
-        numbLabel.text = violation.titie
+        numbLabel.text = violation.title
         numbLabel.textAlignment = .left
         // Улучшенный контраст для темной темы
         if traitCollection.userInterfaceStyle == .dark {
@@ -1154,5 +1316,124 @@ extension EditViolationViewController: UITableViewDataSource, UITableViewDelegat
         }
         // Увеличиваем высоту строк для лучшего отображения в темной теме
         return 220
+    }
+}
+
+// MARK: - Realtime Integration Methods
+extension EditViolationViewController {
+    
+    private func setupRealtimeIntegration() {
+        // Подключаемся к системе реального времени
+        SimpleRealtimeAKTObserverManager.shared.addObserver(self)
+        print("🔗 [REALTIME] Интеграция настроена для \(type(of: self))")
+    }
+    
+    private func cleanupRealtimeIntegration() {
+        // Отключаемся от системы реального времени
+        SimpleRealtimeAKTObserverManager.shared.removeObserver(self)
+        cancellables.removeAll()
+        print("🔗 [REALTIME] Интеграция очищена для \(type(of: self))")
+    }
+    
+    private func setupRealtimeTextFields() {
+        // Формулировка: дебаунс 1000 мс, чтобы при быстром наборе реже обновлять realtime и не блокировать клавиатуру
+        NotificationCenter.default.publisher(for: UITextView.textDidChangeNotification, object: textView)
+            .debounce(for: .milliseconds(1000), scheduler: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.updateViolationInRealtime()
+            }
+            .store(in: &cancellables)
+        
+        NotificationCenter.default.publisher(for: UITextField.textDidChangeNotification, object: mestoTextField)
+            .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.updateViolationInRealtime()
+            }
+            .store(in: &cancellables)
+        
+        NotificationCenter.default.publisher(for: UITextField.textDidChangeNotification, object: violationPointTextField)
+            .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.updateViolationInRealtime()
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func updateViolationInRealtime() {
+        let title = textView.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let mesto = mestoTextField.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let urlToPravilo = violationPointTextField.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let formulaFromRules = violation.formulaFromRules
+        let violationId = violation.id
+        let photosToEncode = photos
+        let vid: String
+        if let selectedType = selectedViolationType {
+            vid = selectedType.rawValue
+        } else {
+            let buttonTitle = violationTypeButton.configuration?.title ?? ""
+            vid = buttonTitle == "Выберите вид нарушения" ? "" : buttonTitle
+        }
+        
+        let applyViolation: ([Data]) -> Void = { [weak self] photoData in
+            guard let self = self else { return }
+            let updatedViolation = Violations(
+                title: title,
+                mesto: mesto,
+                urlToPravilo: urlToPravilo,
+                photo: photoData,
+                vid: vid,
+                formulaFromRules: formulaFromRules
+            )
+            self.applyUpdatedViolationToRealtime(updatedViolation, violationId: violationId)
+        }
+        
+        if photosToEncode.isEmpty {
+            applyViolation([])
+            return
+        }
+        
+        // Сжатие фото в фоне, чтобы не блокировать главный поток при наборе текста
+        DispatchQueue.global(qos: .userInitiated).async {
+            let photoData = photosToEncode.map { $0.jpegData(compressionQuality: 0.5) ?? Data() }
+            DispatchQueue.main.async {
+                applyViolation(photoData)
+            }
+        }
+    }
+    
+    private func applyUpdatedViolationToRealtime(_ updatedViolation: Violations, violationId: UUID) {
+        if let currentAkt = SimpleRealtimeAKTManager.shared.currentAkt {
+            var updatedViolations = currentAkt.violations
+            if let index = updatedViolations.firstIndex(where: { $0.id == violationId }) {
+                updatedViolations[index] = updatedViolation
+                SimpleRealtimeAKTManager.shared.updateViolations(updatedViolations)
+            } else if let index = updatedViolations.firstIndex(where: { $0.title == updatedViolation.title && $0.mesto == updatedViolation.mesto }) {
+                updatedViolations[index] = updatedViolation
+                SimpleRealtimeAKTManager.shared.updateViolations(updatedViolations)
+            } else {
+                updatedViolations.append(updatedViolation)
+                SimpleRealtimeAKTManager.shared.updateViolations(updatedViolations)
+            }
+        }
+    }
+    
+    // MARK: - SimpleRealtimeAKTObserver Methods
+    
+    func aktDidChange(_ change: String) {
+        print("📝 [REALTIME] Получено изменение в EditViolationViewController: \(change)")
+        
+        // Обновляем UI при необходимости
+        DispatchQueue.main.async {
+            // Здесь можно добавить логику обновления UI
+        }
+    }
+    
+    func aktDidSave(_ akt: AKT) {
+        print("💾 [REALTIME] Акт сохранен в EditViolationViewController")
+        
+        // Обновляем локальное состояние при необходимости
+        DispatchQueue.main.async {
+            // Здесь можно добавить логику обновления UI после сохранения
+        }
     }
 }

@@ -8,7 +8,7 @@
 import UIKit
 import SnapKit
 
-class ViolationPreviewViewController: UIViewController {
+class ViolationPreviewViewController: UIViewController, UIAdaptivePresentationControllerDelegate {
     
     private let violation: ViolationsModel.Violation
     
@@ -68,6 +68,15 @@ class ViolationPreviewViewController: UIViewController {
         return label
     }()
     
+    private let formulaFromRulesLabel: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 14, weight: .medium)
+        label.textColor = .systemRed
+        label.numberOfLines = 0
+        label.textAlignment = .left
+        return label
+    }()
+    
     init(violation: ViolationsModel.Violation) {
         self.violation = violation
         super.init(nibName: nil, bundle: nil)
@@ -79,11 +88,61 @@ class ViolationPreviewViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        // Принудительно устанавливаем темную тему для sheet presentation
+        if traitCollection.userInterfaceStyle == .dark {
+            overrideUserInterfaceStyle = .dark
+        }
+        
         setupUI()
         configureContent()
         
         // Настройка темной темы
         setupDarkTheme()
+    }
+    
+    func presentationControllerWillDismiss(_ presentationController: UIPresentationController) {
+        // Устанавливаем черный фон перед закрытием
+        if traitCollection.userInterfaceStyle == .dark {
+            view.backgroundColor = .black
+            scrollView.backgroundColor = .black
+            contentView.backgroundColor = .black
+        }
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        // Настраиваем delegate для presentation controller
+        presentationController?.delegate = self
+        
+        // Устанавливаем черный фон для темной темы, чтобы он был одинаковым в свернутом и развернутом состоянии
+        if traitCollection.userInterfaceStyle == .dark {
+            view.backgroundColor = .black
+            scrollView.backgroundColor = .black
+            contentView.backgroundColor = .black
+            
+            // Также устанавливаем фон для presentation controller
+            if sheetPresentationController != nil {
+                // Принудительно обновляем фон
+                DispatchQueue.main.async { [weak self] in
+                    self?.view.backgroundColor = .black
+                    self?.scrollView.backgroundColor = .black
+                    self?.contentView.backgroundColor = .black
+                }
+            }
+        }
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        
+        // Дополнительно устанавливаем фон после появления, чтобы гарантировать правильный цвет в свернутом состоянии
+        if traitCollection.userInterfaceStyle == .dark {
+            view.backgroundColor = .black
+            scrollView.backgroundColor = .black
+            contentView.backgroundColor = .black
+        }
     }
     
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -96,7 +155,14 @@ class ViolationPreviewViewController: UIViewController {
     }
     
     private func setupUI() {
-        view.backgroundColor = .systemBackground
+        // Устанавливаем черный фон для темной темы, чтобы он был одинаковым в свернутом и развернутом состоянии
+        if traitCollection.userInterfaceStyle == .dark {
+            view.backgroundColor = .black
+            // Устанавливаем черный фон для всего view, включая область за safe area
+            view.layer.backgroundColor = UIColor.black.cgColor
+        } else {
+            view.backgroundColor = .systemBackground
+        }
         
         // Настройка темной темы
         setupDarkTheme()
@@ -127,6 +193,7 @@ class ViolationPreviewViewController: UIViewController {
         contentView.addSubview(descriptionLabel)
         contentView.addSubview(referenceLabel)
         contentView.addSubview(typeLabel)
+        contentView.addSubview(formulaFromRulesLabel)
         
         setupConstraints()
     }
@@ -134,9 +201,9 @@ class ViolationPreviewViewController: UIViewController {
     private func setupDarkTheme() {
         // Настройка для темной темы
         if traitCollection.userInterfaceStyle == .dark {
-            view.backgroundColor = .systemBackground
-            scrollView.backgroundColor = .systemBackground
-            contentView.backgroundColor = .systemBackground
+            view.backgroundColor = .black
+            scrollView.backgroundColor = .black
+            contentView.backgroundColor = .black
             
             // Обновляем цвета текста для темной темы
             titleLabel.textColor = .white
@@ -144,13 +211,19 @@ class ViolationPreviewViewController: UIViewController {
             descriptionLabel.textColor = .white.withAlphaComponent(0.9)
             referenceLabel.textColor = .systemGreen
             typeLabel.textColor = .systemOrange
+            formulaFromRulesLabel.textColor = .systemRed
         } else {
             // Светлая тема
+            view.backgroundColor = .systemBackground
+            scrollView.backgroundColor = .systemBackground
+            contentView.backgroundColor = .systemBackground
+            
             titleLabel.textColor = .label
             numberLabel.textColor = .systemBlue
             descriptionLabel.textColor = .secondaryLabel
             referenceLabel.textColor = .systemGreen
             typeLabel.textColor = .systemOrange
+            formulaFromRulesLabel.textColor = .systemRed
         }
     }
     
@@ -178,6 +251,11 @@ class ViolationPreviewViewController: UIViewController {
         typeLabel.snp.makeConstraints { make in
             make.top.equalTo(referenceLabel.snp.bottom).offset(16)
             make.left.right.equalToSuperview().inset(20)
+        }
+        
+        formulaFromRulesLabel.snp.makeConstraints { make in
+            make.top.equalTo(typeLabel.snp.bottom).offset(16)
+            make.left.right.equalToSuperview().inset(20)
             make.bottom.equalToSuperview().offset(-20)
         }
     }
@@ -191,7 +269,7 @@ class ViolationPreviewViewController: UIViewController {
         }
         
         // Заголовок (формулировка)
-        titleLabel.text = violation.titie
+        titleLabel.text = violation.title
         
         // Примечание
         if let description = violation.description, !description.isEmpty && description != "-" {
@@ -215,6 +293,14 @@ class ViolationPreviewViewController: UIViewController {
         } else {
             typeLabel.text = "Вид нарушения не указан"
             typeLabel.textColor = .tertiaryLabel
+        }
+        
+        // Формулировка из правил
+        if let formulaFromRules = violation.formulaFromRules, !formulaFromRules.isEmpty && formulaFromRules != "-" {
+            formulaFromRulesLabel.text = "Формулировка из правил:\n\(formulaFromRules)"
+        } else {
+            formulaFromRulesLabel.text = "Формулировка из правил не указана"
+            formulaFromRulesLabel.textColor = .tertiaryLabel
         }
     }
     

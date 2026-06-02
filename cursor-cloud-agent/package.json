@@ -1,0 +1,13 @@
+{
+  "name": "cursor-cloud-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "review": "node review.mjs",
+    "fix": "node fix.mjs"
+  },
+  "dependencies": {
+    "@cursor/sdk": "latest"
+  }
+}

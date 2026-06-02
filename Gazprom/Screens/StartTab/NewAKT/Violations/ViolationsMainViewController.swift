@@ -7,11 +7,24 @@
 
 import UIKit
 import SnapKit
+import Combine
 
-class ViolationsMainViewController: UIViewController, UITableViewDragDelegate, UITableViewDropDelegate {
+class ViolationsMainViewController: UIViewController, SimpleRealtimeAKTObserver {
     
     private let viewModel: MainAKTViewModel
-    private let akt: AKT
+    private var akt: AKT // Изменено на var для обновления после drag and drop
+    private var cancellables = Set<AnyCancellable>()
+    
+    // MARK: - Reorder (Smooth Long-Press) State
+    private var reorderSnapshotView: UIView?
+    private var reorderSourceIndexPath: IndexPath?
+    private var touchOffsetFromCellCenterY: CGFloat = 0
+    private var lastTouchLocationInTable: CGPoint = .zero
+    private var autoScrollDisplayLink: CADisplayLink?
+    private var autoScrollDirection: CGFloat = 0 // -1 вверх, 1 вниз, 0 нет
+    private var autoScrollSpeed: CGFloat = 0 // pts/sec
+    private var lastAutoScrollDirection: CGFloat = 0
+    private var lastAutoScrollSpeed: CGFloat = 0
     
     
     private let headerView: UIView = {
@@ -80,6 +93,7 @@ class ViolationsMainViewController: UIViewController, UITableViewDragDelegate, U
         self.viewModel = viewModel
         self.akt = akt
         super.init(nibName: nil, bundle: nil)
+        navigationItem.backBarButtonItem = UIBarButtonItem(title: "", style: .plain, target: nil, action: nil)
     }
     
     required init?(coder: NSCoder) {
@@ -89,10 +103,14 @@ class ViolationsMainViewController: UIViewController, UITableViewDragDelegate, U
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+        setupRealtimeIntegration()
         configureData()
-        
-        // Настройка темной темы
         setupDarkTheme()
+    }
+    
+    deinit {
+        cleanupRealtimeIntegration()
+        NotificationCenter.default.removeObserver(self)
     }
     
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -127,20 +145,236 @@ class ViolationsMainViewController: UIViewController, UITableViewDragDelegate, U
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        navigationItem.title = "Нарушения"
+        print("🔵 [VIOLATIONS] viewWillAppear вызван")
+        
+        // Подтягиваем акт из редактируемого при возврате (например, после добавления нарушений на другом экране)
+        if let editable = DataFlowAKT.getEditableAKT(), editable.akt.id == akt.id {
+            akt = editable.akt
+            configureData()
+            updateEmptyState()
+            violationsTableView.reloadData()
+        }
+        
+        // Проверяем, есть ли уже кнопка с текстом "История" (установленная из HistoryTabViewController)
+        // Проверяем и текст, и action, чтобы точно определить, что это кнопка из HistoryTabViewController
+        if let existingButton = navigationItem.leftBarButtonItem?.customView as? UIButton {
+            var existingTitle: String? = nil
+            if #available(iOS 15.0, *) {
+                existingTitle = existingButton.configuration?.title
+                print("🔵 [VIOLATIONS] viewWillAppear: existingButton найден, iOS 15+, title из configuration: '\(existingTitle ?? "nil")'")
+            } else {
+                existingTitle = existingButton.title(for: .normal)
+                print("🔵 [VIOLATIONS] viewWillAppear: existingButton найден, iOS < 15, title: '\(existingTitle ?? "nil")'")
+            }
+            
+            // Если кнопка уже установлена с текстом "История", не перезаписываем её
+            // Это означает, что кнопка была установлена из HistoryTabViewController
+            // Проверяем также, что кнопка не пустая и имеет текст
+            if let title = existingTitle, title == "История" {
+                print("✅ [VIOLATIONS] viewWillAppear: Кнопка 'История' найдена, не перезаписываем")
+                // Только убираем заголовок, но не трогаем кнопку
+                navigationItem.title = nil
+                navigationItem.titleView = nil
+                navigationItem.largeTitleDisplayMode = .never
+                return
+            } else {
+                print("⚠️ [VIOLATIONS] viewWillAppear: Кнопка найдена, но title не 'История': '\(existingTitle ?? "nil")'")
+            }
+        } else {
+            print("🔵 [VIOLATIONS] viewWillAppear: existingButton не найден, вызываем setupNavigationBar")
+        }
+        setupNavigationBar()
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        print("🔵 [VIOLATIONS] viewDidAppear вызван")
+        
+        // В viewDidAppear проверяем еще раз, но только если кнопка не установлена правильно
+        // Здесь стек навигации уже обновлен, поэтому проверка должна работать надежнее
+        if let existingButton = navigationItem.leftBarButtonItem?.customView as? UIButton {
+            var existingTitle: String? = nil
+            if #available(iOS 15.0, *) {
+                existingTitle = existingButton.configuration?.title
+                print("🔵 [VIOLATIONS] viewDidAppear: existingButton найден, iOS 15+, title из configuration: '\(existingTitle ?? "nil")'")
+            } else {
+                existingTitle = existingButton.title(for: .normal)
+                print("🔵 [VIOLATIONS] viewDidAppear: existingButton найден, iOS < 15, title: '\(existingTitle ?? "nil")'")
+            }
+            
+            // Если кнопка уже установлена с текстом "История", не перезаписываем её
+            // Это означает, что кнопка была установлена из HistoryTabViewController
+            // Проверяем также, что кнопка не пустая и имеет текст
+            if let title = existingTitle, title == "История" {
+                print("✅ [VIOLATIONS] viewDidAppear: Кнопка 'История' найдена, не перезаписываем")
+                // Только убираем заголовок, но не трогаем кнопку
+                navigationItem.title = nil
+                navigationItem.titleView = nil
+                return
+            } else {
+                print("⚠️ [VIOLATIONS] viewDidAppear: Кнопка найдена, но title не 'История': '\(existingTitle ?? "nil")'")
+            }
+        } else {
+            print("🔵 [VIOLATIONS] viewDidAppear: existingButton не найден, вызываем setupNavigationBar")
+        }
+        // Вызываем setupNavigationBar только если кнопка не установлена или установлена неправильно
+        // В viewDidAppear стек навигации уже обновлен, поэтому проверка источника должна работать
+        setupNavigationBar()
+    }
+    
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        
+        // Проверяем и исправляем размер кнопки после layout
+        if let leftItem = navigationItem.leftBarButtonItem, let customView = leftItem.customView, let button = customView as? UIButton {
+            let minWidth: CGFloat = 100
+            if button.frame.width < minWidth {
+                button.frame = CGRect(
+                    x: button.frame.origin.x,
+                    y: button.frame.origin.y,
+                    width: minWidth,
+                    height: max(button.frame.height, 34)
+                )
+                button.setNeedsLayout()
+                button.layoutIfNeeded()
+            }
+        }
+    }
+    
+    private func setupNavigationBar() {
+        print("🔵 [VIOLATIONS] setupNavigationBar вызван")
+        
+        // Полностью убираем заголовок, чтобы стрелочка назад была видна
+        navigationItem.title = nil
+        navigationItem.titleView = nil
         navigationItem.largeTitleDisplayMode = .never
+        
+        // Также убираем title у topItem, если он есть
+        if let navBar = navigationController?.navigationBar, let topItem = navBar.topItem {
+            topItem.title = nil
+            topItem.titleView = nil
+        }
+        
+        // Сначала проверяем, есть ли уже установленная кнопка с текстом "История"
+        // Если есть, значит она установлена из HistoryTabViewController, и мы её не трогаем
+        // Проверяем более тщательно, чтобы не перезаписать кнопку из HistoryTabViewController
+        if let existingButton = navigationItem.leftBarButtonItem?.customView as? UIButton {
+            var existingTitle: String? = nil
+            
+            if #available(iOS 15.0, *) {
+                existingTitle = existingButton.configuration?.title
+                print("🔵 [VIOLATIONS] setupNavigationBar: existingButton найден, iOS 15+, title из configuration: '\(existingTitle ?? "nil")'")
+            } else {
+                existingTitle = existingButton.title(for: .normal)
+                print("🔵 [VIOLATIONS] setupNavigationBar: existingButton найден, iOS < 15, title: '\(existingTitle ?? "nil")'")
+            }
+            
+            // Если кнопка уже установлена с текстом "История", не перезаписываем её
+            // Это означает, что кнопка была установлена из HistoryTabViewController
+            // Проверяем также, что кнопка не пустая и имеет текст
+            if let title = existingTitle, title == "История" {
+                print("✅ [VIOLATIONS] setupNavigationBar: Кнопка 'История' найдена, не перезаписываем")
+                // Только убираем заголовок, но не трогаем кнопку
+                navigationItem.title = nil
+                navigationItem.titleView = nil
+                return
+            } else {
+                print("⚠️ [VIOLATIONS] setupNavigationBar: Кнопка найдена, но title не 'История': '\(existingTitle ?? "nil")'")
+            }
+        } else {
+            print("🔵 [VIOLATIONS] setupNavigationBar: existingButton не найден")
+        }
+        
+        // Определяем, откуда пришли, проверяя стек навигации
+        // Это нужно для случаев, когда кнопка еще не установлена или установлена неправильно
+        var backButtonTitle = "Главная"
+        
+        if let viewControllers = navigationController?.viewControllers {
+            print("🔵 [VIOLATIONS] setupNavigationBar: viewControllers.count = \(viewControllers.count)")
+            let currentIndex = viewControllers.firstIndex(where: { $0 === self }) ?? 0
+            print("🔵 [VIOLATIONS] setupNavigationBar: currentIndex = \(currentIndex)")
+            if currentIndex > 0 {
+                let previousVC = viewControllers[currentIndex - 1]
+                // Проверяем тип через имя класса для надежности
+                let previousVCTypeName = String(describing: type(of: previousVC))
+                print("🔵 [VIOLATIONS] setupNavigationBar: previousVCTypeName = '\(previousVCTypeName)'")
+                // Проверяем точное совпадение или содержит имя класса (может быть с модулем, например "Gazprom.HistoryTabViewController")
+                if previousVCTypeName == "HistoryTabViewController" || 
+                   previousVCTypeName.hasSuffix(".HistoryTabViewController") ||
+                   previousVCTypeName.contains("HistoryTabViewController") {
+                    backButtonTitle = "История"
+                    print("✅ [VIOLATIONS] setupNavigationBar: Определен источник 'История', устанавливаем backButtonTitle = 'История'")
+                } else {
+                    print("🔵 [VIOLATIONS] setupNavigationBar: Источник не 'История', используем 'Главная'")
+                }
+            } else {
+                print("⚠️ [VIOLATIONS] setupNavigationBar: currentIndex <= 0, не можем определить предыдущий контроллер")
+            }
+        } else {
+            print("⚠️ [VIOLATIONS] setupNavigationBar: viewControllers == nil")
+        }
+        
+        print("🔵 [VIOLATIONS] setupNavigationBar: Создаем кнопку с текстом '\(backButtonTitle)'")
+        
+        // Создаем или обновляем кнопку
+        // Скрываем стандартную кнопку назад и создаем кастомную с достаточным размером
+        navigationItem.hidesBackButton = true
+            
+        // Создаем кастомную кнопку с правильным текстом в зависимости от источника
+        let backButton = UIButton(type: .system)
+        if #available(iOS 15.0, *) {
+            var config = UIButton.Configuration.plain()
+            config.title = backButtonTitle
+            config.image = UIImage(systemName: "chevron.left")
+            config.imagePlacement = .leading
+            config.imagePadding = 6
+            config.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8)
+            backButton.configuration = config
+        } else {
+            backButton.setTitle(backButtonTitle, for: .normal)
+            backButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
+            backButton.semanticContentAttribute = .forceLeftToRight
+            backButton.imageEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 6)
+            backButton.titleEdgeInsets = UIEdgeInsets(top: 0, left: 6, bottom: 0, right: 0)
+        }
+        backButton.addTarget(self, action: #selector(goBack), for: .touchUpInside)
+        backButton.sizeToFit()
+        let minWidth: CGFloat = 100
+        if backButton.frame.width < minWidth {
+            backButton.frame = CGRect(
+                x: backButton.frame.origin.x,
+                y: backButton.frame.origin.y,
+                width: minWidth,
+                height: max(backButton.frame.height, 34)
+            )
+        }
+        backButton.translatesAutoresizingMaskIntoConstraints = true
+        
+        let backBarButtonItem = UIBarButtonItem(customView: backButton)
+        navigationItem.leftBarButtonItem = backBarButtonItem
         
         // Добавляем кнопку "домик" для возврата на главный экран
         let goBackButton = UIButton(type: .system)
         goBackButton.setBackgroundImage(UIImage(systemName: "house"), for: .normal)
-        let homeButton = UIBarButtonItem(customView: goBackButton)
-        goBackButton.snp.makeConstraints { make in
-            make.height.width.equalTo(24)
-        }
+        goBackButton.frame = CGRect(x: 0, y: 0, width: 24, height: 24)
+        goBackButton.translatesAutoresizingMaskIntoConstraints = true
         goBackButton.addTarget(self, action: #selector(goHome), for: .touchUpInside)
         goBackButton.alpha = 0.5
-        
+        let homeButton = UIBarButtonItem(customView: goBackButton)
         navigationItem.rightBarButtonItem = homeButton
+        
+        // Принудительно обновляем навигационную панель
+        navigationController?.navigationBar.setNeedsLayout()
+        navigationController?.navigationBar.layoutIfNeeded()
+    }
+    
+    @objc private func goBack() {
+        navigationController?.popViewController(animated: true)
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        SimpleRealtimeAKTManager.shared.updateViolations(akt.violations)
     }
     
     private func setupUI() {
@@ -208,15 +442,21 @@ class ViolationsMainViewController: UIViewController, UITableViewDragDelegate, U
         violationsTableView.delegate = self
         violationsTableView.dataSource = self
         
-        // Включаем перетаскивание для изменения порядка
-        violationsTableView.dragInteractionEnabled = true
-        violationsTableView.dragDelegate = self
-        violationsTableView.dropDelegate = self
+        violationsTableView.isEditing = false
+        violationsTableView.allowsSelectionDuringEditing = true
+        violationsTableView.separatorStyle = .none
+        violationsTableView.delaysContentTouches = false
         
-        // Настраиваем обработку ошибок drag and drop
-        setupDragAndDropErrorHandling()
+        let longPress = UILongPressGestureRecognizer(target: self, action: #selector(handleReorderGesture(_:)))
+        longPress.minimumPressDuration = 0.6
+        longPress.allowableMovement = 80
+        longPress.cancelsTouchesInView = false
+        longPress.delaysTouchesBegan = false
+        longPress.delaysTouchesEnded = false
+        longPress.delegate = self
         
-        // Настройка действий
+        violationsTableView.addGestureRecognizer(longPress)
+        
         editButton.addTarget(self, action: #selector(editButtonTapped), for: .touchUpInside)
     }
     
@@ -272,7 +512,7 @@ class ViolationsMainViewController: UIViewController, UITableViewDragDelegate, U
             self?.navigateToEditStep(.violations)
         }
         
-        let userDescriptionAction = UIAlertAction(title: "📝 Описание", style: .default) { [weak self] _ in
+        let userDescriptionAction = UIAlertAction(title: "📝 Выводы", style: .default) { [weak self] _ in
             self?.navigateToEditStep(.userDescription)
         }
         
@@ -410,6 +650,11 @@ class ViolationsMainViewController: UIViewController, UITableViewDragDelegate, U
         let previewVC = AddedViolationPreviewViewController(violation: violation)
         previewVC.modalPresentationStyle = .pageSheet
         
+        // Устанавливаем черный фон для темной темы перед презентацией
+        if traitCollection.userInterfaceStyle == .dark {
+            previewVC.view.backgroundColor = .black
+        }
+        
         if let sheet = previewVC.sheetPresentationController {
             sheet.detents = [.medium(), .large()]
             sheet.prefersGrabberVisible = true
@@ -427,6 +672,60 @@ class ViolationsMainViewController: UIViewController, UITableViewDragDelegate, U
         }
         
         navigationController?.pushViewController(editVC, animated: true)
+    }
+    
+    private func copyViolation(at index: Int) {
+        guard index >= 0 && index < akt.violations.count else {
+            return
+        }
+        
+        let originalViolation = akt.violations[index]
+        
+        let copiedViolation = Violations(
+            title: originalViolation.title,
+            mesto: originalViolation.mesto,
+            urlToPravilo: originalViolation.urlToPravilo,
+            photo: originalViolation.photo,
+            vid: originalViolation.vid,
+            formulaFromRules: originalViolation.formulaFromRules
+        )
+        
+        var updatedViolations = akt.violations
+        updatedViolations.insert(copiedViolation, at: index + 1)
+        
+        let updatedAkt = AKT(
+            id: akt.id,
+            number: akt.number,
+            date: akt.date,
+            comission: akt.comission,
+            organization: akt.organization,
+            objectsCheck: akt.objectsCheck,
+            predstavitelyComission: akt.predstavitelyComission,
+            violations: updatedViolations,
+            description: akt.description,
+            actustranenDate: akt.actustranenDate,
+            actPredostavlenDate: akt.actPredostavlenDate,
+            actUtverzdenDate: akt.actUtverzdenDate,
+            urlAct: akt.urlToFllACT ?? URL(fileURLWithPath: ""),
+            realDateCreate: akt.realDateCreate
+        )
+        
+        if DataFlowAKT.getEditableAKT() != nil {
+            DataFlowAKT.updateEditableAKT(updatedAkt)
+        }
+        
+        if let historyIndex = viewModel.aktArray.firstIndex(where: { $0.id == akt.id }) {
+            var arr = viewModel.aktArray
+            arr[historyIndex] = updatedAkt
+            viewModel.aktArray = arr
+            DataFlowAKT.saveArr(arr: viewModel.aktArray)
+        }
+        
+        SimpleRealtimeAKTManager.shared.updateViolations(updatedViolations)
+        
+        akt = updatedAkt
+        violationsTableView.reloadData()
+        updateEmptyState()
     }
     
     private func deleteViolation(at index: Int) {
@@ -449,12 +748,12 @@ class ViolationsMainViewController: UIViewController, UITableViewDragDelegate, U
     }
     
     private func performDeleteViolation(at index: Int) {
-        // Удаляем нарушение из АКТ
         var updatedViolations = akt.violations
         updatedViolations.remove(at: index)
         
-        // Создаем обновленный АКТ
+        // Создаем обновленный АКТ с сохранением оригинального ID
         let updatedAkt = AKT(
+            id: akt.id, // ВАЖНО: Сохраняем оригинальный ID
             number: akt.number,
             date: akt.date,
             comission: akt.comission,
@@ -470,28 +769,30 @@ class ViolationsMainViewController: UIViewController, UITableViewDragDelegate, U
             realDateCreate: akt.realDateCreate
         )
         
-        // Обновляем АКТ в массиве
-        if let index = viewModel.aktArray.firstIndex(where: { $0.id == akt.id }) {
-            viewModel.aktArray[index] = updatedAkt
+        if DataFlowAKT.getEditableAKT() != nil {
+            DataFlowAKT.updateEditableAKT(updatedAkt)
+        }
+        
+        if let historyIndex = viewModel.aktArray.firstIndex(where: { $0.id == akt.id }) {
+            var arr = viewModel.aktArray
+            arr[historyIndex] = updatedAkt
+            viewModel.aktArray = arr
             DataFlowAKT.saveArr(arr: viewModel.aktArray)
         }
         
-        // Обновляем текущий АКТ
-        // Нужно обновить akt в контроллере, но поскольку он let, создадим новый экземпляр
-        // В реальном приложении лучше было бы использовать ссылку на массив
+        akt = updatedAkt
+        SimpleRealtimeAKTManager.shared.updateViolations(updatedViolations)
         
-        // Обновляем отображение
         violationsTableView.reloadData()
         updateEmptyState()
     }
     
     private func updateViolation(_ updatedViolation: Violations, at index: Int) {
-        // Обновляем нарушение в АКТ
         var updatedViolations = akt.violations
         updatedViolations[index] = updatedViolation
         
-        // Создаем обновленный АКТ
         let updatedAkt = AKT(
+            id: akt.id,
             number: akt.number,
             date: akt.date,
             comission: akt.comission,
@@ -507,75 +808,93 @@ class ViolationsMainViewController: UIViewController, UITableViewDragDelegate, U
             realDateCreate: akt.realDateCreate
         )
         
-        // Обновляем АКТ в массиве
-        if let index = viewModel.aktArray.firstIndex(where: { $0.id == akt.id }) {
-            viewModel.aktArray[index] = updatedAkt
+        if DataFlowAKT.getEditableAKT() != nil {
+            DataFlowAKT.updateEditableAKT(updatedAkt)
+        }
+        
+        if let historyIndex = viewModel.aktArray.firstIndex(where: { $0.id == akt.id }) {
+            var arr = viewModel.aktArray
+            arr[historyIndex] = updatedAkt
+            viewModel.aktArray = arr
             DataFlowAKT.saveArr(arr: viewModel.aktArray)
         }
         
-        // Обновляем отображение
+        akt = updatedAkt
+        SimpleRealtimeAKTManager.shared.updateViolations(updatedViolations)
+        
         violationsTableView.reloadData()
     }
     
+    #if false // legacy iOS drag/drop (disabled)
     // MARK: - UITableViewDragDelegate
     func tableView(_ tableView: UITableView, itemsForBeginning session: UIDragSession, at indexPath: IndexPath) -> [UIDragItem] {
-        // Проверяем, что индекс валидный
         guard indexPath.row < akt.violations.count else {
-            print("⚠️ Неверный индекс для drag: \(indexPath.row), всего нарушений: \(akt.violations.count)")
             return []
         }
         
         let violation = akt.violations[indexPath.row]
-        
-        // Создаем itemProvider с правильным типом данных
-        let itemProvider = NSItemProvider()
-        
-        // Регистрируем данные с правильной обработкой ошибок
-        itemProvider.registerDataRepresentation(forTypeIdentifier: "public.text", visibility: .all) { completion in
-            guard let data = violation.title.data(using: .utf8) else {
-                print("❌ Ошибка кодирования текста нарушения")
-                completion(nil, NSError(domain: "DragError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Ошибка кодирования текста"]))
-                return nil
-            }
-            completion(data, nil)
-            return nil
-        }
-        
+        let itemProvider = NSItemProvider(object: violation.title as NSString)
         let dragItem = UIDragItem(itemProvider: itemProvider)
         dragItem.localObject = violation
+        
         return [dragItem]
     }
     
-    // MARK: - UITableViewDropDelegate
+    func tableView(_ tableView: UITableView, dragPreviewParametersForRowAt indexPath: IndexPath) -> UIDragPreviewParameters? {
+        let parameters = UIDragPreviewParameters()
+        parameters.backgroundColor = .clear
+        
+        if let cell = tableView.cellForRow(at: indexPath) {
+            let cellRect = cell.bounds
+            parameters.visiblePath = UIBezierPath(rect: cellRect)
+        }
+        
+        return parameters
+    }
+    
+    func tableView(_ tableView: UITableView, canHandle session: UIDropSession) -> Bool {
+        return session.canLoadObjects(ofClass: NSString.self)
+    }
+    
     func tableView(_ tableView: UITableView, dropSessionDidUpdate session: UIDropSession, withDestinationIndexPath destinationIndexPath: IndexPath?) -> UITableViewDropProposal {
-        return UITableViewDropProposal(operation: .move, intent: .insertAtDestinationIndexPath)
+        if session.localDragSession != nil {
+            return UITableViewDropProposal(operation: .move, intent: .insertAtDestinationIndexPath)
+        }
+        
+        return UITableViewDropProposal(operation: .forbidden)
     }
     
     func tableView(_ tableView: UITableView, performDropWith coordinator: UITableViewDropCoordinator) {
-        guard let destinationIndexPath = coordinator.destinationIndexPath,
-              let sourceIndexPath = coordinator.items.first?.sourceIndexPath else {
-            print("⚠️ Неверные индексы для drop операции")
+        
+        guard let destinationIndexPath = coordinator.destinationIndexPath else {
             return
         }
         
-        // Проверяем валидность индексов
+        guard let dragItem = coordinator.items.first else {
+            return
+        }
+        
+        guard let sourceIndexPath = dragItem.sourceIndexPath else {
+            return
+        }
+        
         guard sourceIndexPath.row < akt.violations.count,
-              destinationIndexPath.row <= akt.violations.count,
-              sourceIndexPath.row != destinationIndexPath.row else {
-            print("⚠️ Недопустимые индексы для drop: source=\(sourceIndexPath.row), destination=\(destinationIndexPath.row), всего=\(akt.violations.count)")
+              destinationIndexPath.row <= akt.violations.count else {
             return
         }
         
-        // Перемещаем нарушение в новую позицию
+        guard sourceIndexPath.row != destinationIndexPath.row else {
+            return
+        }
+        
         var updatedViolations = akt.violations
         let movedViolation = updatedViolations.remove(at: sourceIndexPath.row)
         
-        // Корректируем индекс назначения если нужно
         let adjustedDestinationIndex = destinationIndexPath.row > sourceIndexPath.row ? destinationIndexPath.row - 1 : destinationIndexPath.row
         updatedViolations.insert(movedViolation, at: adjustedDestinationIndex)
         
-        // Создаем обновленный АКТ
         let updatedAkt = AKT(
+            id: akt.id,
             number: akt.number,
             date: akt.date,
             comission: akt.comission,
@@ -591,20 +910,25 @@ class ViolationsMainViewController: UIViewController, UITableViewDragDelegate, U
             realDateCreate: akt.realDateCreate
         )
         
-        // Обновляем АКТ в массиве
+        akt = updatedAkt
+        
+        if DataFlowAKT.getEditableAKT() != nil {
+            DataFlowAKT.updateEditableAKT(updatedAkt)
+        }
+        
         if let index = viewModel.aktArray.firstIndex(where: { $0.id == akt.id }) {
             viewModel.aktArray[index] = updatedAkt
             DataFlowAKT.saveArr(arr: viewModel.aktArray)
-            print("✅ Нарушение перемещено с позиции \(sourceIndexPath.row) на \(adjustedDestinationIndex)")
         }
         
-        // Обновляем отображение
-        violationsTableView.reloadData()
+        SimpleRealtimeAKTManager.shared.updateViolations(updatedViolations)
+        
+        tableView.performBatchUpdates({
+            tableView.moveRow(at: sourceIndexPath, to: IndexPath(row: adjustedDestinationIndex, section: 0))
+        }, completion: nil)
     }
     
-    // MARK: - Drag and Drop Error Handling
     private func setupDragAndDropErrorHandling() {
-        // Обработка ошибок drag and drop
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleDragAndDropError),
@@ -614,26 +938,17 @@ class ViolationsMainViewController: UIViewController, UITableViewDragDelegate, U
     }
     
     @objc private func handleDragAndDropError() {
-        print("⚠️ Обнаружена ошибка drag and drop")
-        print("🔄 Очистка ресурсов drag and drop...")
-        
-        // Очищаем ресурсы drag and drop
         violationsTableView.dragInteractionEnabled = false
         violationsTableView.dragDelegate = nil
         violationsTableView.dropDelegate = nil
         
-        // Перезапускаем drag and drop через небольшую задержку
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             self.violationsTableView.dragInteractionEnabled = true
             self.violationsTableView.dragDelegate = self
             self.violationsTableView.dropDelegate = self
-            print("✅ Ресурсы drag and drop очищены")
         }
     }
-    
-    deinit {
-        NotificationCenter.default.removeObserver(self)
-    }
+#endif
 }
 
 // MARK: - UITableViewDataSource
@@ -644,8 +959,9 @@ extension ViolationsMainViewController: UITableViewDataSource {
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "ViolationCell", for: indexPath)
-        // Полностью очищаем ячейку от всех subviews
-        cell.subviews.forEach { $0.removeFromSuperview() }
+        
+        // Очищаем только содержимое contentView, не трогая системные subviews ячейки
+        cell.contentView.subviews.forEach { $0.removeFromSuperview() }
         cell.backgroundColor = .clear
         
         // Сбрасываем все свойства ячейки
@@ -653,6 +969,9 @@ extension ViolationsMainViewController: UITableViewDataSource {
         cell.layer.shadowOpacity = 0
         cell.transform = .identity
         cell.alpha = 1.0
+        
+        // Убеждаемся, что ячейка поддерживает drag and drop
+        cell.isUserInteractionEnabled = true
         
         // Настройка внешнего вида ячейки в стиле кнопок главного меню
         cell.layer.cornerRadius = 16
@@ -683,9 +1002,9 @@ extension ViolationsMainViewController: UITableViewDataSource {
             containerView.layer.masksToBounds = true
         }
         
-        cell.addSubview(containerView)
+        cell.contentView.addSubview(containerView)
         containerView.snp.makeConstraints { make in
-            make.edges.equalToSuperview().inset(8)
+            make.edges.equalToSuperview().inset(4)
         }
         
         let item = akt.violations[indexPath.row]
@@ -710,7 +1029,7 @@ extension ViolationsMainViewController: UITableViewDataSource {
         if traitCollection.userInterfaceStyle == .dark {
             mainLabel.textColor = .white
         } else {
-            mainLabel.textColor = .black
+            mainLabel.textColor = .label
         }
         mainLabel.font = .systemFont(ofSize: 16, weight: .semibold)
         containerView.addSubview(mainLabel)
@@ -726,7 +1045,7 @@ extension ViolationsMainViewController: UITableViewDataSource {
         if traitCollection.userInterfaceStyle == .dark {
             subLabel.textColor = .white.withAlphaComponent(0.8)
         } else {
-            subLabel.textColor = .black.withAlphaComponent(0.7)
+            subLabel.textColor = .label.withAlphaComponent(0.7)
         }
         subLabel.font = .systemFont(ofSize: 16, weight: .regular)
         subLabel.textAlignment = .left
@@ -743,7 +1062,7 @@ extension ViolationsMainViewController: UITableViewDataSource {
         if traitCollection.userInterfaceStyle == .dark {
             mestoLabel.textColor = .white.withAlphaComponent(0.8)
         } else {
-            mestoLabel.textColor = .black.withAlphaComponent(0.7)
+            mestoLabel.textColor = .label.withAlphaComponent(0.7)
         }
         mestoLabel.font = .systemFont(ofSize: 16, weight: .regular)
         mestoLabel.textAlignment = .left
@@ -762,7 +1081,6 @@ extension ViolationsMainViewController: UITableViewDataSource {
 extension ViolationsMainViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        // Показываем подробную информацию о нарушении
         let violation = akt.violations[indexPath.row]
         showViolationInfo(for: violation)
     }
@@ -772,20 +1090,427 @@ extension ViolationsMainViewController: UITableViewDelegate {
         return 100
     }
     
+    /// Свайп вправо: копирование в акте и добавление в базу.
+    func tableView(_ tableView: UITableView, leadingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        guard indexPath.row >= 0 && indexPath.row < akt.violations.count else {
+            return UISwipeActionsConfiguration(actions: [])
+        }
+        let violation = akt.violations[indexPath.row]
+        
+        let copyInActAction = UIContextualAction(style: .normal, title: "В акт") { [weak self] (_, _, completionHandler) in
+            guard let self = self else {
+                completionHandler(false)
+                return
+            }
+            self.copyViolation(at: indexPath.row)
+            completionHandler(true)
+        }
+        copyInActAction.backgroundColor = .systemBlue
+        copyInActAction.image = UIImage(systemName: "doc.on.doc")
+        
+        let addToDbAction = UIContextualAction(style: .normal, title: "В базу") { [weak self] (_, _, completionHandler) in
+            guard let self = self else {
+                completionHandler(false)
+                return
+            }
+            self.addViolationToDatabase(violation: violation)
+            completionHandler(true)
+        }
+        addToDbAction.backgroundColor = .systemGreen
+        addToDbAction.image = UIImage(systemName: "plus.circle.fill")
+        
+        let config = UISwipeActionsConfiguration(actions: [copyInActAction, addToDbAction])
+        config.performsFirstActionWithFullSwipe = false
+        return config
+    }
+    
+    /// Свайп влево: редактирование и удаление.
+    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        guard indexPath.row >= 0 && indexPath.row < akt.violations.count else {
+            return UISwipeActionsConfiguration(actions: [])
+        }
+        let violation = akt.violations[indexPath.row]
+        
+        let editAction = UIContextualAction(style: .normal, title: "Редактировать") { [weak self] (_, _, completionHandler) in
+            guard let self = self else {
+                completionHandler(false)
+                return
+            }
+            self.editViolation(violation, at: indexPath.row)
+            completionHandler(true)
+        }
+        editAction.backgroundColor = .systemOrange
+        editAction.image = UIImage(systemName: "pencil")
+        
+        let deleteAction = UIContextualAction(style: .destructive, title: "Удалить") { [weak self] (_, _, completionHandler) in
+            guard let self = self else {
+                completionHandler(false)
+                return
+            }
+            self.deleteViolation(at: indexPath.row)
+            completionHandler(true)
+        }
+        deleteAction.backgroundColor = .systemRed
+        deleteAction.image = UIImage(systemName: "trash")
+        
+        let configuration = UISwipeActionsConfiguration(actions: [deleteAction, editAction])
+        configuration.performsFirstActionWithFullSwipe = false
+        return configuration
+    }
+    
+    /// Добавляет нарушение из акта в реестр нарушений (базу) с предзаполненной формой.
+    private func addViolationToDatabase(violation: Violations) {
+        let prefilled = ViolationsModel.Violation(
+            number: ViolationsModel.nextViolationNumber(),
+            title: violation.title,
+            subTitle: violation.urlToPravilo,
+            description: nil,
+            vid: violation.vid.isEmpty ? nil : violation.vid,
+            formulaFromRules: violation.formulaFromRules
+        )
+        let formVC = UnifiedViolationFormViewController(existingViolation: prefilled) { [weak self] savedViolation in
+            ViolationsModel.addNewViolation(violation: savedViolation)
+            DispatchQueue.main.async {
+                let alert = UIAlertController(
+                    title: "Готово",
+                    message: "Нарушение добавлено в реестр.",
+                    preferredStyle: .alert
+                )
+                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                self?.present(alert, animated: true)
+            }
+        }
+        let nav = UINavigationController(rootViewController: formVC)
+        nav.modalPresentationStyle = .pageSheet
+        if let sheet = nav.sheetPresentationController {
+            sheet.detents = [.large()]
+            sheet.prefersGrabberVisible = true
+            sheet.preferredCornerRadius = 20
+        }
+        present(nav, animated: true)
+    }
+    
     func tableView(_ tableView: UITableView, contextMenuConfigurationForRowAt indexPath: IndexPath, point: CGPoint) -> UIContextMenuConfiguration? {
         let violation = akt.violations[indexPath.row]
         
         return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ in
+            let addToDbAction = UIAction(title: "В базу", image: UIImage(systemName: "plus.circle.fill")) { _ in
+                self.addViolationToDatabase(violation: violation)
+            }
+            let copyAction = UIAction(title: "В акт", image: UIImage(systemName: "doc.on.doc")) { _ in
+                self.copyViolation(at: indexPath.row)
+            }
             let editAction = UIAction(title: "Редактировать", image: UIImage(systemName: "pencil")) { _ in
                 self.editViolation(violation, at: indexPath.row)
             }
-            
             let deleteAction = UIAction(title: "Удалить", image: UIImage(systemName: "trash"), attributes: .destructive) { _ in
                 self.deleteViolation(at: indexPath.row)
             }
-            
-        return UIMenu(title: "", children: [editAction, deleteAction])
+            return UIMenu(title: "", children: [addToDbAction, copyAction, editAction, deleteAction])
         }
+    }
+    
+    #if false // legacy iOS drag/drop (disabled)
+    // Улучшенная поддержка drag - разрешаем drag даже если есть context menu
+    func tableView(_ tableView: UITableView, dragSessionWillBegin session: UIDragSession) {
+    }
+    
+    func tableView(_ tableView: UITableView, dragSessionDidEnd session: UIDragSession) {
+    }
+    
+    func tableView(_ tableView: UITableView, dragSessionAllowsMoveOperation session: UIDragSession) -> Bool {
+        return true
+    }
+    #endif
+}
+
+// MARK: - UIGestureRecognizerDelegate
+extension ViolationsMainViewController: UIGestureRecognizerDelegate {
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        let point = gestureRecognizer.location(in: violationsTableView)
+        _ = violationsTableView.indexPathForRow(at: point)
+        
+        // Для long press gesture - проверяем, не является ли это горизонтальным свайпом
+        if gestureRecognizer is UILongPressGestureRecognizer {
+            // Проверяем все pan gesture recognizers в tableView
+            if let panGestures = violationsTableView.gestureRecognizers?.filter({ $0 is UIPanGestureRecognizer }) as? [UIPanGestureRecognizer] {
+                for panGesture in panGestures {
+                    // Проверяем, является ли движение горизонтальным
+                    let velocity = panGesture.velocity(in: violationsTableView)
+                    let horizontalVelocity = abs(velocity.x)
+                    let verticalVelocity = abs(velocity.y)
+                    
+                    if horizontalVelocity > verticalVelocity && horizontalVelocity > 50 {
+                        return false
+                    }
+                }
+            }
+            
+            return true
+        }
+        
+        return true
+    }
+    
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        if gestureRecognizer is UILongPressGestureRecognizer && otherGestureRecognizer is UIPanGestureRecognizer {
+            return true
+        }
+        return false
+    }
+    
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        if (gestureRecognizer is UILongPressGestureRecognizer && otherGestureRecognizer is UIPanGestureRecognizer) ||
+           (gestureRecognizer is UIPanGestureRecognizer && otherGestureRecognizer is UILongPressGestureRecognizer) {
+            return false
+        }
+        return false
+    }
+}
+
+// MARK: - SimpleRealtimeAKTObserver Methods
+extension ViolationsMainViewController {
+    
+    func aktDidChange(_ change: String) {
+        DispatchQueue.main.async {
+            self.violationsTableView.reloadData()
+        }
+    }
+    
+    func aktDidSave(_ akt: AKT) {
+        DispatchQueue.main.async {
+            self.violationsTableView.reloadData()
+        }
+    }
+    
+    private func setupRealtimeIntegration() {
+        SimpleRealtimeAKTObserverManager.shared.addObserver(self)
+    }
+    
+    private func cleanupRealtimeIntegration() {
+        SimpleRealtimeAKTObserverManager.shared.removeObserver(self)
+    }
+}
+
+// MARK: - Reorder (Long Press) Implementation
+extension ViolationsMainViewController {
+    private func makeAkt(with violations: [Violations]) -> AKT {
+        return AKT(
+            id: akt.id,
+            number: akt.number,
+            date: akt.date,
+            comission: akt.comission,
+            organization: akt.organization,
+            objectsCheck: akt.objectsCheck,
+            predstavitelyComission: akt.predstavitelyComission,
+            violations: violations,
+            description: akt.description,
+            actustranenDate: akt.actustranenDate,
+            actPredostavlenDate: akt.actPredostavlenDate,
+            actUtverzdenDate: akt.actUtverzdenDate,
+            urlAct: akt.urlToFllACT ?? URL(fileURLWithPath: ""),
+            realDateCreate: akt.realDateCreate
+        )
+    }
+    @objc private func handleReorderGesture(_ gesture: UILongPressGestureRecognizer) {
+        let tableView = violationsTableView
+        let location = gesture.location(in: tableView)
+        lastTouchLocationInTable = location
+        
+        switch gesture.state {
+        case .began:
+            guard let indexPath = tableView.indexPathForRow(at: location) else {
+                return
+            }
+            guard let cell = tableView.cellForRow(at: indexPath) else {
+                return
+            }
+            reorderSourceIndexPath = indexPath
+            touchOffsetFromCellCenterY = location.y - cell.center.y
+            let snapshot = makeSnapshot(from: cell)
+            snapshot.center = CGPoint(x: cell.center.x, y: location.y - touchOffsetFromCellCenterY)
+            snapshot.alpha = 0.95
+            tableView.addSubview(snapshot)
+            reorderSnapshotView = snapshot
+            cell.isHidden = true
+            tableView.isScrollEnabled = false
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            UIView.animate(withDuration: 0.15) {
+                snapshot.transform = CGAffineTransform(scaleX: 1.03, y: 1.03)
+            }
+        case .changed:
+            guard let snapshot = reorderSnapshotView else {
+                return
+            }
+            snapshot.center.y = location.y - touchOffsetFromCellCenterY
+            configureAutoscrollIfNeeded(at: location)
+            updateReorder(at: location)
+        default:
+            stopAutoscroll()
+            guard let sourceIndexPath = reorderSourceIndexPath,
+                  let cell = tableView.cellForRow(at: sourceIndexPath) else {
+                reorderSnapshotView?.removeFromSuperview()
+                reorderSnapshotView = nil
+                reorderSourceIndexPath = nil
+                tableView.isScrollEnabled = true
+                return
+            }
+            UIView.animate(withDuration: 0.15, animations: {
+                self.reorderSnapshotView?.transform = .identity
+                self.reorderSnapshotView?.center = cell.center
+            }, completion: { _ in
+                cell.isHidden = false
+                self.reorderSnapshotView?.removeFromSuperview()
+                self.reorderSnapshotView = nil
+                self.reorderSourceIndexPath = nil
+                tableView.isScrollEnabled = true
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                self.persistViolationsOrder()
+            })
+        }
+    }
+
+    private func updateReorder(at location: CGPoint) {
+        let tableView = violationsTableView
+        guard let sourceIndexPath = reorderSourceIndexPath else {
+            return
+        }
+        guard let newIndexPath = tableView.indexPathForRow(at: location) else {
+            return
+        }
+        guard newIndexPath != sourceIndexPath else {
+            // Ничего не делаем, палец внутри той же ячейки
+            return
+        }
+
+        // Обновляем данные и UI мгновенно (без мутации let массива в AKT)
+        var newViolations = akt.violations
+        let movedViolation = newViolations.remove(at: sourceIndexPath.row)
+        newViolations.insert(movedViolation, at: newIndexPath.row)
+        akt = makeAkt(with: newViolations)
+        tableView.moveRow(at: sourceIndexPath, to: newIndexPath)
+        reorderSourceIndexPath = newIndexPath
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    private func configureAutoscrollIfNeeded(at location: CGPoint) {
+        let tableView = violationsTableView
+        let edgeInset: CGFloat = 140
+        let maxSpeed: CGFloat = 720 // pt/sec
+        var direction: CGFloat = 0
+        var speed: CGFloat = 0
+
+        if location.y < edgeInset {
+            direction = -1
+            let distance = max(0, edgeInset - location.y)
+            speed = maxSpeed * (distance / edgeInset)
+        } else if location.y > tableView.bounds.height - edgeInset {
+            direction = 1
+            let distance = max(0, location.y - (tableView.bounds.height - edgeInset))
+            speed = maxSpeed * (distance / edgeInset)
+        }
+
+        if direction == 0 {
+            stopAutoscroll()
+            return
+        }
+
+        autoScrollDirection = direction
+        autoScrollSpeed = speed
+
+        if direction != lastAutoScrollDirection || abs(speed - lastAutoScrollSpeed) > 10 {
+            lastAutoScrollDirection = direction
+            lastAutoScrollSpeed = speed
+        }
+
+        if autoScrollDisplayLink == nil {
+            let link = CADisplayLink(target: self, selector: #selector(handleAutoscrollTick))
+            link.add(to: .main, forMode: .common)
+            autoScrollDisplayLink = link
+        }
+    }
+
+    private func stopAutoscroll() {
+        guard let link = autoScrollDisplayLink else { return }
+        link.invalidate()
+        autoScrollDisplayLink = nil
+        autoScrollDirection = 0
+        autoScrollSpeed = 0
+    }
+
+    @objc private func handleAutoscrollTick() {
+        guard autoScrollDirection != 0,
+              let snapshot = reorderSnapshotView else { return }
+
+        let tableView = violationsTableView
+        let frameDuration: CGFloat = CGFloat(autoScrollDisplayLink?.duration ?? (1.0/60.0))
+        let delta = autoScrollSpeed * autoScrollDirection * frameDuration
+        let oldOffsetY = tableView.contentOffset.y
+        let maxOffsetY = max(0, tableView.contentSize.height - tableView.bounds.height)
+        var newOffsetY = oldOffsetY + delta
+        newOffsetY = min(max(newOffsetY, 0), maxOffsetY)
+
+        guard newOffsetY != oldOffsetY else { return }
+
+        tableView.contentOffset.y = newOffsetY
+
+        // Двигаем snapshot и запоминаем позицию пальца в координатах таблицы
+        let scrollDelta = newOffsetY - oldOffsetY
+        snapshot.center.y += scrollDelta
+        lastTouchLocationInTable.y += scrollDelta
+
+        // Обновляем порядок при автопрокрутке (без движения пальца)
+        updateReorder(at: lastTouchLocationInTable)
+    }
+
+    private func makeSnapshot(from view: UIView) -> UIView {
+        let snapshot = UIView(frame: view.bounds)
+        snapshot.layer.cornerRadius = 16
+        snapshot.layer.masksToBounds = false
+        snapshot.layer.shadowColor = UIColor.black.cgColor
+        snapshot.layer.shadowOpacity = 0.15
+        snapshot.layer.shadowRadius = 8
+        snapshot.layer.shadowOffset = CGSize(width: 0, height: 4)
+        let renderer = UIGraphicsImageRenderer(bounds: view.bounds)
+        let image = renderer.image { _ in
+            view.drawHierarchy(in: view.bounds, afterScreenUpdates: true)
+        }
+        let imageView = UIImageView(image: image)
+        imageView.frame = snapshot.bounds
+        imageView.layer.cornerRadius = 16
+        imageView.layer.masksToBounds = true
+        snapshot.addSubview(imageView)
+        return snapshot
+    }
+
+    private func persistViolationsOrder() {
+        let updatedAkt = AKT(
+            id: akt.id,
+            number: akt.number,
+            date: akt.date,
+            comission: akt.comission,
+            organization: akt.organization,
+            objectsCheck: akt.objectsCheck,
+            predstavitelyComission: akt.predstavitelyComission,
+            violations: akt.violations,
+            description: akt.description,
+            actustranenDate: akt.actustranenDate,
+            actPredostavlenDate: akt.actPredostavlenDate,
+            actUtverzdenDate: akt.actUtverzdenDate,
+            urlAct: akt.urlToFllACT ?? URL(fileURLWithPath: ""),
+            realDateCreate: akt.realDateCreate
+        )
+        akt = updatedAkt
+        if DataFlowAKT.getEditableAKT() != nil {
+            DataFlowAKT.updateEditableAKT(updatedAkt)
+        }
+        if let index = viewModel.aktArray.firstIndex(where: { $0.id == updatedAkt.id }) {
+            var arr = viewModel.aktArray
+            arr[index] = updatedAkt
+            viewModel.aktArray = arr
+            DataFlowAKT.saveArr(arr: viewModel.aktArray)
+        }
+        SimpleRealtimeAKTManager.shared.updateViolations(updatedAkt.violations)
     }
 }
 

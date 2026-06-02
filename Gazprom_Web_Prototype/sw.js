@@ -1,4 +1,5 @@
-const CACHE_NAME = 'gazprom-web-v4';
+const CACHE_NAME = 'gazprom-web-v7';
+const IS_LOCALHOST = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -26,6 +27,10 @@ const STATIC_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  if (IS_LOCALHOST) {
+    event.waitUntil(self.skipWaiting());
+    return;
+  }
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(STATIC_ASSETS))
@@ -34,6 +39,16 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
+  if (IS_LOCALHOST) {
+    event.waitUntil(
+      caches.keys()
+        .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+        .then(() => self.registration.unregister())
+        .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+        .then((clients) => Promise.all(clients.map((client) => client.navigate(client.url))))
+    );
+    return;
+  }
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(
@@ -46,6 +61,7 @@ self.addEventListener('activate', (event) => {
 // Стратегия: Network First — всегда берём свежий файл с сервера,
 // кэш используется только если сеть недоступна (офлайн-режим).
 self.addEventListener('fetch', (event) => {
+  if (IS_LOCALHOST) return;
   const { request } = event;
   if (request.method !== 'GET') return;
 
