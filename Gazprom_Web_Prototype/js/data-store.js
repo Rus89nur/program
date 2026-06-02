@@ -99,7 +99,8 @@ const GazpromStore = (() => {
   }
 
   function hasData(data) {
-    return data && Array.isArray(data.akts);
+    if (!data || !Array.isArray(data.akts)) return false;
+    return data.akts.length > 0 || !!data.importedAt;
   }
 
   function invalidateCache() {

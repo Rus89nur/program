@@ -103,15 +103,24 @@ function setBackupLoading(on, text = 'Импорт…') {
   if (label) label.textContent = text;
 }
 
-async function handleBackupFile(file) {
-  if (!file) return;
+function openBackupFilePicker() {
+  document.getElementById('backupFileInput')?.click();
+}
+
+function openBackupModal() {
+  const modal = document.getElementById('backupModal');
+  if (modal) modal.hidden = false;
+}
+
+async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
+  if (!file && !preParsed) return;
 
   const merge = document.getElementById('backupMergeCheckbox')?.checked ?? false;
   setBackupLoading(true, 'Чтение файла…');
   setBackupMessage('');
 
   try {
-    if (file.size > 80 * 1024 * 1024) {
+    if (file?.size > 80 * 1024 * 1024) {
       const ok = await GazpromToast.confirm(
         `Файл большой (${GazpromBackup.formatBytes(file.size)}). Импорт может занять несколько минут. Продолжить?`
       );
@@ -119,8 +128,10 @@ async function handleBackupFile(file) {
     }
 
     setBackupLoading(true, 'Разбор JSON…');
-    const preview = await GazpromBackup.parseFile(file);
-    showBackupPreview(GazpromBackup.getStats(preview), file.name, file.size);
+    const preview = preParsed || (await GazpromBackup.parseFile(file));
+    const previewName = file?.name || preview.sourceFileName || 'backup.json';
+    const previewSize = file?.size ?? 0;
+    showBackupPreview(GazpromBackup.getStats(preview), previewName, previewSize);
 
     setBackupLoading(true, 'Сохранение в браузер…');
     const { stats } = await GazpromBackup.importFile(file, { replace: !merge, parsed: preview });
@@ -283,7 +294,13 @@ function init() {
   });
 
   document.querySelector('.settings-tile--backup')?.addEventListener('click', () => {
-    document.getElementById('backupModal').hidden = false;
+    openBackupFilePicker();
+  });
+  document.getElementById('backupManageBtn')?.addEventListener('click', () => {
+    openBackupModal();
+  });
+  document.getElementById('dataStatusBar')?.addEventListener('click', () => {
+    openBackupFilePicker();
   });
   document.getElementById('backupModalClose')?.addEventListener('click', () => {
     document.getElementById('backupModal').hidden = true;
@@ -306,16 +323,25 @@ function init() {
     const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
     if (!isCoarsePointer) backupFileInput.accept = GazpromBackup.ACCEPT;
   }
-  document.getElementById('backupFileSelectBtn')?.addEventListener('click', () => {
-    backupFileInput?.click();
-  });
   backupFileInput?.addEventListener('change', (e) => {
     const input = e.target;
     const file = input.files?.[0];
     if (!file) return;
-    handleBackupFile(file).finally(() => {
-      input.value = '';
-    });
+    const fileName = file.name;
+    void (async () => {
+      try {
+        const text = await GazpromBackup.readFileText(file);
+        input.value = '';
+        const parsed = GazpromBackup.parseJsonText(text, fileName);
+        await handleBackupFile(null, { parsed });
+      } catch (err) {
+        console.error(err);
+        setBackupMessage(err.message || 'Ошибка чтения файла', 'error');
+        GazpromToast.error(err.message || 'Ошибка чтения файла');
+      } finally {
+        input.value = '';
+      }
+    })();
   });
 
   const pasteArea = document.getElementById('backupPasteArea');

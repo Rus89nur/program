@@ -165,7 +165,8 @@ const GazpromBackup = (() => {
       }
     }
 
-    await GazpromStore.set(merged);
+    // На iOS ingest всех фото в IDB может зависнуть/OOM — сохраняем base64 в каталоге.
+    await GazpromStore.set(merged, { skipPhotoIngest: true });
     return { backup: merged, stats: getStats(merged) };
   }
 
@@ -233,6 +234,7 @@ const GazpromBackup = (() => {
 
   return {
     ACCEPT,
+    readFileText,
     parseFile,
     parseJsonText,
     importFile,
