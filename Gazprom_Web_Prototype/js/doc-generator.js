@@ -205,33 +205,50 @@ const DocGenerator = (() => {
     ].join('');
   }
 
-  function removeMarkerFromXml(xml, marker) {
+  function replaceMarkerWithSignatureTable(xml, marker, lines) {
     const pos = xml.indexOf(marker);
-    if (pos === -1) return xml;
+    if (pos === -1) return { xml, tableEndPos: -1, found: false };
 
-    const tStart = xml.lastIndexOf('<w:t', pos);
-    const tOpenEnd = tStart === -1 ? -1 : xml.indexOf('>', tStart);
-    const tEnd = tOpenEnd === -1 ? -1 : xml.indexOf('</w:t>', tOpenEnd);
-    if (tStart !== -1 && tOpenEnd !== -1 && tEnd !== -1) {
-      const tBody = xml.slice(tOpenEnd + 1, tEnd).split(marker).join('');
-      return xml.slice(0, tOpenEnd + 1) + tBody + xml.slice(tEnd);
+    const beforeMarker = xml.slice(0, pos);
+    const wtMatch = beforeMarker.match(/<w:t(?:\s[^>]*)?>[^<]*$/);
+    if (wtMatch) {
+      const tStart = beforeMarker.length - wtMatch[0].length;
+      const tOpenEnd = xml.indexOf('>', tStart);
+      const tEnd = tOpenEnd === -1 ? -1 : xml.indexOf('</w:t>', tOpenEnd);
+      if (tOpenEnd !== -1 && tEnd !== -1) {
+        const tBody = xml.slice(tOpenEnd + 1, tEnd).split(marker).join('');
+        xml = xml.slice(0, tOpenEnd + 1) + tBody + xml.slice(tEnd);
+      } else {
+        xml = xml.split(marker).join('');
+      }
+    } else {
+      xml = xml.split(marker).join('');
     }
-    return xml.split(marker).join('');
+
+    const pEndTag = '</w:p>';
+    const pEnd = xml.indexOf(pEndTag, pos);
+    if (pEnd === -1) return { xml, tableEndPos: -1, found: true };
+
+    const tableXml = buildSignatureTableXml(lines);
+    if (!tableXml) return { xml, tableEndPos: -1, found: true };
+
+    const insertPos = pEnd + pEndTag.length;
+    const newXml = xml.slice(0, insertPos) + tableXml + xml.slice(insertPos);
+    return { xml: newXml, tableEndPos: insertPos + tableXml.length, found: true };
   }
 
-  /** Конец внешней таблицы, содержащей фото (не вложенной). */
+  /** Конец внешней таблицы с маркером tempOne (фототаблица шаблона). */
   function findPhotoTableEndPos(xml) {
-    let anchor = xml.lastIndexOf('rIdImage');
-    if (anchor === -1) anchor = xml.lastIndexOf('w:drawing');
-    if (anchor === -1) return -1;
-
-    const before = xml.slice(0, anchor);
+    const match = xml.match(PHOTO_ROW_RE);
+    if (!match) return -1;
+    const rowStart = xml.indexOf(match[0]);
+    if (rowStart === -1) return -1;
+    const before = xml.slice(0, rowStart);
     let depth =
       (before.match(/<w:tbl[\s>]/g) || []).length -
       (before.match(/<\/w:tbl>/g) || []).length;
     if (depth <= 0) return -1;
-
-    let pos = anchor;
+    let pos = rowStart + match[0].length;
     while (depth > 0) {
       const close = xml.indexOf('</w:tbl>', pos);
       if (close === -1) return -1;
@@ -249,43 +266,34 @@ const DocGenerator = (() => {
     return Array.from({ length: count }, (_, i) => `rId${maxNum + 1 + i}`);
   }
 
-  function replaceMarkerWithSignatureTable(xml, marker, lines) {
-    const pos = xml.indexOf(marker);
-    if (pos === -1) return { xml, tableEndPos: -1, found: false };
-
-    const tStart = xml.lastIndexOf('<w:t', pos);
-    const tOpenEnd = tStart === -1 ? -1 : xml.indexOf('>', tStart);
-    const tEnd = tOpenEnd === -1 ? -1 : xml.indexOf('</w:t>', tOpenEnd);
-    if (tStart !== -1 && tOpenEnd !== -1 && tEnd !== -1) {
-      const tBody = xml.slice(tOpenEnd + 1, tEnd).split(marker).join('');
-      xml = xml.slice(0, tOpenEnd + 1) + tBody + xml.slice(tEnd);
-    } else {
-      xml = xml.split(marker).join('');
-    }
-
-    const pEndTag = '</w:p>';
-    const pEnd = xml.indexOf(pEndTag, pos);
-    if (pEnd === -1) return { xml, tableEndPos: -1, found: true };
-
-    const tableXml = buildSignatureTableXml(lines);
-    if (!tableXml) return { xml, tableEndPos: -1, found: true };
-
-    const insertPos = pEnd + pEndTag.length;
-    const newXml = xml.slice(0, insertPos) + tableXml + xml.slice(insertPos);
-    return { xml: newXml, tableEndPos: insertPos + tableXml.length, found: true };
-  }
-
-  /** Подписи комиссии, затем представителей — после фототаблицы, если она есть */
-  function applySignatureTables(xml, tplData) {
+  /** Подписи комиссии (PredVoice) и представителей (PedstavVoice) */
+  function applySignatureTables(xml, tplData, photoTableEnd = -1) {
     const commXml = buildSignatureTableXml(tplData.predVoiceLines || []);
     const repXml = buildSignatureTableXml(tplData.pedstavVoiceLines || []);
-    const photoEnd = findPhotoTableEndPos(xml);
+    const insertAt =
+      photoTableEnd > 0 ? photoTableEnd : findPhotoTableEndPos(xml);
 
-    if (photoEnd > 0 && (commXml || repXml)) {
-      let cleaned = removeMarkerFromXml(xml, 'PredVoice');
-      cleaned = removeMarkerFromXml(cleaned, 'PedstavVoice');
+    if (insertAt > 0 && (commXml || repXml)) {
+      let cleaned = xml;
+      for (const marker of ['PredVoice', 'PedstavVoice']) {
+        const pos = cleaned.indexOf(marker);
+        if (pos === -1) continue;
+        const beforeMarker = cleaned.slice(0, pos);
+        const wtMatch = beforeMarker.match(/<w:t(?:\s[^>]*)?>[^<]*$/);
+        if (wtMatch) {
+          const tStart = beforeMarker.length - wtMatch[0].length;
+          const tOpenEnd = cleaned.indexOf('>', tStart);
+          const tEnd = tOpenEnd === -1 ? -1 : cleaned.indexOf('</w:t>', tOpenEnd);
+          if (tOpenEnd !== -1 && tEnd !== -1) {
+            const tBody = cleaned.slice(tOpenEnd + 1, tEnd).split(marker).join('');
+            cleaned = cleaned.slice(0, tOpenEnd + 1) + tBody + cleaned.slice(tEnd);
+            continue;
+          }
+        }
+        cleaned = cleaned.split(marker).join('');
+      }
       const block = (commXml || '') + (repXml || '');
-      return cleaned.slice(0, photoEnd) + block + cleaned.slice(photoEnd);
+      return cleaned.slice(0, insertAt) + block + cleaned.slice(insertAt);
     }
 
     let result = xml;
@@ -303,6 +311,7 @@ const DocGenerator = (() => {
     const representatives = replaceMarkerWithSignatureTable(result, 'PedstavVoice', repLines);
     if (representatives.found) return representatives.xml;
 
+    // Шаблон без PedstavVoice — вставляем таблицу сразу после подписей комиссии
     if (commission.tableEndPos > 0) {
       const tableXml = buildSignatureTableXml(repLines);
       if (tableXml) {
@@ -363,38 +372,33 @@ const DocGenerator = (() => {
   }
 
   const PHOTO_ROW_RE = /<w:tr[^>]*>(?:(?!<\/w:tr>)[\s\S])*?tempOne[\s\S]*?<\/w:tr>/;
+  const TEMP_THREE_RUN_RE =
+    /<w:r\b[^>]*>(?:(?!<\/w:r>)[\s\S])*?tempThree(?:(?!<\/w:r>)[\s\S])*?<\/w:r>/;
 
   function buildImageEmbedXml(relId, imageIndex) {
-    return `<w:r>
-  <w:drawing>
-    <wp:inline>
-      <wp:extent cx="2880000" cy="2880000"/>
-      <wp:effectExtent l="0" t="0" r="0" b="0"/>
-      <wp:docPr id="${imageIndex}" name="Image${imageIndex}"/>
-      <wp:cNvGraphicFramePr>
-        <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>
-      </wp:cNvGraphicFramePr>
-      <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
-        <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
-          <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
-            <pic:nvPicPr>
-              <pic:cNvPr id="0" name="image${imageIndex}.jpg"/>
-              <pic:cNvPicPr/>
-            </pic:nvPicPr>
-            <pic:blipFill>
-              <a:blip r:embed="${relId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>
-              <a:stretch><a:fillRect/></a:stretch>
-            </pic:blipFill>
-            <pic:spPr>
-              <a:xfrm><a:off x="0" y="0"/><a:ext cx="2880000" cy="2880000"/></a:xfrm>
-              <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
-            </pic:spPr>
-          </pic:pic>
-        </a:graphicData>
-      </a:graphic>
-    </wp:inline>
-  </w:drawing>
-</w:r>`;
+    return `<w:r><w:drawing><wp:inline><wp:extent cx="2880000" cy="2880000"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="${imageIndex}" name="Image${imageIndex}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="image${imageIndex}.jpg"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${relId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="2880000" cy="2880000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
+  }
+
+  function replaceTempThreeInRow(row, imageRunsXml) {
+    if (TEMP_THREE_RUN_RE.test(row)) {
+      return row.replace(TEMP_THREE_RUN_RE, imageRunsXml || '');
+    }
+    return row.split('tempThree').join(imageRunsXml || '');
+  }
+
+  function ensureImageContentTypes(zip) {
+    const path = '[Content_Types].xml';
+    let ct = zip.files[path]?.asText() || '';
+    if (/Extension="jpe?g"/i.test(ct)) return;
+    const insert =
+      '<Default Extension="jpeg" ContentType="image/jpeg"/>' +
+      '<Default Extension="jpg" ContentType="image/jpeg"/>';
+    if (ct.includes('<Default Extension="xml"')) {
+      ct = ct.replace('<Default Extension="xml"', insert + '<Default Extension="xml"');
+    } else {
+      ct = ct.replace('</Types>', insert + '</Types>');
+    }
+    zip.file(path, ct);
   }
 
   /** Сжатие фото для вставки в docx (как в iOS GenerateViewModel). */
@@ -437,8 +441,9 @@ const DocGenerator = (() => {
    */
   async function processPhotoTable(xml, zip, violations) {
     const match = xml.match(PHOTO_ROW_RE);
-    if (!match) return xml;
+    if (!match) return { xml, photoTableEnd: -1 };
 
+    const photoTableEndBefore = findPhotoTableEndPos(xml);
     const photoRowTemplate = match[0];
     let allPhotoRows = '';
     const pendingImages = [];
@@ -462,11 +467,13 @@ const DocGenerator = (() => {
         imageXMLSnippets += buildImageEmbedXml(`__REL_${imageIndex}__`, imageIndex);
       }
 
-      row = row.split('tempThree').join(imageXMLSnippets);
+      row = replaceTempThreeInRow(row, imageXMLSnippets);
       allPhotoRows += row;
     }
 
-    if (!allPhotoRows) return xml;
+    if (!allPhotoRows) {
+      return { xml, photoTableEnd: photoTableEndBefore };
+    }
 
     const relsPath = 'word/_rels/document.xml.rels';
     let relsXML = zip.files[relsPath]?.asText() || '';
@@ -485,7 +492,12 @@ const DocGenerator = (() => {
       return item?.relId || '';
     });
 
+    const lenBefore = xml.length;
     xml = xml.replace(PHOTO_ROW_RE, allPhotoRows);
+    const photoTableEnd =
+      photoTableEndBefore > 0
+        ? photoTableEndBefore + (xml.length - lenBefore)
+        : findPhotoTableEndPos(xml);
 
     if (relsXML && pendingImages.length) {
       const relsSnippets = pendingImages
@@ -496,9 +508,10 @@ const DocGenerator = (() => {
         .join('');
       relsXML = relsXML.replace('</Relationships>', relsSnippets + '</Relationships>');
       zip.file(relsPath, relsXML);
+      ensureImageContentTypes(zip);
     }
 
-    return xml;
+    return { xml, photoTableEnd };
   }
 
   /** Заменяет скалярные маркеры в XML их значениями */
@@ -525,16 +538,8 @@ const DocGenerator = (() => {
     let xml = zip.files['word/document.xml']?.asText() || '';
 
     const hasCurlyTokens = /\{[a-zA-Z]/.test(xml);
-    // #region agent log
-    const _tvPos = xml.indexOf('TitleViolatation');
-    const _ddPos = xml.indexOf('ddescrVi');
-    fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'doc-generator.js:template-mode',message:'template mode selected',data:{hasCurlyTokens,xmlLen:xml.length,tvFound:_tvPos!==-1,ddFound:_ddPos!==-1,tvContext:_tvPos!==-1?xml.slice(Math.max(0,_tvPos-200),_tvPos+60):'',ddContext:_ddPos!==-1?xml.slice(Math.max(0,_ddPos-200),_ddPos+60):''},timestamp:Date.now(),hypothesisId:'I'})}).catch(()=>{});
-    // #endregion
 
     const tplData = buildTemplateData(akt);
-    // #region agent log
-    fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'doc-generator.js:tpl-data-shape',message:'template data prepared',data:{predVoicePreview:String(tplData.PredVoice||'').slice(0,120),violation0:{titleViolatation:tplData.violations?.[0]?.TitleViolatation||'',ddescpitVi:tplData.violations?.[0]?.ddescpitVi||'',ddescrVi:tplData.violations?.[0]?.ddescrVi||''}},timestamp:Date.now(),hypothesisId:'K'})}).catch(()=>{});
-    // #endregion
     let blob;
 
     if (hasCurlyTokens) {
@@ -546,8 +551,8 @@ const DocGenerator = (() => {
       doc.render(tplData);
       const outZip = doc.getZip();
       let xmlOut = outZip.files['word/document.xml']?.asText() || '';
-      xmlOut = await processPhotoTable(xmlOut, outZip, akt.violations || []);
-      xmlOut = applySignatureTables(xmlOut, tplData);
+      const photoResult = await processPhotoTable(xmlOut, outZip, akt.violations || []);
+      xmlOut = applySignatureTables(photoResult.xml, tplData, photoResult.photoTableEnd);
       outZip.file('word/document.xml', xmlOut);
       blob = outZip.generate({
         type: 'blob',
@@ -565,10 +570,11 @@ const DocGenerator = (() => {
       });
 
       // 2. Фототаблица (tempOne / tempTwo / tempThree)
-      xml = await processPhotoTable(xml, zip, akt.violations || []);
+      const photoResult = await processPhotoTable(xml, zip, akt.violations || []);
+      xml = photoResult.xml;
 
       // 3. Подписи комиссии и представителей
-      xml = applySignatureTables(xml, tplData);
+      xml = applySignatureTables(xml, tplData, photoResult.photoTableEnd);
 
       // 4. Заменяем скалярные маркеры
       xml = replaceScalarMarkers(xml, tplData, [
@@ -579,36 +585,16 @@ const DocGenerator = (() => {
         'ddescrVi', 'ddescpitVi',  // FIX 4: чистим если остались вне таблицы
       ]);
 
-      // #region agent log
-      fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'doc-generator.js:xml-replaced-v7',message:'XML replacement done v7',data:{xmlLen:xml.length,ddescrViRemains:xml.includes('ddescrVi'),v0title:tplData.violations?.[0]?.TitleViolatation?.slice(0,40),v0ddescrVi:tplData.violations?.[0]?.ddescrVi?.slice(0,40),v0urlDoc:tplData.violations?.[0]?.urlDoc?.slice(0,60)},timestamp:Date.now(),hypothesisId:'I'})}).catch(()=>{});
-      // #endregion
-
       zip.file('word/document.xml', xml);
-      // #region agent log
-      fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'doc-generator.js:before-generate',message:'about to call zip.generate()',data:{},timestamp:Date.now(),hypothesisId:'J'})}).catch(()=>{});
-      // #endregion
-      try {
-        blob = zip.generate({
-          type: 'blob',
-          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        });
-      } catch (genErr) {
-        // #region agent log
-        fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'doc-generator.js:generate-error',message:'zip.generate() threw',data:{error:String(genErr)},timestamp:Date.now(),hypothesisId:'J'})}).catch(()=>{});
-        // #endregion
-        throw genErr;
-      }
-      // #region agent log
-      fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'doc-generator.js:after-generate',message:'zip.generate() ok, opening',data:{blobSize:blob?.size},timestamp:Date.now(),hypothesisId:'J'})}).catch(()=>{});
-      // #endregion
+      blob = zip.generate({
+        type: 'blob',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
     }
 
     // Скачиваем файл — автоматически открывается в Word на Mac/Windows
     const blobUrl = URL.createObjectURL(blob);
     const fileName = `Акт_${akt.number}_${AktUtils.toDateInputValue(akt.date)}.docx`;
-    // #region agent log
-    fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'doc-generator.js:download-file',message:'downloading file via <a>',data:{fileName,blobSize:blob?.size,ua:navigator.userAgent,downloadAttr:true},timestamp:Date.now(),hypothesisId:'J'})}).catch(()=>{});
-    // #endregion
     const a = document.createElement('a');
     a.href = blobUrl;
     a.download = fileName;

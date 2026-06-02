@@ -7,10 +7,12 @@
     "test:watch": "vitest",
     "serve": "python3 dev-server.py",
     "serve:8080": "python3 -m http.server 8080",
+    "validate:docx": "node scripts/validate-docx-xml.mjs",
     "autostart:install": "bash ./scripts/install_autostart.sh",
     "autostart:uninstall": "bash ./scripts/uninstall_autostart.sh"
   },
   "devDependencies": {
+    "pizzip": "^3.2.0",
     "vitest": "^2.1.0"
   }
 }
