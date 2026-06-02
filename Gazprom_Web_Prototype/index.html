@@ -401,16 +401,6 @@
         <p class="backup-import-hint">
           Файлы резервной копии (<strong>.json</strong> или <strong>.gazprombackup</strong>) можно загрузить здесь.
         </p>
-        <details class="backup-ios-tip">
-          <summary>📱 Файл .gazprombackup не выбирается на телефоне?</summary>
-          <ol class="backup-steps">
-            <li>Откройте приложение <strong>Файлы</strong> на iPhone</li>
-            <li>Найдите файл <strong>.gazprombackup</strong></li>
-            <li>Удерживайте палец на файле → нажмите <strong>Переименовать</strong></li>
-            <li>Измените расширение: <code>.gazprombackup</code> → <code>.json</code></li>
-            <li>Вернитесь сюда и выберите переименованный файл</li>
-          </ol>
-        </details>
         <div id="backupLoading" class="backup-loading" hidden>
           <div class="backup-loading-spinner"></div>
           <span id="backupLoadingText">Импорт…</span>
@@ -420,7 +410,16 @@
             📂 Выбрать файл резервной копии
             <input type="file" id="backupFileInput" accept=".json,application/json,.gazprombackup" hidden>
           </label>
+          <button type="button" class="btn-ghost" id="backupPasteBtn">📋 Вставить текст</button>
           <button type="button" class="btn-ghost" id="backupClearBtn">Очистить данные</button>
+        </div>
+        <div id="backupPasteArea" class="backup-paste-area" hidden>
+          <p class="backup-paste-hint">📱 <strong>Для iPhone:</strong> откройте файл <code>.gazprombackup</code> в любом текстовом редакторе (Заметки, Files, VS Code Mobile), выделите всё → Скопировать, затем вставьте сюда:</p>
+          <textarea id="backupPasteText" class="backup-paste-textarea" placeholder='{"version":"1.2","akts":[...]}'></textarea>
+          <div class="backup-paste-actions">
+            <button type="button" class="btn-primary" id="backupPasteImportBtn">✅ Импортировать</button>
+            <button type="button" class="btn-ghost" id="backupPasteCancelBtn">Отмена</button>
+          </div>
         </div>
         <label class="backup-merge-option">
           <input type="checkbox" id="backupMergeCheckbox">

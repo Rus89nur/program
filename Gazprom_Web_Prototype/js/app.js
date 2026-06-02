@@ -291,6 +291,26 @@ function init() {
     e.target.value = '';
   });
 
+  const pasteArea = document.getElementById('backupPasteArea');
+  document.getElementById('backupPasteBtn')?.addEventListener('click', () => {
+    if (pasteArea) pasteArea.hidden = false;
+    document.getElementById('backupPasteText')?.focus();
+  });
+  document.getElementById('backupPasteCancelBtn')?.addEventListener('click', () => {
+    if (pasteArea) pasteArea.hidden = true;
+    const ta = document.getElementById('backupPasteText');
+    if (ta) ta.value = '';
+  });
+  document.getElementById('backupPasteImportBtn')?.addEventListener('click', () => {
+    const text = document.getElementById('backupPasteText')?.value?.trim();
+    if (!text) { setBackupMessage('Вставьте содержимое файла резервной копии', 'error'); return; }
+    const file = new File([text], 'backup-paste.json', { type: 'application/json' });
+    if (pasteArea) pasteArea.hidden = true;
+    const ta = document.getElementById('backupPasteText');
+    if (ta) ta.value = '';
+    handleBackupFile(file);
+  });
+
   document.getElementById('backupClearBtn')?.addEventListener('click', async () => {
     const ok = await GazpromToast.confirm('Удалить все загруженные данные из браузера?');
     if (!ok) return;
