@@ -320,11 +320,8 @@ function init() {
   const backupFileInput = document.getElementById('backupFileInput');
   if (backupFileInput) {
     const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
-    if (!isCoarsePointer) backupFileInput.accept = GazpromBackup.ACCEPT;
+    backupFileInput.accept = isCoarsePointer ? GazpromBackup.ACCEPT_MOBILE : GazpromBackup.ACCEPT;
   }
-  document.getElementById('backupFileSelectBtn')?.addEventListener('click', () => {
-    openBackupFilePicker();
-  });
   backupFileInput?.addEventListener('change', (e) => {
     const input = e.target;
     const file = input.files?.[0];

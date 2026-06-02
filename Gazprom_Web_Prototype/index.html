@@ -37,12 +37,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=13" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=14" id="appCss">
 </head>
 <body>
 
   <!-- Вне модалок: iOS Safari не открывает picker у input внутри [hidden] -->
-  <input type="file" id="backupFileInput" class="backup-file-input" tabindex="-1" aria-hidden="true">
+  <input type="file" id="backupFileInput" class="backup-file-input" accept="application/json,.json,text/json,text/plain,application/octet-stream" tabindex="-1" aria-hidden="true">
 
   <div id="dataStatusBar" class="data-status data-status--empty">
     <span>Данные не загружены</span> — импортируйте файл <code>.gazprombackup</code> или начните работу с нуля
@@ -409,7 +409,7 @@
           <span id="backupLoadingText">Импорт…</span>
         </div>
         <div class="backup-import-actions">
-          <button type="button" class="btn-primary" id="backupFileSelectBtn">📂 Выбрать файл резервной копии</button>
+          <label for="backupFileInput" class="btn-primary backup-file-select-label">📂 Выбрать файл резервной копии</label>
           <button type="button" class="btn-ghost" id="backupPasteBtn">📋 Вставить текст</button>
           <button type="button" class="btn-ghost" id="backupClearBtn">Очистить данные</button>
         </div>
@@ -462,6 +462,6 @@
   <script src="js/report-exporter.js"></script>
   <script src="js/wizard-modals.js"></script>
   <script src="js/wizard.js?v=8"></script>
-  <script src="js/app.js?v=13"></script>
+  <script src="js/app.js?v=14"></script>
 </body>
 </html>

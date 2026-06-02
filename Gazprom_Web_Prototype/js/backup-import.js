@@ -2,8 +2,13 @@
  * Импорт резервных копий iOS (.gazprombackup = JSON AppBackup).
  */
 const GazpromBackup = (() => {
-  /** Подсказка для десктопного диалога; на touch-устройствах accept не задаём — iOS/Android блокируют .gazprombackup. */
+  /** Десктоп: расширения + MIME. */
   const ACCEPT = '.gazprombackup,.json,application/json,text/json,text/plain,application/octet-stream';
+  /**
+   * Телефон (iOS Safari): без image/* и video/* — иначе меню «Медиатека / Снять фото / Файл».
+   * .gazprombackup часто приходит как application/octet-stream; .json — application/json.
+   */
+  const ACCEPT_MOBILE = 'application/json,.json,text/json,text/plain,application/octet-stream';
 
   function normalizePhotoArray(photos) {
     if (!Array.isArray(photos)) return [];
@@ -234,6 +239,7 @@ const GazpromBackup = (() => {
 
   return {
     ACCEPT,
+    ACCEPT_MOBILE,
     readFileText,
     parseFile,
     parseJsonText,
