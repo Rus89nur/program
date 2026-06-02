@@ -241,7 +241,7 @@ const GazpromUI = (() => {
     historyFilter = { ...historyFilter, ...filter };
   }
 
-  async function refreshAll() {
+  async function refreshAll(options = {}) {
     const data = await GazpromStore.get();
     renderDataStatus(data);
     if (!GazpromStore.hasData(data)) return;
@@ -250,7 +250,10 @@ const GazpromUI = (() => {
     renderElimination(data);
     renderTrash(data);
     renderSettingsTilesSync(data);
-    if (document.getElementById('screen-wizard')?.classList.contains('active')) {
+    if (
+      !options.skipWizardReload &&
+      document.getElementById('screen-wizard')?.classList.contains('active')
+    ) {
       WizardController.open(null, { preserveStep: true });
     }
   }

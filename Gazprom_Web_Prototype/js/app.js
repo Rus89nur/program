@@ -127,6 +127,10 @@ async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
   setBackupMessage('');
 
   try {
+    if (typeof WizardController?.flushPendingSave === 'function') {
+      await WizardController.flushPendingSave();
+    }
+
     if (file?.size > 80 * 1024 * 1024) {
       const ok = await GazpromToast.confirm(
         `Файл большой (${GazpromBackup.formatBytes(file.size)}). Импорт может занять несколько минут. Продолжить?`
@@ -140,11 +144,11 @@ async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
     const previewSize = file?.size ?? 0;
     showBackupPreview(GazpromBackup.getStats(preview), previewName, previewSize);
 
-    setBackupLoading(true, 'Сохранение в браузер…');
+    setBackupLoading(true, 'Сохранение в браузер… (крупный файл может занять 1–2 мин)');
     const { stats } = await GazpromBackup.importFile(file, { replace: !merge, parsed: preview });
 
     GazpromStore.invalidateCache();
-    await GazpromUI.refreshAll();
+    await GazpromUI.refreshAll({ skipWizardReload: true });
     setBackupMessage(
       `Готово: ${stats.akts} актов, ${stats.organizations} организаций, ${stats.photos} фото.`,
       'ok'

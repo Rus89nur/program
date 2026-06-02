@@ -13,34 +13,37 @@ const PhotoStore = (() => {
     return typeof ref === 'string' && ref.startsWith(ID_PREFIX);
   }
 
-  async function putBlob(id, blob) {
-    await GazpromStore.withTransaction(STORE_PHOTOS, 'readwrite', (tx) => {
-      tx.objectStore(STORE_PHOTOS).put({ blob, mime: blob.type || 'image/jpeg' }, id);
+  function idbReq(req) {
+    return new Promise((resolve, reject) => {
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
     });
+  }
+
+  async function putBlob(id, blob) {
+    await GazpromStore.withTransaction(STORE_PHOTOS, 'readwrite', (tx) =>
+      idbReq(tx.objectStore(STORE_PHOTOS).put({ blob, mime: blob.type || 'image/jpeg' }, id))
+    );
   }
 
   async function getBlob(id) {
     const row = await GazpromStore.withTransaction(STORE_PHOTOS, 'readonly', (tx) =>
-      new Promise((resolve, reject) => {
-        const req = tx.objectStore(STORE_PHOTOS).get(id);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      })
+      idbReq(tx.objectStore(STORE_PHOTOS).get(id))
     );
     return row?.blob || null;
   }
 
   async function deleteBlob(id) {
-    await GazpromStore.withTransaction(STORE_PHOTOS, 'readwrite', (tx) => {
-      tx.objectStore(STORE_PHOTOS).delete(id);
-    });
+    await GazpromStore.withTransaction(STORE_PHOTOS, 'readwrite', (tx) =>
+      idbReq(tx.objectStore(STORE_PHOTOS).delete(id))
+    );
     dataUrlCache.delete(id);
   }
 
   async function clearAll() {
-    await GazpromStore.withTransaction(STORE_PHOTOS, 'readwrite', (tx) => {
-      tx.objectStore(STORE_PHOTOS).clear();
-    });
+    await GazpromStore.withTransaction(STORE_PHOTOS, 'readwrite', (tx) =>
+      idbReq(tx.objectStore(STORE_PHOTOS).clear())
+    );
     dataUrlCache.clear();
   }
 
