@@ -10,8 +10,6 @@ const WizardController = (() => {
   let dirty = false;
   let descEditMode = false;
   let predOrgFilters = new Set();
-  /** Очередь сохранений — без параллельных записей в IndexedDB. */
-  let persistChain = Promise.resolve();
 
   const panelsHost = () => document.getElementById('wizardPanels');
   const emptyEl = () => document.getElementById('wizardEmpty');
@@ -20,26 +18,9 @@ const WizardController = (() => {
     catalog = await GazpromStore.get();
   }
 
-  function applyDraftToCatalog(cat) {
-    if (!cat || !draft) return;
-    const now = new Date().toISOString();
-    cat.editableAkt = { akt: draft, isEditable: true, lastModified: now };
-    cat.editableAktReference = {
-      aktId: draft.id,
-      aktNumber: draft.number,
-      lastModified: now,
-    };
-    const idx = (cat.akts || []).findIndex((a) => a.id === draft.id);
-    const clone = AktUtils.clone(draft);
-    if (idx >= 0) cat.akts[idx] = clone;
-    else cat.akts = [...(cat.akts || []), clone];
-  }
-
   async function reloadCatalog() {
-    await saveDraft();
     GazpromStore.invalidateCache();
-    catalog = await GazpromStore.get();
-    if (draft) applyDraftToCatalog(catalog);
+    await loadCatalog();
   }
 
   function setupModals() {
@@ -108,6 +89,7 @@ const WizardController = (() => {
 
   async function open(aktId = null, options = {}) {
     const preserveStep = options.preserveStep === true;
+    const preserveDraft = options.preserveDraft === true;
     const savedStep = step;
     await loadCatalog();
     if (!GazpromStore.hasData(catalog)) {
@@ -115,24 +97,26 @@ const WizardController = (() => {
       return;
     }
     showEmpty(false);
-    if (aktId) {
-      const akt = (catalog.akts || []).find((a) => a.id === aktId);
-      if (!akt) {
-        GazpromToast.error('Акт не найден');
-        return;
+    if (!preserveDraft) {
+      if (aktId) {
+        const akt = (catalog.akts || []).find((a) => a.id === aktId);
+        if (!akt) {
+          GazpromToast.error('Акт не найден');
+          return;
+        }
+        draft = AktUtils.clone(akt);
+        catalog.editableAkt = {
+          akt: draft,
+          isEditable: true,
+          lastModified: new Date().toISOString(),
+        };
+      } else {
+        initDraft();
       }
-      draft = AktUtils.clone(akt);
-      catalog.editableAkt = {
-        akt: draft,
-        isEditable: true,
-        lastModified: new Date().toISOString(),
-      };
-    } else {
-      initDraft();
     }
     setupModals();
     step = aktId ? 0 : (preserveStep ? Math.min(savedStep, TOTAL_STEPS - 1) : 0);
-    dirty = false;
+    if (!preserveDraft) dirty = false;
     render();
     updateSummary();
     bindAutosaveOnPanel();
@@ -1128,18 +1112,53 @@ const WizardController = (() => {
     return true;
   }
 
+  let saveDraftChain = Promise.resolve();
+
   async function saveDraft() {
     if (!catalog || !draft) return;
-    persistChain = persistChain.then(async () => {
-      if (!catalog || !draft) return;
-      applyDraftToCatalog(catalog);
+
+    const draftCopy = AktUtils.clone(draft);
+    const draftId = draftCopy.id;
+    const draftNumber = draftCopy.number;
+
+    const op = saveDraftChain.then(async () => {
+      catalog.editableAkt = {
+        akt: draftCopy,
+        isEditable: true,
+        lastModified: new Date().toISOString(),
+      };
+      catalog.editableAktReference = {
+        aktId: draftId,
+        aktNumber: draftNumber,
+        lastModified: catalog.editableAkt.lastModified,
+      };
+
+      const idx = (catalog.akts || []).findIndex((a) => a.id === draftId);
+      if (idx >= 0) catalog.akts[idx] = draftCopy;
+      else catalog.akts = [...(catalog.akts || []), draftCopy];
+
       await GazpromStore.set(catalog, { skipPhotoIngest: true });
     });
-    return persistChain;
+    saveDraftChain = op.catch(() => {});
+    await op;
   }
 
-  async function flushPendingSave() {
-    await persistChain;
+  async function syncCatalog() {
+    await loadCatalog();
+    updateSummary();
+  }
+
+  function isDirty() {
+    return dirty;
+  }
+
+  async function flushSave() {
+    if (!draft) return;
+    commitStep(step);
+    clearTimeout(autosaveTimer);
+    await saveDraft();
+    dirty = false;
+    updateDirtyIndicator();
   }
 
   function updateSummary() {
@@ -1244,5 +1263,5 @@ const WizardController = (() => {
 
   bindGlobalControls();
 
-  return { open, openWithAkt, setStep, updateSummary, scheduleAutosave, flushPendingSave };
+  return { open, openWithAkt, setStep, updateSummary, scheduleAutosave, syncCatalog, isDirty, flushSave };
 })();

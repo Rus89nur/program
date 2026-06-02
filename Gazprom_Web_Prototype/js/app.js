@@ -44,6 +44,10 @@ function updateClock() {
   });
 }
 
+function shouldDeferAppReload() {
+  return typeof WizardController?.isDirty === 'function' && WizardController.isDirty();
+}
+
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   window.addEventListener('load', () => {
@@ -54,27 +58,22 @@ function registerServiceWorker() {
       });
       return;
     }
-    let swUpdateNotified = false;
     navigator.serviceWorker.register('./sw.js')
       .then((reg) => {
         reg.update();
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          if (!newSW) return;
+          newSW.addEventListener('statechange', () => {
+            if (newSW.state === 'activated' && !shouldDeferAppReload()) location.reload();
+          });
+        });
       })
       .catch((err) => {
         console.warn('SW registration failed', err);
       });
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (swUpdateNotified) return;
-      swUpdateNotified = true;
-      GazpromToast.show(
-        'Доступна новая версия. Сохраните работу и обновите страницу вручную.',
-        'info',
-        8000
-      );
-    });
-    window.addEventListener('pagehide', () => {
-      if (typeof WizardController?.flushPendingSave === 'function') {
-        WizardController.flushPendingSave();
-      }
+      if (!shouldDeferAppReload()) location.reload();
     });
   });
 }
@@ -127,10 +126,6 @@ async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
   setBackupMessage('');
 
   try {
-    if (typeof WizardController?.flushPendingSave === 'function') {
-      await WizardController.flushPendingSave();
-    }
-
     if (file?.size > 80 * 1024 * 1024) {
       const ok = await GazpromToast.confirm(
         `Файл большой (${GazpromBackup.formatBytes(file.size)}). Импорт может занять несколько минут. Продолжить?`
@@ -144,11 +139,11 @@ async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
     const previewSize = file?.size ?? 0;
     showBackupPreview(GazpromBackup.getStats(preview), previewName, previewSize);
 
-    setBackupLoading(true, 'Сохранение в браузер… (крупный файл может занять 1–2 мин)');
+    setBackupLoading(true, 'Сохранение в браузер…');
     const { stats } = await GazpromBackup.importFile(file, { replace: !merge, parsed: preview });
 
     GazpromStore.invalidateCache();
-    await GazpromUI.refreshAll({ skipWizardReload: true });
+    await GazpromUI.refreshAll();
     setBackupMessage(
       `Готово: ${stats.akts} актов, ${stats.organizations} организаций, ${stats.photos} фото.`,
       'ok'
@@ -414,6 +409,12 @@ function init() {
   ViolationRegistry.bindScreen();
   EliminationEditor.bindFilters();
   EliminationEditor.bindTableActions();
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && typeof WizardController?.flushSave === 'function') {
+      void WizardController.flushSave();
+    }
+  });
 
   GazpromUI.refreshAll().catch(console.error);
 }
