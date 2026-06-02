@@ -251,7 +251,7 @@ const GazpromUI = (() => {
     renderTrash(data);
     renderSettingsTilesSync(data);
     if (document.getElementById('screen-wizard')?.classList.contains('active')) {
-      WizardController.open();
+      WizardController.open(null, { preserveStep: true });
     }
   }
 

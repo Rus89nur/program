@@ -87,11 +87,10 @@ const WizardController = (() => {
     if (el) el.hidden = !dirty;
   }
 
-  async function open(aktId = null) {
+  async function open(aktId = null, options = {}) {
+    const preserveStep = options.preserveStep === true;
+    const savedStep = step;
     await loadCatalog();
-    // #region agent log
-    fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'wizard.js:open',message:'open() called',data:{aktId,hasCatalog:!!catalog,hasData:GazpromStore.hasData(catalog),aktsLen:(catalog?.akts||[]).length},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
     if (!GazpromStore.hasData(catalog)) {
       showEmpty(true);
       return;
@@ -113,7 +112,7 @@ const WizardController = (() => {
       initDraft();
     }
     setupModals();
-    step = 0;
+    step = aktId ? 0 : (preserveStep ? Math.min(savedStep, TOTAL_STEPS - 1) : 0);
     dirty = false;
     render();
     updateSummary();
@@ -129,21 +128,19 @@ const WizardController = (() => {
     descEditMode = false;
     predOrgFilters = new Set();
     step = Math.max(0, Math.min(TOTAL_STEPS - 1, newStep));
-    // #region agent log
-    fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'wizard.js:setStep',message:'setStep called',data:{newStep,resolvedStep:step},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     syncStepperUI();
     render();
     updateSummary();
   }
 
   function syncStepperUI() {
-    document.querySelectorAll('.wizard-step').forEach((el, i) => {
+    document.querySelectorAll('#wizardStepper .wizard-step').forEach((el) => {
+      const n = parseInt(el.dataset.step, 10);
       el.classList.remove('current', 'done');
-      if (i < step) el.classList.add('done');
-      if (i === step) el.classList.add('current');
+      if (n < step) el.classList.add('done');
+      if (n === step) el.classList.add('current');
     });
-    document.querySelectorAll('.wizard-connector').forEach((el, i) => {
+    document.querySelectorAll('#wizardStepper .wizard-connector').forEach((el, i) => {
       el.classList.toggle('done', i < step);
     });
     const prev = document.getElementById('wizardPrev');
@@ -157,15 +154,7 @@ const WizardController = (() => {
   function render() {
     syncStepperUI();
     const host = panelsHost();
-    // #region agent log
-    fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'wizard.js:render-entry',message:'render() called',data:{step,hasHost:!!host,hasDraft:!!draft,draftId:draft?.id},timestamp:Date.now(),hypothesisId:'A,D'})}).catch(()=>{});
-    // #endregion
-    if (!host || !draft) {
-      // #region agent log
-      fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'wizard.js:render-early-exit',message:'render() early exit',data:{hasHost:!!host,hasDraft:!!draft},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      return;
-    }
+    if (!host || !draft) return;
 
     const renderers = [
       renderStepDateCommission,
@@ -178,13 +167,8 @@ const WizardController = (() => {
     try {
       const html = renderers[step]();
       host.innerHTML = `<div class="card wizard-panel-active">${html}</div>`;
-      // #region agent log
-      fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'wizard.js:render-ok',message:'render() innerHTML set',data:{step,htmlLen:html.length},timestamp:Date.now(),hypothesisId:'B,C,D'})}).catch(()=>{});
-      // #endregion
     } catch (err) {
-      // #region agent log
-      fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'wizard.js:render-error',message:'render() renderer threw',data:{step,error:String(err)},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
+      console.error(err);
       host.innerHTML = `<div class="card wizard-panel-active"><p style="color:red">Ошибка отрисовки: ${err}</p></div>`;
     }
     bindPanelEvents();
@@ -1141,7 +1125,7 @@ const WizardController = (() => {
     if (idx >= 0) catalog.akts[idx] = AktUtils.clone(draft);
     else catalog.akts = [...(catalog.akts || []), AktUtils.clone(draft)];
 
-    await GazpromStore.set(catalog);
+    await GazpromStore.set(catalog, { skipPhotoIngest: true });
   }
 
   function updateSummary() {
@@ -1167,23 +1151,31 @@ const WizardController = (() => {
   async function next() {
     commitStep(step);
     if (!validateStep(step)) return;
-    await saveDraft();
     if (step < TOTAL_STEPS - 1) {
-      step += 1;
-      render();
-      updateSummary();
-    } else {
+      setStep(step + 1);
+      saveDraft().catch((e) => {
+        console.error(e);
+        GazpromToast.error(e.message || 'Ошибка сохранения черновика');
+      });
+      return;
+    }
+    try {
+      await saveDraft();
       await finish();
+    } catch (e) {
+      console.error(e);
+      GazpromToast.error(e.message || 'Ошибка сохранения черновика');
     }
   }
 
   async function prev() {
     commitStep(step);
-    await saveDraft();
     if (step > 0) {
-      step -= 1;
-      render();
-      updateSummary();
+      setStep(step - 1);
+      saveDraft().catch((e) => {
+        console.error(e);
+        GazpromToast.error(e.message || 'Ошибка сохранения черновика');
+      });
     }
   }
 
