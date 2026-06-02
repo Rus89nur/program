@@ -807,6 +807,24 @@
     }
     .backup-steps strong { color: var(--text); }
     .backup-import-hint a { color: var(--primary); font-weight: 600; }
+    .backup-ios-tip {
+      background: var(--surface-alt, #f5f7fa);
+      border: 1px solid var(--border, #e0e4ea);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      font-size: 13px;
+    }
+    .backup-ios-tip summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--primary);
+      user-select: none;
+      list-style: none;
+    }
+    .backup-ios-tip summary::-webkit-details-marker { display: none; }
+    .backup-ios-tip .backup-steps { margin-top: 10px; margin-bottom: 0; }
+    .backup-ios-tip code { background: var(--border, #e0e4ea); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
     .backup-loading {
       display: flex;
       align-items: center;

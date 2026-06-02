@@ -399,17 +399,18 @@
       <div class="backup-modal-section backup-import-card">
         <h4 class="backup-modal-section-title">Импорт — загрузить копию</h4>
         <p class="backup-import-hint">
-          Файлы резервной копии (<strong>.json</strong> или <strong>.gazprombackup</strong>) можно загрузить здесь. Чтобы перенести файл с другого устройства:
+          Файлы резервной копии (<strong>.json</strong> или <strong>.gazprombackup</strong>) можно загрузить здесь.
         </p>
-        <ol class="backup-steps">
-          <li>iPhone → <strong>Настройки</strong> → <strong>Восстановление по дате</strong> (календарь бэкапов)</li>
-          <li>Выберите дату → копию → <strong>Поделиться</strong></li>
-          <li>Отправьте себе на Mac (AirDrop, «Файлы», почта, iCloud Drive)</li>
-          <li>Загрузите файл ниже или перетащите на эту карточку</li>
-        </ol>
-        <p class="backup-import-hint">
-          <a href="assets/sample-demo.gazprombackup" download>Скачать демо-файл</a> для проверки (без фото, ~2 КБ).
-        </p>
+        <details class="backup-ios-tip">
+          <summary>📱 Файл .gazprombackup не выбирается на телефоне?</summary>
+          <ol class="backup-steps">
+            <li>Откройте приложение <strong>Файлы</strong> на iPhone</li>
+            <li>Найдите файл <strong>.gazprombackup</strong></li>
+            <li>Удерживайте палец на файле → нажмите <strong>Переименовать</strong></li>
+            <li>Измените расширение: <code>.gazprombackup</code> → <code>.json</code></li>
+            <li>Вернитесь сюда и выберите переименованный файл</li>
+          </ol>
+        </details>
         <div id="backupLoading" class="backup-loading" hidden>
           <div class="backup-loading-spinner"></div>
           <span id="backupLoadingText">Импорт…</span>
