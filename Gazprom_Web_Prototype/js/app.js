@@ -107,11 +107,6 @@ function openBackupFilePicker() {
   document.getElementById('backupFileInput')?.click();
 }
 
-function openBackupModal() {
-  const modal = document.getElementById('backupModal');
-  if (modal) modal.hidden = false;
-}
-
 async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
   if (!file && !preParsed) return;
 
@@ -294,13 +289,7 @@ function init() {
   });
 
   document.querySelector('.settings-tile--backup')?.addEventListener('click', () => {
-    openBackupFilePicker();
-  });
-  document.getElementById('backupManageBtn')?.addEventListener('click', () => {
-    openBackupModal();
-  });
-  document.getElementById('dataStatusBar')?.addEventListener('click', () => {
-    openBackupFilePicker();
+    document.getElementById('backupModal').hidden = false;
   });
   document.getElementById('backupModalClose')?.addEventListener('click', () => {
     document.getElementById('backupModal').hidden = true;
@@ -323,6 +312,9 @@ function init() {
     const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
     if (!isCoarsePointer) backupFileInput.accept = GazpromBackup.ACCEPT;
   }
+  document.getElementById('backupFileSelectBtn')?.addEventListener('click', () => {
+    openBackupFilePicker();
+  });
   backupFileInput?.addEventListener('change', (e) => {
     const input = e.target;
     const file = input.files?.[0];

@@ -738,18 +738,6 @@
       background: #e8f5e9;
       color: #1b5e20;
     }
-    .data-status[role="button"] { cursor: pointer; }
-    .settings-backup-manage {
-      grid-column: 1 / -1;
-      margin: -8px 0 8px;
-      text-align: center;
-    }
-    .backup-file-label {
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
     .data-status code {
       font-size: 12px;
       background: rgba(0,0,0,0.06);
