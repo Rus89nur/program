@@ -54,9 +54,21 @@ function registerServiceWorker() {
       });
       return;
     }
-    navigator.serviceWorker.register('./sw.js').catch((err) => {
-      console.warn('SW registration failed', err);
-    });
+    navigator.serviceWorker.register('./sw.js')
+      .then((reg) => {
+        reg.update();
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          if (!newSW) return;
+          newSW.addEventListener('statechange', () => {
+            if (newSW.state === 'activated') location.reload();
+          });
+        });
+      })
+      .catch((err) => {
+        console.warn('SW registration failed', err);
+      });
+    navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
   });
 }
 

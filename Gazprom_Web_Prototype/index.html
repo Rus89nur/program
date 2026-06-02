@@ -11,8 +11,8 @@
     navigator.serviceWorker.getRegistrations().then(function (regs) {
       if (!regs.length && !navigator.serviceWorker.controller) return;
       Promise.all(regs.map(function (r) { return r.unregister(); })).then(function () {
-        if (navigator.serviceWorker.controller && !sessionStorage.getItem('sw-cleared-v7')) {
-          sessionStorage.setItem('sw-cleared-v7', '1');
+        if (navigator.serviceWorker.controller && !sessionStorage.getItem('sw-cleared-v8')) {
+          sessionStorage.setItem('sw-cleared-v8', '1');
           location.reload();
         }
       });
@@ -458,7 +458,7 @@
   <script src="js/catalog-editor.js?v=10"></script>
   <script src="js/schedule-editor.js"></script>
   <script src="js/elimination-editor.js"></script>
-  <script src="js/doc-generator.js?v=2"></script>
+  <script src="js/doc-generator.js?v=7"></script>
   <script src="js/report-exporter.js"></script>
   <script src="js/wizard-modals.js"></script>
   <script src="js/wizard.js?v=8"></script>
