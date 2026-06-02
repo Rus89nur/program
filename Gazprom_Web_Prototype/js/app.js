@@ -107,6 +107,11 @@ function openBackupFilePicker() {
   document.getElementById('backupFileInput')?.click();
 }
 
+function openBackupModal() {
+  const modal = document.getElementById('backupModal');
+  if (modal) modal.hidden = false;
+}
+
 async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
   if (!file && !preParsed) return;
 
@@ -288,8 +293,13 @@ function init() {
     el.addEventListener('click', () => goTo(el.dataset.go));
   });
 
-  document.querySelector('.settings-tile--backup')?.addEventListener('click', () => {
-    document.getElementById('backupModal').hidden = false;
+  const backupTile = document.querySelector('.settings-tile--backup');
+  backupTile?.addEventListener('click', () => openBackupModal());
+  backupTile?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openBackupModal();
+    }
   });
   document.getElementById('backupModalClose')?.addEventListener('click', () => {
     document.getElementById('backupModal').hidden = true;

@@ -37,7 +37,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=12" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=13" id="appCss">
 </head>
 <body>
 
@@ -310,7 +310,7 @@
           <div class="card settings-tile settings-tile--schedule" role="button" tabindex="0"><div class="icon">📅</div><h4>График</h4><p>План проверок</p><span class="tile-count"></span></div>
           <div class="card settings-tile settings-tile--template" role="button" tabindex="0"><div class="icon">📄</div><h4>Шаблон акта</h4><p>Word-шаблон</p><span class="tile-count" data-template-status></span></div>
           <input type="file" id="wordTemplateInput" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
-          <div class="card settings-tile settings-tile--backup" role="button" tabindex="0"><div class="icon">💾</div><h4>Резервные копии</h4><p>Скачать бэкап</p></div>
+          <div class="card settings-tile settings-tile--backup" role="button" tabindex="0"><div class="icon">💾</div><h4>Резервные копии</h4><p>Экспорт и управление</p></div>
           <div class="card settings-tile settings-tile--trash" role="button" tabindex="0"><div class="icon">🗑</div><h4>Корзина</h4><p>Удалённые акты</p><span class="tile-count" data-trash-count></span></div>
           <div class="card settings-tile settings-tile--ml" role="button" tabindex="0" title="Функция не реализована"><div class="icon">🤖</div><h4>Обучение ML</h4><p>Модель по фото</p></div>
         </div>
@@ -386,10 +386,10 @@
     <button class="bottom-nav-item" data-screen="settings" type="button"><span class="nav-icon">⚙</span><span>Ещё</span></button>
   </nav>
 
-  <!-- ——— Модал: Резервные копии ——— -->
+  <!-- ——— Модал: экспорт и управление копиями ——— -->
   <div id="backupModal" class="catalog-form-overlay" hidden>
     <div class="catalog-form-dialog card backup-modal-dialog">
-      <h3>💾 Резервные копии</h3>
+      <h3>💾 Экспорт и управление копиями</h3>
 
       <div class="backup-modal-section">
         <h4 class="backup-modal-section-title">Экспорт — скачать копию</h4>
@@ -462,6 +462,6 @@
   <script src="js/report-exporter.js"></script>
   <script src="js/wizard-modals.js"></script>
   <script src="js/wizard.js?v=8"></script>
-  <script src="js/app.js?v=12"></script>
+  <script src="js/app.js?v=13"></script>
 </body>
 </html>
