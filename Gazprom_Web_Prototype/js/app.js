@@ -298,7 +298,15 @@ function init() {
   });
   document.querySelector('.settings-tile--schedule')?.addEventListener('click', () => ScheduleEditor.open());
 
-  document.getElementById('backupFileInput')?.addEventListener('change', (e) => {
+  const backupFileInput = document.getElementById('backupFileInput');
+  if (backupFileInput) {
+    const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
+    if (!isCoarsePointer) backupFileInput.accept = GazpromBackup.ACCEPT;
+  }
+  document.getElementById('backupFileSelectBtn')?.addEventListener('click', () => {
+    backupFileInput?.click();
+  });
+  backupFileInput?.addEventListener('change', (e) => {
     handleBackupFile(e.target.files?.[0]);
     e.target.value = '';
   });

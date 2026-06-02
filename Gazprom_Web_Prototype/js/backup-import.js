@@ -2,7 +2,8 @@
  * Импорт резервных копий iOS (.gazprombackup = JSON AppBackup).
  */
 const GazpromBackup = (() => {
-  const ACCEPT = '.gazprombackup,.json,application/json';
+  /** Подсказка для десктопного диалога; на touch-устройствах accept не задаём — iOS/Android блокируют .gazprombackup. */
+  const ACCEPT = '.gazprombackup,.json,application/json,text/json,text/plain,application/octet-stream';
 
   function normalizePhotoArray(photos) {
     if (!Array.isArray(photos)) return [];

@@ -575,8 +575,6 @@ const WizardController = (() => {
         <button type="button" class="btn-primary" id="wGenerateDocx" style="font-size:15px;padding:12px 24px;">📄 Сформировать акт Word</button>
         <button type="button" class="btn-secondary" id="wSaveDraft">💾 Сохранить черновик</button>
         <button type="button" class="btn-secondary" id="wMarkReady">${isDone ? '↩ Вернуть в черновик' : '✓ Отметить готовым'}</button>
-        <button type="button" class="btn-secondary" id="wExportBackup">📤 Экспорт резервной копии</button>
-        <button type="button" class="btn-ghost" id="wExportJson">JSON акта</button>
       </div>
     `;
   }
@@ -933,13 +931,6 @@ const WizardController = (() => {
       });
     });
     document.getElementById('wSaveDraft')?.addEventListener('click', () => finish());
-    document.getElementById('wExportJson')?.addEventListener('click', exportDraftJson);
-    document.getElementById('wExportBackup')?.addEventListener('click', async () => {
-      await saveDraft();
-      await reloadCatalog();
-      await CatalogService.exportBackup(catalog);
-      GazpromToast.success('Резервная копия (.json) скачана. Перенесите на устройство через «Поделиться».');
-    });
     // Проверяем наличие шаблона и обновляем статус-блок
     DocGenerator.hasTemplate().then((has) => {
       const statusEl = document.getElementById('wDocxTemplateStatusText');
@@ -1202,15 +1193,6 @@ const WizardController = (() => {
     await saveDraft();
     await GazpromUI.refreshAll();
     GazpromToast.success(`Черновик акта № ${draft.number} сохранён`);
-  }
-
-  function exportDraftJson() {
-    const blob = new Blob([JSON.stringify(draft, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `akt_${draft.number}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
   }
 
   function bindGlobalControls() {

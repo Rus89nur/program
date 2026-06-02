@@ -406,10 +406,8 @@
           <span id="backupLoadingText">Импорт…</span>
         </div>
         <div class="backup-import-actions">
-          <label class="btn-primary backup-file-label">
-            📂 Выбрать файл резервной копии
-            <input type="file" id="backupFileInput" accept=".json,application/json,.gazprombackup" hidden>
-          </label>
+          <button type="button" class="btn-primary" id="backupFileSelectBtn">📂 Выбрать файл резервной копии</button>
+          <input type="file" id="backupFileInput" class="backup-file-input" tabindex="-1" aria-hidden="true">
           <button type="button" class="btn-ghost" id="backupPasteBtn">📋 Вставить текст</button>
           <button type="button" class="btn-ghost" id="backupClearBtn">Очистить данные</button>
         </div>
@@ -458,10 +456,10 @@
   <script src="js/catalog-editor.js?v=10"></script>
   <script src="js/schedule-editor.js"></script>
   <script src="js/elimination-editor.js"></script>
-  <script src="js/doc-generator.js?v=7"></script>
+  <script src="js/doc-generator.js?v=13"></script>
   <script src="js/report-exporter.js"></script>
   <script src="js/wizard-modals.js"></script>
   <script src="js/wizard.js?v=8"></script>
-  <script src="js/app.js?v=8"></script>
+  <script src="js/app.js?v=9"></script>
 </body>
 </html>
