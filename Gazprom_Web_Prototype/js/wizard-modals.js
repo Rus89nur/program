@@ -117,19 +117,11 @@ const WizardModals = (() => {
       ),
     ];
 
-    const mestoDatalist = mestoSuggestions
-      .map((m) => `<option value="${AktUtils.escapeHtml(m)}">`)
-      .join('');
-
     function renderMestoSuggestions(query) {
       const q = query.trim().toLowerCase();
-      let items = mestoSuggestions;
-      if (q) {
-        items = items.filter((m) => m.toLowerCase().includes(q));
-      }
-      if (!items.length) {
-        return `<div class="mesto-suggestions-empty">Нет подсказок${q ? ' по запросу' : ''}</div>`;
-      }
+      if (!q) return '';
+      const items = mestoSuggestions.filter((m) => m.toLowerCase().includes(q));
+      if (!items.length) return '';
       return items
         .slice(0, 15)
         .map(
@@ -190,15 +182,12 @@ const WizardModals = (() => {
         <input class="form-control" id="mvMesto"
           value="${AktUtils.escapeHtml(v?.mesto || '')}"
           placeholder="Введите место нарушения…"
-          list="mestoSuggestions"
           role="combobox"
           aria-expanded="false"
           aria-controls="mvMestoSuggestions"
-          aria-autocomplete="list">
-        <datalist id="mestoSuggestions">${mestoDatalist}</datalist>
-        <div class="mesto-suggestions" id="mvMestoSuggestions" hidden>
-          ${renderMestoSuggestions(v?.mesto || '')}
-        </div>
+          aria-autocomplete="list"
+          autocomplete="off">
+        <div class="mesto-suggestions" id="mvMestoSuggestions" hidden></div>
       </div>
 
       <div class="mv-search-block form-group">
@@ -323,7 +312,13 @@ const WizardModals = (() => {
 
     function refreshMestoSuggestions() {
       if (!mestoInput || !mestoList) return;
-      mestoList.innerHTML = renderMestoSuggestions(mestoInput.value);
+      const html = renderMestoSuggestions(mestoInput.value);
+      if (!html) {
+        mestoList.innerHTML = '';
+        hideMestoSuggestions();
+        return;
+      }
+      mestoList.innerHTML = html;
       bindMestoSuggestionClicks();
       showMestoSuggestions();
     }
@@ -339,7 +334,6 @@ const WizardModals = (() => {
     }
 
     if (mestoInput && mestoList) {
-      mestoInput.addEventListener('focus', () => refreshMestoSuggestions());
       mestoInput.addEventListener('input', () => {
         clearTimeout(mestoTimer);
         mestoTimer = setTimeout(refreshMestoSuggestions, 120);
@@ -347,7 +341,6 @@ const WizardModals = (() => {
       mestoInput.addEventListener('blur', () => {
         setTimeout(hideMestoSuggestions, 150);
       });
-      bindMestoSuggestionClicks();
     }
 
     // Registry search
