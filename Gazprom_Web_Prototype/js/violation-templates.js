@@ -42,5 +42,36 @@ const ViolationTemplates = (() => {
     };
   }
 
-  return { VIOLATION_TYPES, collectFromCatalog };
+  /** Места нарушений из всех актов + объекты справочника (для подсказок). */
+  function collectMestaFromCatalog(catalog) {
+    const counts = new Map();
+    const add = (value) => {
+      const s = String(value || '').trim();
+      if (!s) return;
+      counts.set(s, (counts.get(s) || 0) + 1);
+    };
+
+    const scanAkts = (akts) => {
+      (akts || []).forEach((akt) => {
+        (akt.violations || []).forEach((v) => add(v.mesto));
+        (akt.objectsCheck || []).forEach((o) => {
+          add(o.title);
+          add(o.subTitle);
+        });
+      });
+    };
+
+    scanAkts(catalog?.akts);
+    scanAkts(catalog?.trash);
+    (catalog?.objects || []).forEach((o) => {
+      add(o.title);
+      add(o.subTitle);
+    });
+
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ru'))
+      .map(([m]) => m);
+  }
+
+  return { VIOLATION_TYPES, collectFromCatalog, collectMestaFromCatalog };
 })();

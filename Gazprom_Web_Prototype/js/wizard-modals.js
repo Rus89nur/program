@@ -107,16 +107,34 @@ const WizardModals = (() => {
 
     const registryItems = catalog?.violationRegistry || [];
 
-    // Unique mesto values from current act for autocomplete
-    const existingMesta = [...new Set(
-      (draft.violations || [])
-        .map((x) => x.mesto)
-        .filter(Boolean)
-    )];
+    const mestoSuggestions = [
+      ...new Set([
+        ...(draft.violations || []).map((x) => x.mesto).filter(Boolean),
+        ...ViolationTemplates.collectMestaFromCatalog(catalog),
+      ]),
+    ];
 
-    const mestoDatalist = existingMesta
+    const mestoDatalist = mestoSuggestions
       .map((m) => `<option value="${AktUtils.escapeHtml(m)}">`)
       .join('');
+
+    function renderMestoSuggestions(query) {
+      const q = query.trim().toLowerCase();
+      let items = mestoSuggestions;
+      if (q) {
+        items = items.filter((m) => m.toLowerCase().includes(q));
+      }
+      if (!items.length) {
+        return `<div class="mesto-suggestions-empty">Нет подсказок${q ? ' по запросу' : ''}</div>`;
+      }
+      return items
+        .slice(0, 15)
+        .map(
+          (m) =>
+            `<button type="button" class="mesto-suggestion-item" data-mesto="${AktUtils.escapeHtml(m)}">${AktUtils.escapeHtml(m)}</button>`
+        )
+        .join('');
+    }
 
     const vidOpts = ViolationTemplates.VIOLATION_TYPES.map(
       (t) =>
@@ -164,14 +182,20 @@ const WizardModals = (() => {
     }
 
     const body = `
-      <div class="form-group">
+      <div class="form-group mv-mesto-block">
         <label class="form-label">Место нарушения</label>
         <input class="form-control" id="mvMesto"
           value="${AktUtils.escapeHtml(v?.mesto || '')}"
           placeholder="Введите место нарушения…"
-          autocomplete="off"
-          list="mestoSuggestions">
+          list="mestoSuggestions"
+          role="combobox"
+          aria-expanded="false"
+          aria-controls="mvMestoSuggestions"
+          aria-autocomplete="list">
         <datalist id="mestoSuggestions">${mestoDatalist}</datalist>
+        <div class="mesto-suggestions" id="mvMestoSuggestions" hidden>
+          ${renderMestoSuggestions(v?.mesto || '')}
+        </div>
       </div>
 
       <div class="mv-search-block form-group">
@@ -276,6 +300,51 @@ const WizardModals = (() => {
         document.getElementById(id)?.addEventListener('input', updateSaveToRegistryHint);
         document.getElementById(id)?.addEventListener('change', updateSaveToRegistryHint);
       });
+    }
+
+    const mestoInput = document.getElementById('mvMesto');
+    const mestoList = document.getElementById('mvMestoSuggestions');
+    let mestoTimer = null;
+
+    function showMestoSuggestions() {
+      if (!mestoInput || !mestoList) return;
+      mestoList.hidden = false;
+      mestoInput.setAttribute('aria-expanded', 'true');
+    }
+
+    function hideMestoSuggestions() {
+      if (!mestoInput || !mestoList) return;
+      mestoList.hidden = true;
+      mestoInput.setAttribute('aria-expanded', 'false');
+    }
+
+    function refreshMestoSuggestions() {
+      if (!mestoInput || !mestoList) return;
+      mestoList.innerHTML = renderMestoSuggestions(mestoInput.value);
+      bindMestoSuggestionClicks();
+      showMestoSuggestions();
+    }
+
+    function bindMestoSuggestionClicks() {
+      mestoList?.querySelectorAll('.mesto-suggestion-item').forEach((btn) => {
+        btn.addEventListener('mousedown', (e) => e.preventDefault());
+        btn.addEventListener('click', () => {
+          if (mestoInput) mestoInput.value = btn.dataset.mesto || '';
+          hideMestoSuggestions();
+        });
+      });
+    }
+
+    if (mestoInput && mestoList) {
+      mestoInput.addEventListener('focus', () => refreshMestoSuggestions());
+      mestoInput.addEventListener('input', () => {
+        clearTimeout(mestoTimer);
+        mestoTimer = setTimeout(refreshMestoSuggestions, 120);
+      });
+      mestoInput.addEventListener('blur', () => {
+        setTimeout(hideMestoSuggestions, 150);
+      });
+      bindMestoSuggestionClicks();
     }
 
     // Registry search
