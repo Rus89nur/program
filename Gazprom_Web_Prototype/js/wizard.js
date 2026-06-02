@@ -87,9 +87,36 @@ const WizardController = (() => {
     if (el) el.hidden = !dirty;
   }
 
+  function resetAutosaveTimer() {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = null;
+    dirty = false;
+    updateDirtyIndicator();
+  }
+
+  async function startNewDraft() {
+    resetAutosaveTimer();
+    if (draft) {
+      commitStep(step);
+      await saveDraft();
+    } else if (catalog?.editableAkt?.akt) {
+      draft = AktUtils.clone(catalog.editableAkt.akt);
+      await saveDraft();
+    }
+    draft = AktUtils.createEmptyDraft(catalog);
+    step = 0;
+    descEditMode = false;
+    predOrgFilters = new Set();
+    await saveDraft();
+    render();
+    updateSummary();
+    bindAutosaveOnPanel();
+  }
+
   async function open(aktId = null, options = {}) {
     const preserveStep = options.preserveStep === true;
     const preserveDraft = options.preserveDraft === true;
+    const forceNew = options.forceNew === true;
     const savedStep = step;
     await loadCatalog();
     if (!GazpromStore.hasData(catalog)) {
@@ -97,6 +124,11 @@ const WizardController = (() => {
       return;
     }
     showEmpty(false);
+    setupModals();
+    if (forceNew) {
+      await startNewDraft();
+      return;
+    }
     if (!preserveDraft) {
       if (aktId) {
         const akt = (catalog.akts || []).find((a) => a.id === aktId);
@@ -114,7 +146,6 @@ const WizardController = (() => {
         initDraft();
       }
     }
-    setupModals();
     step = aktId ? 0 : (preserveStep ? Math.min(savedStep, TOTAL_STEPS - 1) : 0);
     if (!preserveDraft) dirty = false;
     render();
@@ -1248,16 +1279,17 @@ const WizardController = (() => {
     document.getElementById('wizardNewBtn')?.addEventListener('click', async () => {
       if (draft) {
         const ok = await GazpromToast.confirm(
-          'Начать новый акт? Текущий шаг будет сохранён в черновик.'
+          'Начать новый акт? Текущий черновик будет сохранён в списке актов.'
         );
         if (!ok) return;
       }
-      commitStep(step);
-      await saveDraft();
-      draft = AktUtils.createEmptyDraft(catalog);
-      step = 0;
-      render();
-      updateSummary();
+      try {
+        await startNewDraft();
+        GazpromToast.success('Новый акт создан');
+      } catch (e) {
+        console.error(e);
+        GazpromToast.error(e.message || 'Ошибка создания нового акта');
+      }
     });
   }
 

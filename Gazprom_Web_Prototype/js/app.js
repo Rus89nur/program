@@ -19,7 +19,11 @@ function goTo(screenId, options = {}) {
   document.getElementById('pageTitle').textContent = titles[screenId] || screenId;
 
   if (screenId === 'wizard' && !options.skipWizardReload) {
-    WizardController.open(options.aktId ?? null);
+    WizardController.open(options.aktId ?? null, {
+      preserveStep: options.preserveStep,
+      preserveDraft: options.preserveDraft,
+      forceNew: options.forceNew,
+    });
   }
   if (screenId === 'violations') {
     ViolationRegistry.renderScreen();
@@ -296,7 +300,12 @@ function init() {
   registerServiceWorker();
 
   document.querySelectorAll('[data-go]').forEach((el) => {
-    el.addEventListener('click', () => goTo(el.dataset.go));
+    el.addEventListener('click', () => {
+      const opts = {};
+      if (el.dataset.wizardNew === '1') opts.forceNew = true;
+      if (el.dataset.aktId) opts.aktId = el.dataset.aktId;
+      goTo(el.dataset.go, opts);
+    });
   });
 
   const backupTile = document.querySelector('.settings-tile--backup');
