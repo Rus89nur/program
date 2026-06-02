@@ -10,6 +10,8 @@ const WizardController = (() => {
   let dirty = false;
   let descEditMode = false;
   let predOrgFilters = new Set();
+  /** Очередь сохранений — без параллельных записей в IndexedDB. */
+  let persistChain = Promise.resolve();
 
   const panelsHost = () => document.getElementById('wizardPanels');
   const emptyEl = () => document.getElementById('wizardEmpty');
@@ -18,9 +20,26 @@ const WizardController = (() => {
     catalog = await GazpromStore.get();
   }
 
+  function applyDraftToCatalog(cat) {
+    if (!cat || !draft) return;
+    const now = new Date().toISOString();
+    cat.editableAkt = { akt: draft, isEditable: true, lastModified: now };
+    cat.editableAktReference = {
+      aktId: draft.id,
+      aktNumber: draft.number,
+      lastModified: now,
+    };
+    const idx = (cat.akts || []).findIndex((a) => a.id === draft.id);
+    const clone = AktUtils.clone(draft);
+    if (idx >= 0) cat.akts[idx] = clone;
+    else cat.akts = [...(cat.akts || []), clone];
+  }
+
   async function reloadCatalog() {
+    await saveDraft();
     GazpromStore.invalidateCache();
-    await loadCatalog();
+    catalog = await GazpromStore.get();
+    if (draft) applyDraftToCatalog(catalog);
   }
 
   function setupModals() {
@@ -1110,22 +1129,17 @@ const WizardController = (() => {
   }
 
   async function saveDraft() {
-    catalog.editableAkt = {
-      akt: draft,
-      isEditable: true,
-      lastModified: new Date().toISOString(),
-    };
-    catalog.editableAktReference = {
-      aktId: draft.id,
-      aktNumber: draft.number,
-      lastModified: catalog.editableAkt.lastModified,
-    };
+    if (!catalog || !draft) return;
+    persistChain = persistChain.then(async () => {
+      if (!catalog || !draft) return;
+      applyDraftToCatalog(catalog);
+      await GazpromStore.set(catalog, { skipPhotoIngest: true });
+    });
+    return persistChain;
+  }
 
-    const idx = (catalog.akts || []).findIndex((a) => a.id === draft.id);
-    if (idx >= 0) catalog.akts[idx] = AktUtils.clone(draft);
-    else catalog.akts = [...(catalog.akts || []), AktUtils.clone(draft)];
-
-    await GazpromStore.set(catalog, { skipPhotoIngest: true });
+  async function flushPendingSave() {
+    await persistChain;
   }
 
   function updateSummary() {
@@ -1230,5 +1244,5 @@ const WizardController = (() => {
 
   bindGlobalControls();
 
-  return { open, openWithAkt, setStep, updateSummary, scheduleAutosave };
+  return { open, openWithAkt, setStep, updateSummary, scheduleAutosave, flushPendingSave };
 })();

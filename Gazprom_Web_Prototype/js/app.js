@@ -54,21 +54,28 @@ function registerServiceWorker() {
       });
       return;
     }
+    let swUpdateNotified = false;
     navigator.serviceWorker.register('./sw.js')
       .then((reg) => {
         reg.update();
-        reg.addEventListener('updatefound', () => {
-          const newSW = reg.installing;
-          if (!newSW) return;
-          newSW.addEventListener('statechange', () => {
-            if (newSW.state === 'activated') location.reload();
-          });
-        });
       })
       .catch((err) => {
         console.warn('SW registration failed', err);
       });
-    navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (swUpdateNotified) return;
+      swUpdateNotified = true;
+      GazpromToast.show(
+        'Доступна новая версия. Сохраните работу и обновите страницу вручную.',
+        'info',
+        8000
+      );
+    });
+    window.addEventListener('pagehide', () => {
+      if (typeof WizardController?.flushPendingSave === 'function') {
+        WizardController.flushPendingSave();
+      }
+    });
   });
 }
 

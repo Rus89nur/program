@@ -8,75 +8,40 @@ const PhotoStore = (() => {
   const ID_PREFIX = 'photo:';
 
   const dataUrlCache = new Map();
-  let dbPromise = null;
 
   function isPhotoId(ref) {
     return typeof ref === 'string' && ref.startsWith(ID_PREFIX);
   }
 
-  function openDb() {
-    if (dbPromise) return dbPromise;
-    dbPromise = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, DB_VERSION);
-      req.onerror = () => reject(req.error);
-      req.onsuccess = () => resolve(req.result);
-      req.onupgradeneeded = (e) => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains('app')) {
-          db.createObjectStore('app');
-        }
-        if (!db.objectStoreNames.contains(STORE_PHOTOS)) {
-          db.createObjectStore(STORE_PHOTOS);
-        }
-      };
-    });
-    return dbPromise;
-  }
-
   async function putBlob(id, blob) {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_PHOTOS, 'readwrite');
+    await GazpromStore.withTransaction(STORE_PHOTOS, 'readwrite', (tx) => {
       tx.objectStore(STORE_PHOTOS).put({ blob, mime: blob.type || 'image/jpeg' }, id);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
     });
   }
 
   async function getBlob(id) {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_PHOTOS, 'readonly');
-      const req = tx.objectStore(STORE_PHOTOS).get(id);
-      req.onsuccess = () => resolve(req.result?.blob || null);
-      req.onerror = () => reject(req.error);
-    });
+    const row = await GazpromStore.withTransaction(STORE_PHOTOS, 'readonly', (tx) =>
+      new Promise((resolve, reject) => {
+        const req = tx.objectStore(STORE_PHOTOS).get(id);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      })
+    );
+    return row?.blob || null;
   }
 
   async function deleteBlob(id) {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_PHOTOS, 'readwrite');
+    await GazpromStore.withTransaction(STORE_PHOTOS, 'readwrite', (tx) => {
       tx.objectStore(STORE_PHOTOS).delete(id);
-      tx.oncomplete = () => {
-        dataUrlCache.delete(id);
-        resolve();
-      };
-      tx.onerror = () => reject(tx.error);
     });
+    dataUrlCache.delete(id);
   }
 
   async function clearAll() {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_PHOTOS, 'readwrite');
+    await GazpromStore.withTransaction(STORE_PHOTOS, 'readwrite', (tx) => {
       tx.objectStore(STORE_PHOTOS).clear();
-      tx.oncomplete = () => {
-        dataUrlCache.clear();
-        resolve();
-      };
-      tx.onerror = () => reject(tx.error);
     });
+    dataUrlCache.clear();
   }
 
   function base64ToBlob(b64, mime = 'image/jpeg') {
