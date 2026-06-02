@@ -107,11 +107,14 @@ const WizardModals = (() => {
 
     const registryItems = catalog?.violationRegistry || [];
 
+    // Места нарушений только из текущего акта (другие пункты этого же акта)
     const mestoSuggestions = [
-      ...new Set([
-        ...(draft.violations || []).map((x) => x.mesto).filter(Boolean),
-        ...ViolationTemplates.collectMestaFromCatalog(catalog),
-      ]),
+      ...new Set(
+        (draft.violations || [])
+          .filter((x) => x.id !== violationId)
+          .map((x) => x.mesto)
+          .filter(Boolean)
+      ),
     ];
 
     const mestoDatalist = mestoSuggestions
