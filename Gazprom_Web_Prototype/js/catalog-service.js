@@ -80,7 +80,7 @@ const CatalogService = (() => {
     const a = document.createElement('a');
     const date = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '').replace('T', '_');
     a.href = URL.createObjectURL(blob);
-    a.download = `manual_${date}.gazprombackup`;
+    a.download = `manual_${date}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
   }

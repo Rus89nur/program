@@ -390,7 +390,7 @@
 
       <div class="backup-modal-section">
         <h4 class="backup-modal-section-title">Экспорт — скачать копию</h4>
-        <p class="backup-import-hint">Сохраните все текущие данные браузера в файл <strong>.gazprombackup</strong>. Файл можно открыть в другом браузере или в iOS-приложении.</p>
+        <p class="backup-import-hint">Сохраните все текущие данные браузера в файл <strong>.json</strong>. Файл можно открыть в любом браузере, в том числе на телефоне.</p>
         <button type="button" class="btn-primary" id="backupExportBtn">💾 Скачать резервную копию</button>
       </div>
 
@@ -399,7 +399,7 @@
       <div class="backup-modal-section backup-import-card">
         <h4 class="backup-modal-section-title">Импорт — загрузить копию</h4>
         <p class="backup-import-hint">
-          Файлы <strong>.gazprombackup</strong> создаются в iOS-приложении автоматически. Чтобы перенести на компьютер:
+          Файлы резервной копии (<strong>.json</strong> или <strong>.gazprombackup</strong>) можно загрузить здесь. Чтобы перенести файл с другого устройства:
         </p>
         <ol class="backup-steps">
           <li>iPhone → <strong>Настройки</strong> → <strong>Восстановление по дате</strong> (календарь бэкапов)</li>
@@ -417,7 +417,7 @@
         <div class="backup-import-actions">
           <label class="btn-primary backup-file-label">
             📂 Выбрать файл резервной копии
-            <input type="file" id="backupFileInput" accept="*/*" hidden>
+            <input type="file" id="backupFileInput" accept=".json,application/json,.gazprombackup" hidden>
           </label>
           <button type="button" class="btn-ghost" id="backupClearBtn">Очистить данные</button>
         </div>

@@ -575,7 +575,7 @@ const WizardController = (() => {
         <button type="button" class="btn-primary" id="wGenerateDocx" style="font-size:15px;padding:12px 24px;">📄 Сформировать акт Word</button>
         <button type="button" class="btn-secondary" id="wSaveDraft">💾 Сохранить черновик</button>
         <button type="button" class="btn-secondary" id="wMarkReady">${isDone ? '↩ Вернуть в черновик' : '✓ Отметить готовым'}</button>
-        <button type="button" class="btn-secondary" id="wExportBackup">📤 Экспорт .gazprombackup</button>
+        <button type="button" class="btn-secondary" id="wExportBackup">📤 Экспорт резервной копии</button>
         <button type="button" class="btn-ghost" id="wExportJson">JSON акта</button>
       </div>
     `;
@@ -938,7 +938,7 @@ const WizardController = (() => {
       await saveDraft();
       await reloadCatalog();
       await CatalogService.exportBackup(catalog);
-      GazpromToast.success('Файл .gazprombackup скачан. Перенесите на iPhone через «Поделиться».');
+      GazpromToast.success('Резервная копия (.json) скачана. Перенесите на устройство через «Поделиться».');
     });
     // Проверяем наличие шаблона и обновляем статус-блок
     DocGenerator.hasTemplate().then((has) => {
