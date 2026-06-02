@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gazprom-web-v25';
+const CACHE_NAME = 'gazprom-web-v28';
 const IS_LOCALHOST = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
 const STATIC_ASSETS = [
   './',

@@ -205,6 +205,27 @@ const DocGenerator = (() => {
     ].join('');
   }
 
+  /** Все вхождения маркера (в шаблоне их два: до и после фототаблицы). */
+  function replaceAllMarkersWithSignatureTable(xml, marker, lines) {
+    const hasLines = (lines || []).some(Boolean);
+    let result = xml;
+    let tableEndPos = -1;
+    let found = false;
+    while (result.indexOf(marker) !== -1) {
+      const next = replaceMarkerWithSignatureTable(
+        result,
+        marker,
+        hasLines ? lines : []
+      );
+      if (!next.found) break;
+      found = true;
+      result = next.xml;
+      if (next.tableEndPos > 0) tableEndPos = next.tableEndPos;
+      if (hasLines && next.tableEndPos < 0) break;
+    }
+    return { xml: result, tableEndPos, found };
+  }
+
   function replaceMarkerWithSignatureTable(xml, marker, lines) {
     const pos = xml.indexOf(marker);
     if (pos === -1) return { xml, tableEndPos: -1, found: false };
@@ -266,60 +287,75 @@ const DocGenerator = (() => {
     return Array.from({ length: count }, (_, i) => `rId${maxNum + 1 + i}`);
   }
 
-  /** Подписи комиссии (PredVoice) и представителей (PedstavVoice) */
-  function applySignatureTables(xml, tplData, photoTableEnd = -1) {
-    const commXml = buildSignatureTableXml(tplData.predVoiceLines || []);
-    const repXml = buildSignatureTableXml(tplData.pedstavVoiceLines || []);
-    const insertAt =
-      photoTableEnd > 0 ? photoTableEnd : findPhotoTableEndPos(xml);
-
-    if (insertAt > 0 && (commXml || repXml)) {
-      let cleaned = xml;
-      for (const marker of ['PredVoice', 'PedstavVoice']) {
-        const pos = cleaned.indexOf(marker);
-        if (pos === -1) continue;
-        const beforeMarker = cleaned.slice(0, pos);
-        const wtMatch = beforeMarker.match(/<w:t(?:\s[^>]*)?>[^<]*$/);
-        if (wtMatch) {
-          const tStart = beforeMarker.length - wtMatch[0].length;
-          const tOpenEnd = cleaned.indexOf('>', tStart);
-          const tEnd = tOpenEnd === -1 ? -1 : cleaned.indexOf('</w:t>', tOpenEnd);
-          if (tOpenEnd !== -1 && tEnd !== -1) {
-            const tBody = cleaned.slice(tOpenEnd + 1, tEnd).split(marker).join('');
-            cleaned = cleaned.slice(0, tOpenEnd + 1) + tBody + cleaned.slice(tEnd);
-            continue;
-          }
-        }
-        cleaned = cleaned.split(marker).join('');
+  /** Проверка document.xml перед упаковкой docx (как scripts/validate-docx-xml.mjs). */
+  function validateDocumentXml(xml) {
+    const issues = [];
+    const WT_OPEN = /<w:t(?:\s|>|\/)/g;
+    for (const m of xml.matchAll(WT_OPEN)) {
+      const start = m.index;
+      const openEnd = xml.indexOf('>', start);
+      const end = xml.indexOf('</w:t>', openEnd);
+      if (end === -1) continue;
+      const body = xml.slice(openEnd + 1, end);
+      if (
+        body.includes('<w:drawing') ||
+        body.includes('<w:tbl') ||
+        body.includes('<w:p ') ||
+        body.includes('<w:p>') ||
+        body.includes('<w:r ')
+      ) {
+        issues.push('элементы внутри w:t');
+        break;
       }
-      const block = (commXml || '') + (repXml || '');
-      return cleaned.slice(0, insertAt) + block + cleaned.slice(insertAt);
     }
+    const tblOpen = (xml.match(/<w:tbl[\s>]/g) || []).length;
+    const tblClose = (xml.match(/<\/w:tbl>/g) || []).length;
+    if (tblOpen !== tblClose) {
+      issues.push(`несбалансированные таблицы (${tblOpen}/${tblClose})`);
+    }
+    return issues;
+  }
 
+  function assertValidDocumentXml(xml) {
+    const issues = validateDocumentXml(xml);
+    if (issues.length) {
+      throw new Error(
+        'Ошибка структуры Word-документа. Пересоздайте акт. Детали: ' + issues.join('; ')
+      );
+    }
+  }
+
+  /** Подписи комиссии (PredVoice) и представителей (PedstavVoice) — по всем маркерам в шаблоне. */
+  function applySignatureTables(xml, tplData, photoTableEnd = -1) {
     let result = xml;
+    const commLines = tplData.predVoiceLines || [];
+    const repLines = tplData.pedstavVoiceLines || [];
 
-    const commission = replaceMarkerWithSignatureTable(
-      result,
-      'PredVoice',
-      tplData.predVoiceLines || []
-    );
+    const commission = replaceAllMarkersWithSignatureTable(result, 'PredVoice', commLines);
     result = commission.xml;
 
-    const repLines = tplData.pedstavVoiceLines || [];
-    if (!repLines.length) return result;
+    const representatives = replaceAllMarkersWithSignatureTable(result, 'PedstavVoice', repLines);
+    result = representatives.xml;
 
-    const representatives = replaceMarkerWithSignatureTable(result, 'PedstavVoice', repLines);
-    if (representatives.found) return representatives.xml;
-
-    // Шаблон без PedstavVoice — вставляем таблицу сразу после подписей комиссии
-    if (commission.tableEndPos > 0) {
-      const tableXml = buildSignatureTableXml(repLines);
-      if (tableXml) {
+    if (repLines.length && !representatives.found && commission.tableEndPos > 0) {
+      const repTableXml = buildSignatureTableXml(repLines);
+      if (repTableXml) {
         return (
           result.slice(0, commission.tableEndPos) +
-          tableXml +
+          repTableXml +
           result.slice(commission.tableEndPos)
         );
+      }
+    }
+
+    if (commLines.length && !commission.found) {
+      const endPos =
+        photoTableEnd > 0 ? photoTableEnd : findPhotoTableEndPos(result);
+      const commTableXml = buildSignatureTableXml(commLines);
+      const repTableXml = buildSignatureTableXml(repLines);
+      if (endPos > 0 && commTableXml) {
+        const block = commTableXml + (repTableXml || '');
+        return result.slice(0, endPos) + block + result.slice(endPos);
       }
     }
 
@@ -492,12 +528,11 @@ const DocGenerator = (() => {
       return item?.relId || '';
     });
 
-    const lenBefore = xml.length;
     xml = xml.replace(PHOTO_ROW_RE, allPhotoRows);
-    const photoTableEnd =
-      photoTableEndBefore > 0
-        ? photoTableEndBefore + (xml.length - lenBefore)
-        : findPhotoTableEndPos(xml);
+    let photoTableEnd = findPhotoTableEndPos(xml);
+    if (photoTableEnd < 0 && photoTableEndBefore > 0) {
+      photoTableEnd = photoTableEndBefore;
+    }
 
     if (relsXML && pendingImages.length) {
       const relsSnippets = pendingImages
@@ -514,6 +549,14 @@ const DocGenerator = (() => {
     return { xml, photoTableEnd };
   }
 
+  /** Заменяет скалярный маркер; Pedstav не затрагивает PedstavVoice. */
+  function replaceScalarMarker(xml, key, val) {
+    if (key === 'Pedstav') {
+      return xml.replace(/Pedstav(?!Voice)/g, val);
+    }
+    return xml.split(key).join(val);
+  }
+
   /** Заменяет скалярные маркеры в XML их значениями */
   function replaceScalarMarkers(xml, data, markerKeys) {
     let result = xml;
@@ -521,7 +564,7 @@ const DocGenerator = (() => {
       const val = key === 'PredVoice' || key === 'PedstavVoice'
         ? toWordMultilineTextXml(data[key] || '')
         : xmlEscape(String(data[key] || ''));
-      result = result.split(key).join(val);
+      result = replaceScalarMarker(result, key, val);
     }
     return result;
   }
@@ -553,6 +596,7 @@ const DocGenerator = (() => {
       let xmlOut = outZip.files['word/document.xml']?.asText() || '';
       const photoResult = await processPhotoTable(xmlOut, outZip, akt.violations || []);
       xmlOut = applySignatureTables(photoResult.xml, tplData, photoResult.photoTableEnd);
+      assertValidDocumentXml(xmlOut);
       outZip.file('word/document.xml', xmlOut);
       blob = outZip.generate({
         type: 'blob',
@@ -585,6 +629,7 @@ const DocGenerator = (() => {
         'ddescrVi', 'ddescpitVi',  // FIX 4: чистим если остались вне таблицы
       ]);
 
+      assertValidDocumentXml(xml);
       zip.file('word/document.xml', xml);
       blob = zip.generate({
         type: 'blob',
