@@ -1187,19 +1187,28 @@ const WizardController = (() => {
     GazpromToast.success(`Черновик акта № ${draft.number} сохранён`);
   }
 
+  function canGoToStep(target) {
+    if (target <= step) return true;
+    commitStep(step);
+    for (let s = step; s < target; s++) {
+      if (!validateStep(s)) return false;
+    }
+    return true;
+  }
+
   function bindGlobalControls() {
     document.getElementById('wizardNext')?.addEventListener('click', () => next());
     document.getElementById('wizardPrev')?.addEventListener('click', () => prev());
-    document.querySelectorAll('.wizard-step').forEach((btn) => {
+    document.querySelectorAll('#wizardStepper .wizard-step').forEach((btn) => {
       btn.addEventListener('click', () => {
         const target = parseInt(btn.dataset.step, 10);
-        if (target === step) return;
-        commitStep(step);
-        if (target > step && !validateStep(step)) return;
-        saveDraft().then(() => {
-          step = target;
-          render();
-          updateSummary();
+        if (Number.isNaN(target) || target === step) return;
+        if (target > step && !canGoToStep(target)) return;
+        if (target < step) commitStep(step);
+        setStep(target);
+        saveDraft().catch((e) => {
+          console.error(e);
+          GazpromToast.error(e.message || 'Ошибка сохранения черновика');
         });
       });
     });
