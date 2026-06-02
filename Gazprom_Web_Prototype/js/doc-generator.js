@@ -30,8 +30,8 @@ const DocGenerator = (() => {
     await loadScript(DOCX_CDN,   () => Boolean(window.docxtemplater || window.Docxtemplater));
   }
 
-  async function loadTemplateBlob() {
-    const catalog = await GazpromStore.get();
+  async function loadTemplateBlob(catalogOverride) {
+    const catalog = catalogOverride || (await GazpromStore.get());
     const b64 = catalog?.[TEMPLATE_KEY];
     if (!b64) return null;
     const bin = atob(b64);
@@ -330,8 +330,8 @@ const DocGenerator = (() => {
   }
 
   /**
-   * Фототаблица шаблона: tempOne — № фото в акте, tempTwo — № нарушения, tempThree — вставка JPEG.
-   * Логика совместима с iOS GenerateViewModel.processDocxTemplate.
+   * Фототаблица: tempOne — № п/п (порядок строк в таблице), tempTwo — № пункта по акту (PoradNum),
+   * tempThree — JPEG.
    */
   async function processPhotoTable(xml, zip, violations) {
     const match = xml.match(PHOTO_ROW_RE);
@@ -341,16 +341,16 @@ const DocGenerator = (() => {
     let allPhotoRows = '';
     let globalImageIndex = 0;
     let relsSnippets = '';
-    let violNumb = 0;
-    let globIndex = 0;
+    let rowIndex = 0;
 
-    for (const violation of violations || []) {
+    for (let i = 0; i < (violations || []).length; i++) {
+      const violation = violations[i];
       if (!violation.photo?.length) continue;
-      violNumb += 1;
-      globIndex += 1;
+      rowIndex += 1;
+      const poradNum = i + 1;
       let row = photoRowTemplate;
-      row = row.split('tempOne').join(`${globIndex}.`);
-      row = row.split('tempTwo').join(`${violNumb}.`);
+      row = row.split('tempOne').join(`${rowIndex}.`);
+      row = row.split('tempTwo').join(`${poradNum}.`);
 
       let imageXMLSnippets = '';
       for (const photoRef of violation.photo) {
@@ -394,15 +394,10 @@ const DocGenerator = (() => {
     return result;
   }
 
-  async function generateFromAkt(akt) {
-    // #region agent log
-    fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'149aeb'},body:JSON.stringify({sessionId:'149aeb',location:'doc-generator.js:generate-v5',message:'generateFromAkt v5 direct-xml',data:{aktId:akt?.id},timestamp:Date.now(),hypothesisId:'I'})}).catch(()=>{});
-    // #endregion
-
-    // PizZip нужен в любом случае — грузим его
+  async function generateFromAkt(akt, catalogOverride) {
     await loadScript(PIZZIP_CDN, () => typeof PizZip !== 'undefined');
 
-    const templateBytes = await loadTemplateBlob();
+    const templateBytes = await loadTemplateBlob(catalogOverride);
     if (!templateBytes) {
       throw new Error('Загрузите шаблон Word (.docx) в Настройках → Шаблон акта');
     }

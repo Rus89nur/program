@@ -5,6 +5,8 @@
 const GazpromStore = (() => {
   const STORE = 'app';
   const KEY = 'current';
+  /** Лёгкий черновик мастера — без перезаписи всего каталога с сотнями фото. */
+  const DRAFT_KEY = 'wizardDraft';
 
   let cache = null;
 
@@ -25,16 +27,53 @@ const GazpromStore = (() => {
     };
   }
 
-  async function get() {
-    if (cache) return cache;
-    const data = await GazpromIdb.transaction(STORE, 'readonly', (tx) =>
+  function mergeWizardDraft(catalog, draftRec) {
+    if (!draftRec?.akt) return catalog;
+    const akt = draftRec.akt;
+    const out = { ...catalog, akts: [...(catalog.akts || [])] };
+    out.editableAkt = {
+      akt,
+      isEditable: true,
+      lastModified: draftRec.lastModified || new Date().toISOString(),
+    };
+    if (draftRec.reference) out.editableAktReference = draftRec.reference;
+    const idx = out.akts.findIndex((a) => a.id === akt.id);
+    if (idx >= 0) out.akts[idx] = akt;
+    else out.akts.push(akt);
+    return out;
+  }
+
+  async function readCatalogFromDb() {
+    return GazpromIdb.transaction(STORE, 'readonly', (tx) =>
       new Promise((resolve, reject) => {
-        const req = tx.objectStore(STORE).get(KEY);
-        req.onsuccess = () => resolve(req.result || emptyCatalog());
-        req.onerror = () => reject(req.error);
+        const store = tx.objectStore(STORE);
+        const mainReq = store.get(KEY);
+        const draftReq = store.get(DRAFT_KEY);
+        let main = null;
+        let draftRec = null;
+        let pending = 2;
+        const finish = () => {
+          pending -= 1;
+          if (pending > 0) return;
+          resolve(mergeWizardDraft(main || emptyCatalog(), draftRec));
+        };
+        mainReq.onsuccess = () => {
+          main = mainReq.result;
+          finish();
+        };
+        mainReq.onerror = () => reject(mainReq.error);
+        draftReq.onsuccess = () => {
+          draftRec = draftReq.result;
+          finish();
+        };
+        draftReq.onerror = () => reject(draftReq.error);
       })
     );
-    cache = data;
+  }
+
+  async function get() {
+    if (cache) return cache;
+    cache = await readCatalogFromDb();
     return cache;
   }
 
@@ -45,13 +84,35 @@ const GazpromStore = (() => {
     }
     await GazpromIdb.transaction(STORE, 'readwrite', (tx) => {
       tx.objectStore(STORE).put(toSave, KEY);
+      tx.objectStore(STORE).delete(DRAFT_KEY);
     });
     cache = toSave;
+  }
+
+  /** Быстрое сохранение только текущего черновика акта (для мастера на телефоне). */
+  async function saveWizardDraft(akt, reference = null) {
+    const record = {
+      akt,
+      lastModified: new Date().toISOString(),
+      reference,
+    };
+    await GazpromIdb.transaction(STORE, 'readwrite', (tx) => {
+      tx.objectStore(STORE).put(record, DRAFT_KEY);
+    });
+    if (cache) {
+      cache = mergeWizardDraft(cache, record);
+    }
+  }
+
+  /** Полная запись каталога (импорт, справочники, завершение акта). */
+  async function persistCatalog(data, opts = {}) {
+    await set(data ?? (await get()), opts);
   }
 
   async function clear() {
     await GazpromIdb.transaction(STORE, 'readwrite', (tx) => {
       tx.objectStore(STORE).delete(KEY);
+      tx.objectStore(STORE).delete(DRAFT_KEY);
     });
     if (typeof PhotoStore !== 'undefined') {
       await PhotoStore.clearAll();
@@ -74,5 +135,14 @@ const GazpromStore = (() => {
     cache = null;
   }
 
-  return { get, set, clear, hasData, invalidateCache, getForExport };
+  return {
+    get,
+    set,
+    saveWizardDraft,
+    persistCatalog,
+    clear,
+    hasData,
+    invalidateCache,
+    getForExport,
+  };
 })();

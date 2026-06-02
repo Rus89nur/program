@@ -99,9 +99,11 @@ const WizardController = (() => {
     if (draft) {
       commitStep(step);
       await saveDraft();
+      await GazpromStore.persistCatalog(catalog);
     } else if (catalog?.editableAkt?.akt) {
       draft = AktUtils.clone(catalog.editableAkt.akt);
       await saveDraft();
+      await GazpromStore.persistCatalog(catalog);
     }
     draft = AktUtils.createEmptyDraft(catalog);
     step = 0;
@@ -973,9 +975,11 @@ const WizardController = (() => {
       const btn = document.getElementById('wGenerateDocx');
       if (btn) { btn.disabled = true; btn.textContent = '⏳ Генерация…'; }
       try {
-        await saveDraft();
-        await DocGenerator.generateFromAkt(draft);
+        commitStep(step);
+        await flushSave();
+        await DocGenerator.generateFromAkt(draft, catalog);
       } catch (e) {
+        console.error(e);
         GazpromToast.error(e.message || 'Ошибка генерации Word');
       } finally {
         if (btn) { btn.disabled = false; btn.textContent = '📄 Сформировать акт Word'; }
@@ -1168,7 +1172,11 @@ const WizardController = (() => {
       if (idx >= 0) catalog.akts[idx] = draftCopy;
       else catalog.akts = [...(catalog.akts || []), draftCopy];
 
-      await GazpromStore.set(catalog, { skipPhotoIngest: true });
+      await GazpromStore.saveWizardDraft(draftCopy, {
+        aktId: draftId,
+        aktNumber: draftNumber,
+        lastModified: catalog.editableAkt.lastModified,
+      });
     });
     saveDraftChain = op.catch(() => {});
     await op;
@@ -1247,6 +1255,7 @@ const WizardController = (() => {
     commitStep(step);
     if (!validateStep(step)) return;
     await saveDraft();
+    await GazpromStore.persistCatalog(catalog);
     await GazpromUI.refreshAll();
     GazpromToast.success(`Черновик акта № ${draft.number} сохранён`);
   }
