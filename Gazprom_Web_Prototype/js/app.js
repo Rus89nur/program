@@ -92,6 +92,9 @@ function setBackupLoading(on, text = 'Импорт…') {
 }
 
 async function handleBackupFile(file) {
+  // #region agent log H-E: handleBackupFile entry
+  fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4f49ca'},body:JSON.stringify({sessionId:'4f49ca',location:'app.js:94',message:'handleBackupFile called',data:{filePresent:!!file,name:file?.name,type:file?.type,size:file?.size},timestamp:Date.now(),hypothesisId:'H-E'})}).catch(()=>{});
+  // #endregion
   if (!file) return;
 
   const merge = document.getElementById('backupMergeCheckbox')?.checked ?? false;
@@ -286,10 +289,23 @@ function init() {
   });
   document.querySelector('.settings-tile--schedule')?.addEventListener('click', () => ScheduleEditor.open());
 
-  document.getElementById('backupFileInput')?.addEventListener('change', (e) => {
+  // #region agent log H-A/H-C: verify accept attr and change event
+  const _bfi = document.getElementById('backupFileInput');
+  fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4f49ca'},body:JSON.stringify({sessionId:'4f49ca',location:'app.js:289',message:'backupFileInput init',data:{accept:_bfi?.getAttribute('accept'),ua:navigator.userAgent,exists:!!_bfi},timestamp:Date.now(),hypothesisId:'H-A'})}).catch(()=>{});
+  // #endregion
+  _bfi?.addEventListener('change', (e) => {
+    // #region agent log H-C/H-E: change event fired
+    fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4f49ca'},body:JSON.stringify({sessionId:'4f49ca',location:'app.js:292',message:'backupFileInput change fired',data:{filesCount:e.target.files?.length,fileName:e.target.files?.[0]?.name,fileType:e.target.files?.[0]?.type,fileSize:e.target.files?.[0]?.size},timestamp:Date.now(),hypothesisId:'H-C'})}).catch(()=>{});
+    // #endregion
     handleBackupFile(e.target.files?.[0]);
     e.target.value = '';
   });
+
+  // #region agent log H-B: label click - does file picker open at all
+  document.querySelector('.backup-file-label')?.addEventListener('click', () => {
+    fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4f49ca'},body:JSON.stringify({sessionId:'4f49ca',location:'app.js:label-click',message:'backup label clicked',data:{inputHidden:document.getElementById('backupFileInput')?.hidden,inputDisplay:getComputedStyle(document.getElementById('backupFileInput')||document.body).display,ua:navigator.userAgent},timestamp:Date.now(),hypothesisId:'H-B'})}).catch(()=>{});
+  });
+  // #endregion
 
   document.getElementById('backupClearBtn')?.addEventListener('click', async () => {
     const ok = await GazpromToast.confirm('Удалить все загруженные данные из браузера?');
