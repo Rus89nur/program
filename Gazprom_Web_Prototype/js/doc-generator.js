@@ -219,13 +219,34 @@ const DocGenerator = (() => {
     return xml.split(marker).join('');
   }
 
-  /** Конец таблицы с фото (после processPhotoTable). */
+  /** Конец внешней таблицы, содержащей фото (не вложенной). */
   function findPhotoTableEndPos(xml) {
     let anchor = xml.lastIndexOf('rIdImage');
     if (anchor === -1) anchor = xml.lastIndexOf('w:drawing');
     if (anchor === -1) return -1;
-    const tblEnd = xml.indexOf('</w:tbl>', anchor);
-    return tblEnd === -1 ? -1 : tblEnd + '</w:tbl>'.length;
+
+    const before = xml.slice(0, anchor);
+    let depth =
+      (before.match(/<w:tbl[\s>]/g) || []).length -
+      (before.match(/<\/w:tbl>/g) || []).length;
+    if (depth <= 0) return -1;
+
+    let pos = anchor;
+    while (depth > 0) {
+      const close = xml.indexOf('</w:tbl>', pos);
+      if (close === -1) return -1;
+      depth -= 1;
+      pos = close + '</w:tbl>'.length;
+    }
+    return pos;
+  }
+
+  function nextRelationshipIds(relsXML, count) {
+    let maxNum = 0;
+    for (const m of relsXML.matchAll(/Id="rId(\d+)"/g)) {
+      maxNum = Math.max(maxNum, parseInt(m[1], 10));
+    }
+    return Array.from({ length: count }, (_, i) => `rId${maxNum + 1 + i}`);
   }
 
   function replaceMarkerWithSignatureTable(xml, marker, lines) {
@@ -420,8 +441,7 @@ const DocGenerator = (() => {
 
     const photoRowTemplate = match[0];
     let allPhotoRows = '';
-    let globalImageIndex = 0;
-    let relsSnippets = '';
+    const pendingImages = [];
     let rowIndex = 0;
 
     for (let i = 0; i < (violations || []).length; i++) {
@@ -437,12 +457,9 @@ const DocGenerator = (() => {
       for (const photoRef of violation.photo) {
         const bytes = await loadPhotoJpegBytes(photoRef);
         if (!bytes?.length) continue;
-        globalImageIndex += 1;
-        const imageName = `image${globalImageIndex}.jpg`;
-        zip.file(`word/media/${imageName}`, bytes);
-        const relId = `rIdImage${globalImageIndex}`;
-        relsSnippets += `<Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${imageName}"/>\n`;
-        imageXMLSnippets += buildImageEmbedXml(relId, globalImageIndex);
+        pendingImages.push({ bytes });
+        const imageIndex = pendingImages.length;
+        imageXMLSnippets += buildImageEmbedXml(`__REL_${imageIndex}__`, imageIndex);
       }
 
       row = row.split('tempThree').join(imageXMLSnippets);
@@ -451,11 +468,32 @@ const DocGenerator = (() => {
 
     if (!allPhotoRows) return xml;
 
-    xml = xml.replace(PHOTO_ROW_RE, allPhotoRows);
-
     const relsPath = 'word/_rels/document.xml.rels';
     let relsXML = zip.files[relsPath]?.asText() || '';
-    if (relsXML && relsSnippets) {
+    const relIds = nextRelationshipIds(relsXML, pendingImages.length);
+
+    pendingImages.forEach((item, i) => {
+      const relId = relIds[i];
+      const imageName = `image_gen_${i + 1}.jpg`;
+      item.relId = relId;
+      item.imageName = imageName;
+      zip.file(`word/media/${imageName}`, item.bytes);
+    });
+
+    allPhotoRows = allPhotoRows.replace(/__REL_(\d+)__/g, (_, n) => {
+      const item = pendingImages[parseInt(n, 10) - 1];
+      return item?.relId || '';
+    });
+
+    xml = xml.replace(PHOTO_ROW_RE, allPhotoRows);
+
+    if (relsXML && pendingImages.length) {
+      const relsSnippets = pendingImages
+        .map(
+          (item) =>
+            `<Relationship Id="${item.relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${item.imageName}"/>`
+        )
+        .join('');
       relsXML = relsXML.replace('</Relationships>', relsSnippets + '</Relationships>');
       zip.file(relsPath, relsXML);
     }
