@@ -1,5 +1,5 @@
 /** Газпром — веб-приложение: навигация, PWA, импорт, экраны */
-window.GAZPROM_WEB_BUILD = 'web-66';
+window.GAZPROM_WEB_BUILD = 'web-67';
 const titles = {
   home: 'Главная',
   wizard: 'Редактируемый акт',

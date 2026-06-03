@@ -186,7 +186,12 @@ const WizardController = (() => {
     const next = document.getElementById('wizardNext');
     if (prev) prev.style.visibility = step === 0 ? 'hidden' : 'visible';
     if (next) {
-      next.textContent = step === TOTAL_STEPS - 1 ? '💾 Сохранить черновик' : 'Далее →';
+      const phoneShell = document.body.classList.contains('gazprom-mobile-shell');
+      if (step === TOTAL_STEPS - 1) {
+        next.textContent = phoneShell ? '💾 Сохранить' : '💾 Сохранить черновик';
+      } else {
+        next.textContent = 'Далее →';
+      }
     }
   }
 
