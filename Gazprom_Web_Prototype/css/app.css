@@ -2770,33 +2770,6 @@
       text-align: left;
     }
 
-    .elim-stat-card__icon {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.25rem;
-      font-weight: 800;
-      flex-shrink: 0;
-    }
-
-    .elim-stat-card__icon--total {
-      background: var(--primary-soft);
-      color: var(--primary);
-    }
-
-    .elim-stat-card__icon--done {
-      background: rgba(46, 125, 50, 0.12);
-      color: var(--success);
-    }
-
-    .elim-stat-card__icon--open {
-      background: rgba(198, 40, 40, 0.1);
-      color: var(--danger);
-    }
-
     .elim-stat-card__body {
       flex: 1;
       min-width: 0;
