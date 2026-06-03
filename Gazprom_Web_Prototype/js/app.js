@@ -1,11 +1,12 @@
 /** Газпром — веб-приложение: навигация, PWA, импорт, экраны */
-window.GAZPROM_WEB_BUILD = 'web-91';
+window.GAZPROM_WEB_BUILD = 'web-94';
 
 const syncAppBuildLabel = () => {
   const build = window.GAZPROM_WEB_BUILD;
   if (!build) return;
+  const label = `Сборка: ${build}`;
   const el = document.getElementById('appBuildId');
-  if (el) el.textContent = `Сборка: ${build}`;
+  if (el) el.textContent = label;
   document.querySelectorAll('[data-app-build]').forEach((node) => {
     node.textContent = build;
   });
