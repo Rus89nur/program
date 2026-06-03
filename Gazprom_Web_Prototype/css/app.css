@@ -3586,9 +3586,9 @@
       }
 
       body.gazprom-mobile-shell {
-        /* +18px — панель Safari на реальном iPhone */
-        --gazprom-nav-lift: calc(24px + env(safe-area-inset-bottom, 0px) + 18px);
-        --gazprom-nav-block: calc(56px + var(--gazprom-nav-lift) + 8px);
+        /* Сразу над панелью браузера; safe-area — только «челка» домашней кнопки */
+        --gazprom-nav-lift: 0px;
+        --gazprom-nav-block: calc(52px + env(safe-area-inset-bottom, 0px) + 6px);
         --mobile-modal-gutter: 20px;
         --mobile-modal-width: 90%;
         overflow: hidden;
@@ -3731,7 +3731,7 @@
         max-width: 100%;
         z-index: 200;
         transform: translateZ(0);
-        padding: 6px 8px 10px;
+        padding: 6px 8px max(6px, env(safe-area-inset-bottom, 0px));
         padding-left: max(8px, env(safe-area-inset-left));
         padding-right: max(8px, env(safe-area-inset-right));
         box-sizing: border-box;
@@ -3781,7 +3781,7 @@
         padding:
           max(12px, env(safe-area-inset-top))
           max(var(--mobile-modal-gutter), env(safe-area-inset-right))
-          calc(max(12px, env(safe-area-inset-bottom, 0px)) + 18px)
+          max(12px, env(safe-area-inset-bottom, 0px))
           max(var(--mobile-modal-gutter), env(safe-area-inset-left));
         box-sizing: border-box;
       }
