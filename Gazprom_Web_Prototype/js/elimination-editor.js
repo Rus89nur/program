@@ -60,22 +60,19 @@ const EliminationEditor = (() => {
     };
   }
 
-  function buildStatusLineHtml(akt, allDone, overdue, noViolations) {
+  function buildStatusLineHtml(overdue, noViolations) {
     if (noViolations) {
       return '<p class="elimination-act-card__status-line elimination-act-card__status-line--muted">Нарушения отсутствуют</p>';
     }
-    const orgName = akt.organization?.shortTitle || akt.organization?.title || '—';
-    const orgPart = `<span class="elimination-act-card__org-line">${AktUtils.escapeHtml(orgName)}</span>`;
-    if (allDone) {
-      return `<p class="elimination-act-card__status-line">${orgPart} · <span class="elimination-act-card__status-line--done">Выполнено</span></p>`;
-    }
     if (overdue) {
-      return `<p class="elimination-act-card__status-line">${orgPart} · <span class="elimination-act-card__status-line--overdue">Просрочено</span></p>`;
+      return '<p class="elimination-act-card__status-line"><span class="elimination-act-card__status-line--overdue">Просрочено</span></p>';
     }
-    return `<p class="elimination-act-card__status-line">${orgPart}</p>`;
+    return '';
   }
 
-  function buildActHeaderHtml(aktNumber, item, noViolations) {
+  function buildActHeaderHtml(aktNumber, akt, item, noViolations) {
+    const orgName = akt.organization?.shortTitle || akt.organization?.title || '—';
+    const orgHtml = `<span class="elimination-act-card__org">${AktUtils.escapeHtml(orgName)}</span>`;
     let deadlineHtml = '';
     if (!noViolations) {
       if (item.earliestDeadline) {
@@ -88,6 +85,7 @@ const EliminationEditor = (() => {
     }
     return `<div class="elimination-act-card__head">
       <h4 class="elimination-act-card__title">Акт №${AktUtils.escapeHtml(aktNumber)}</h4>
+      ${orgHtml}
       ${deadlineHtml}
     </div>`;
   }
@@ -435,9 +433,9 @@ const EliminationEditor = (() => {
           .join(' ');
 
         const ring = ringMetrics(item.eliminatedViolations, item.totalViolations);
-        const headerHtml = buildActHeaderHtml(item.aktNumber, item, noViolations);
+        const headerHtml = buildActHeaderHtml(item.aktNumber, item.akt, item, noViolations);
         const objectHtml = buildObjectHtml(item.akt);
-        const statusLineHtml = buildStatusLineHtml(item.akt, allDone, overdue, noViolations);
+        const statusLineHtml = buildStatusLineHtml(overdue, noViolations);
         const toggleHtml = buildToggleBtnHtml(item, allDone, overdue, noViolations);
         const ringStateClass = allDone
           ? 'elimination-act-card__ring--done'
