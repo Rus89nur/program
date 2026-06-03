@@ -4,27 +4,97 @@
 const PhotoStore = (() => {
   const STORE_PHOTOS = 'photos';
   const ID_PREFIX = 'photo:';
+  const MAX_BLOB_BYTES = 900_000;
 
   const dataUrlCache = new Map();
+  let lastIngestStats = null;
 
   function isPhotoId(ref) {
     return typeof ref === 'string' && ref.startsWith(ID_PREFIX);
   }
 
-  async function putBlob(id, blob) {
-    await GazpromIdb.transaction(STORE_PHOTOS, 'readwrite', (tx) => {
-      tx.objectStore(STORE_PHOTOS).put({ blob, mime: blob.type || 'image/jpeg' }, id);
-    });
-  }
+  const yieldToMain = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-  async function getBlob(id) {
+  async function getPhotoRecord(id) {
     return GazpromIdb.transaction(STORE_PHOTOS, 'readonly', (tx) =>
       new Promise((resolve, reject) => {
         const req = tx.objectStore(STORE_PHOTOS).get(id);
-        req.onsuccess = () => resolve(req.result?.blob || null);
+        req.onsuccess = () => resolve(req.result || null);
         req.onerror = () => reject(req.error);
       })
     );
+  }
+
+  async function putRecordWithRetry(id, record) {
+    let lastErr;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        await GazpromIdb.transaction(STORE_PHOTOS, 'readwrite', (tx) => {
+          tx.objectStore(STORE_PHOTOS).put(record, id);
+        });
+        return;
+      } catch (err) {
+        lastErr = err;
+        if (typeof GazpromIdb.resetConnection === 'function') {
+          GazpromIdb.resetConnection();
+        }
+        await new Promise((r) => setTimeout(r, 100 * (attempt + 1)));
+      }
+    }
+    throw lastErr;
+  }
+
+  async function compressBlob(blob, maxBytes = MAX_BLOB_BYTES) {
+    if (!blob || blob.size <= maxBytes) return blob;
+    if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') {
+      return blob;
+    }
+    let bitmap;
+    try {
+      bitmap = await createImageBitmap(blob);
+      const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height, 1));
+      const w = Math.max(1, Math.round(bitmap.width * scale));
+      const h = Math.max(1, Math.round(bitmap.height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return blob;
+      ctx.drawImage(bitmap, 0, 0, w, h);
+      if (typeof bitmap.close === 'function') bitmap.close();
+      const qualities = [0.85, 0.72, 0.58, 0.45];
+      for (const q of qualities) {
+        const out = await new Promise((resolve, reject) => {
+          canvas.toBlob(
+            (b) => (b ? resolve(b) : reject(new Error('toBlob failed'))),
+            'image/jpeg',
+            q
+          );
+        });
+        if (out.size <= maxBytes) return out;
+      }
+      return await new Promise((resolve, reject) => {
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', 0.4);
+      });
+    } catch {
+      if (bitmap && typeof bitmap.close === 'function') bitmap.close();
+      return blob;
+    }
+  }
+
+  async function putBlob(id, blob) {
+    const compressed = await compressBlob(blob);
+    await putRecordWithRetry(id, { blob: compressed, mime: compressed.type || 'image/jpeg' });
+  }
+
+  async function putB64Record(id, b64) {
+    const raw = String(b64).includes(',') ? String(b64).split(',')[1] : String(b64);
+    await putRecordWithRetry(id, { b64: raw, mime: 'image/jpeg' });
+  }
+
+  async function getBlob(id) {
+    const rec = await getPhotoRecord(id);
+    return rec?.blob || null;
   }
 
   async function deleteBlob(id) {
@@ -54,12 +124,7 @@ const PhotoStore = (() => {
 
   function base64ToBlobSync(b64, mime = 'image/jpeg') {
     const raw = b64.includes(',') ? b64.split(',')[1] : b64;
-    let bin;
-    try {
-      bin = atob(raw);
-    } catch {
-      throw new Error('Некорректные данные фото (base64)');
-    }
+    const bin = atob(raw);
     const arr = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
     return new Blob([arr], { type: mime });
@@ -87,27 +152,44 @@ const PhotoStore = (() => {
   }
 
   async function ingestPhotoRef(ref) {
-    if (!ref || isPhotoId(ref)) return ref;
+    if (!ref || isPhotoId(ref)) return { id: ref, mode: 'existing' };
+
+    const id = ID_PREFIX + AktUtils.uuid();
+    const b64 = typeof ref === 'string' ? ref : null;
+
     try {
-      const id = ID_PREFIX + AktUtils.uuid();
       const blob =
-        ref instanceof Blob
-          ? ref
-          : typeof ref === 'string'
-            ? await base64ToBlob(ref)
-            : await base64ToBlob(String(ref));
+        ref instanceof Blob ? ref : b64 ? await base64ToBlob(b64) : await base64ToBlob(String(ref));
       await putBlob(id, blob);
-      return id;
-    } catch (err) {
-      // #region agent log
-      if (typeof DebugAgent !== 'undefined') {
-        DebugAgent.log('photo-store.js:ingestPhotoRef', 'skip photo', {
-          msg: err?.message,
-          len: typeof ref === 'string' ? ref.length : 0,
-        }, 'D');
+      return { id, mode: 'blob' };
+    } catch (blobErr) {
+      if (!b64) {
+        // #region agent log
+        if (typeof DebugAgent !== 'undefined') {
+          DebugAgent.log('photo-store.js:ingestPhotoRef', 'failed no b64', {
+            msg: blobErr?.message,
+          }, 'D');
+        }
+        // #endregion
+        return { id: null, mode: 'failed' };
       }
-      // #endregion
-      return null;
+      try {
+        if (typeof GazpromIdb.resetConnection === 'function') GazpromIdb.resetConnection();
+        await yieldToMain();
+        await putB64Record(id, b64);
+        return { id, mode: 'b64' };
+      } catch (b64Err) {
+        // #region agent log
+        if (typeof DebugAgent !== 'undefined') {
+          DebugAgent.log('photo-store.js:ingestPhotoRef', 'blob and b64 failed', {
+            blobMsg: blobErr?.message,
+            b64Msg: b64Err?.message,
+            len: b64.length,
+          }, 'D');
+        }
+        // #endregion
+        return { id: null, mode: 'failed' };
+      }
     }
   }
 
@@ -116,7 +198,14 @@ const PhotoStore = (() => {
     if (typeof ref === 'string' && ref.startsWith('data:')) return ref;
     if (!isPhotoId(ref)) return AktUtils.photoSrc(ref);
     if (dataUrlCache.has(ref)) return dataUrlCache.get(ref);
-    const blob = await getBlob(ref);
+
+    const rec = await getPhotoRecord(ref);
+    if (rec?.b64) {
+      const url = `data:image/jpeg;base64,${rec.b64}`;
+      dataUrlCache.set(ref, url);
+      return url;
+    }
+    const blob = rec?.blob || null;
     if (!blob) return '';
     const url = URL.createObjectURL(blob);
     dataUrlCache.set(ref, url);
@@ -131,49 +220,12 @@ const PhotoStore = (() => {
       }
       return ref;
     }
-    const blob = await getBlob(ref);
+    const rec = await getPhotoRecord(ref);
+    if (rec?.b64) return rec.b64;
+    const blob = rec?.blob || null;
     if (!blob) return null;
     return blobToBase64(blob);
   }
-
-  async function ingestViolationPhotos(violation) {
-    if (!violation?.photo?.length) return violation;
-    const photo = [];
-    for (const p of violation.photo) {
-      photo.push(await ingestPhotoRef(p));
-    }
-    return { ...violation, photo };
-  }
-
-  async function expandViolationPhotos(violation) {
-    if (!violation?.photo?.length) return violation;
-    const photo = [];
-    for (const p of violation.photo) {
-      const expanded = await expandPhotoRef(p);
-      if (expanded) photo.push(expanded);
-    }
-    return { ...violation, photo };
-  }
-
-  async function ingestAkt(akt) {
-    if (!akt) return akt;
-    const violations = [];
-    for (const v of akt.violations || []) {
-      violations.push(await ingestViolationPhotos({ ...v }));
-    }
-    return { ...akt, violations };
-  }
-
-  async function expandAkt(akt) {
-    if (!akt) return akt;
-    const violations = [];
-    for (const v of akt.violations || []) {
-      violations.push(await expandViolationPhotos({ ...v }));
-    }
-    return { ...akt, violations };
-  }
-
-  const yieldToMain = () => new Promise((resolve) => setTimeout(resolve, 0));
 
   function countInlinePhotos(catalog) {
     let n = 0;
@@ -192,29 +244,52 @@ const PhotoStore = (() => {
     return n;
   }
 
+  function countStoredPhotoIds(catalog) {
+    let n = 0;
+    const scan = (list) => {
+      for (const a of list || []) {
+        for (const v of a.violations || []) {
+          for (const p of v.photo || []) {
+            if (isPhotoId(p)) n += 1;
+          }
+        }
+      }
+    };
+    scan(catalog.akts);
+    scan(catalog.trash);
+    if (catalog.editableAkt?.akt) scan([catalog.editableAkt.akt]);
+    return n;
+  }
+
   /**
-   * Заменяет base64 на photo:id на месте (без копии каталога и без clearAll).
-   * Освобождает память перед записью каталога в IndexedDB.
+   * Заменяет base64 на photo:id на месте; при сбое blob пробует b64 в IDB.
    */
   async function ingestCatalogInPlace(catalog, { onProgress } = {}) {
     if (!catalog) return catalog;
 
     const photoTotal = countInlinePhotos(catalog);
+    const stats = { total: photoTotal, blob: 0, b64: 0, failed: 0 };
     let photoDone = 0;
+    const isMobile = window.matchMedia('(pointer: coarse)').matches;
 
     const processViolationPhotos = async (violation) => {
       if (!violation?.photo?.length) return;
       for (let i = 0; i < violation.photo.length; i += 1) {
         const p = violation.photo[i];
         if (!p || isPhotoId(p)) continue;
-        const id = await ingestPhotoRef(p);
-        if (id) violation.photo[i] = id;
-        else {
-          violation.photo.splice(i, 1);
-          i -= 1;
+
+        const result = await ingestPhotoRef(p);
+        if (result.id) {
+          violation.photo[i] = result.id;
+          if (result.mode === 'blob') stats.blob += 1;
+          else if (result.mode === 'b64') stats.b64 += 1;
+        } else {
+          stats.failed += 1;
         }
+
         photoDone += 1;
         onProgress?.(photoDone, photoTotal);
+        if (isMobile) await new Promise((r) => setTimeout(r, 50));
         await yieldToMain();
       }
     };
@@ -231,7 +306,16 @@ const PhotoStore = (() => {
     for (const a of catalog.trash || []) await processAkt(a);
     if (catalog.editableAkt?.akt) await processAkt(catalog.editableAkt.akt);
 
+    catalog.photoIngestStats = stats;
+    lastIngestStats = stats;
     onProgress?.(photoTotal, photoTotal);
+
+    // #region agent log
+    if (typeof DebugAgent !== 'undefined') {
+      DebugAgent.log('photo-store.js:ingestCatalogInPlace', 'stats', stats, 'C');
+    }
+    // #endregion
+
     return catalog;
   }
 
@@ -256,12 +340,56 @@ const PhotoStore = (() => {
     return { ...catalog, akts, trash, editableAkt };
   }
 
+  async function ingestAkt(akt) {
+    if (!akt) return akt;
+    const violations = [];
+    for (const v of akt.violations || []) {
+      violations.push(await ingestViolationPhotos({ ...v }));
+    }
+    return { ...akt, violations };
+  }
+
+  async function expandAkt(akt) {
+    if (!akt) return akt;
+    const violations = [];
+    for (const v of akt.violations || []) {
+      violations.push(await expandViolationPhotos({ ...v }));
+    }
+    return { ...akt, violations };
+  }
+
+  async function ingestViolationPhotos(violation) {
+    if (!violation?.photo?.length) return violation;
+    const photo = [];
+    for (const p of violation.photo) {
+      const r = await ingestPhotoRef(p);
+      if (r.id) photo.push(r.id);
+    }
+    return { ...violation, photo };
+  }
+
+  async function expandViolationPhotos(violation) {
+    if (!violation?.photo?.length) return violation;
+    const photo = [];
+    for (const p of violation.photo) {
+      const expanded = await expandPhotoRef(p);
+      if (expanded) photo.push(expanded);
+    }
+    return { ...violation, photo };
+  }
+
+  function getLastIngestStats() {
+    return lastIngestStats;
+  }
+
   return {
     isPhotoId,
     ingestCatalog,
     ingestCatalogInPlace,
     ingestCatalogChunked,
     countInlinePhotos,
+    countStoredPhotoIds,
+    getLastIngestStats,
     expandCatalog,
     ingestPhotoRef,
     resolveDataUrl,

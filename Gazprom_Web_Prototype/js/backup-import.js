@@ -330,14 +330,44 @@ const GazpromBackup = (() => {
     }
 
     await GazpromStore.set(merged, { skipPhotoIngest: true, verifyWrite: true });
+
+    const ingest = merged.photoIngestStats;
+    const storedIds =
+      typeof PhotoStore !== 'undefined' && PhotoStore.countStoredPhotoIds
+        ? PhotoStore.countStoredPhotoIds(merged)
+        : 0;
+    const stats = getStats(merged);
+    stats.photosStored = storedIds;
+    if (ingest) {
+      stats.photosIngestFailed = ingest.failed;
+      stats.photosIngestTotal = ingest.total;
+    }
+
     // #region agent log
     if (typeof DebugAgent !== 'undefined') {
       DebugAgent.log('backup-import.js:importFile', 'set ok', {
         akts: merged.akts?.length,
+        photosStored: storedIds,
+        ingest,
       }, 'C');
     }
     // #endregion
-    return { backup: merged, stats: getStats(merged) };
+
+    if (ingest && ingest.total > 0 && storedIds === 0) {
+      throw new Error(
+        'Акты сохранены, но Safari не записал ни одного фото в память. Освободите место на iPhone или импортируйте копию на компьютере в Chrome, затем откройте сайт с ПК.'
+      );
+    }
+
+    if (ingest && ingest.failed > 0 && typeof GazpromToast !== 'undefined') {
+      GazpromToast.show(
+        `Сохранено ${storedIds} из ${ingest.total} фото (${ingest.blob} сжатых, ${ingest.b64} как данные).`,
+        'info',
+        9000
+      );
+    }
+
+    return { backup: merged, stats };
   }
 
   /** Оценка без JSON.stringify всего каталога (на iPhone ~200MB копия роняет вкладку). */

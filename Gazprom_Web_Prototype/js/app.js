@@ -1,5 +1,5 @@
 /** Газпром — веб-приложение: навигация, PWA, импорт, экраны */
-window.GAZPROM_WEB_BUILD = 'web-42';
+window.GAZPROM_WEB_BUILD = 'web-43';
 const titles = {
   home: 'Главная',
   wizard: 'Редактируемый акт',
@@ -165,11 +165,19 @@ async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
 
     GazpromStore.invalidateCache();
     await GazpromUI.refreshAll();
+    const photoMsg =
+      stats.photosIngestTotal != null
+        ? `, фото в браузере: ${stats.photosStored ?? 0} из ${stats.photosIngestTotal}`
+        : `, фото: ${stats.photos}`;
     setBackupMessage(
-      `Готово: ${stats.akts} актов, ${stats.organizations} организаций, ${stats.photos} фото.`,
+      `Готово: ${stats.akts} актов, ${stats.organizations} организаций${photoMsg}.`,
       'ok'
     );
-    GazpromToast.success('Резервная копия загружена');
+    const toastPhoto =
+      stats.photosIngestTotal != null
+        ? ` (${stats.photosStored ?? 0}/${stats.photosIngestTotal} фото)`
+        : '';
+    GazpromToast.success(`Резервная копия загружена${toastPhoto}`);
     const backupModal = document.getElementById('backupModal');
     if (backupModal) backupModal.hidden = true;
     goTo('home');
