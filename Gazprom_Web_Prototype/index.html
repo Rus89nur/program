@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '88';</script>
+  <script>window.GAZPROM_ASSET_V = '90';</script>
   <script>
   (function () {
     var h = location.hostname;
@@ -30,13 +30,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=88" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=90" id="appCss">
   <script>
   (function () {
     var css = document.getElementById('appCss');
     if (!css) return;
     var base = String(css.getAttribute('href') || 'css/app.css').split('?')[0];
-    var v = window.GAZPROM_ASSET_V || '88';
+    var v = window.GAZPROM_ASSET_V || '90';
     var h = location.hostname;
     var dev = (h === 'localhost' || h === '127.0.0.1') ? ('&dev=' + Date.now()) : '';
     css.href = base + '?v=' + v + dev;
@@ -152,7 +152,7 @@
             <div class="stat-label">Черновиков</div>
           </div>
         </div>
-        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-87</p>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-90</p>
       </section>
 
       <section class="screen" id="screen-wizard">
@@ -409,6 +409,9 @@
     <button class="bottom-nav-item" data-screen="history" type="button" aria-label="История">
       <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg></span><span>История</span>
     </button>
+    <button class="bottom-nav-item" data-screen="reports" type="button" aria-label="Отчёты">
+      <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-8"/></svg></span><span>Отчёты</span>
+    </button>
     <button class="bottom-nav-item" data-screen="elimination" type="button" aria-label="Устранение">
       <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg></span><span>Устран.</span>
     </button>
@@ -494,12 +497,12 @@
   <script src="js/ui-bindings.js?v=25"></script>
   <script src="js/catalog-editor.js?v=12"></script>
   <script src="js/schedule-editor.js?v=2"></script>
-  <script src="js/elimination-editor.js?v=6"></script>
+  <script src="js/elimination-editor.js?v=7"></script>
   <script src="js/report-exporter.js?v=2"></script>
   <script src="js/wizard-modals.js?v=23"></script>
   <script src="js/wizard.js?v=38"></script>
   <script src="js/short-akt-form.js?v=2"></script>
   <script src="js/doc-generator.js?v=29"></script>
-  <script src="js/app.js?v=44"></script>
+  <script src="js/app.js?v=46"></script>
 </body>
 </html>
