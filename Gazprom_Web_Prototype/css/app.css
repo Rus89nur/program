@@ -1082,8 +1082,18 @@
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
       gap: 16px;
     }
-    .app-build-id {
-      margin: 20px 4px 0;
+    #screen-home.active {
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+      box-sizing: border-box;
+    }
+
+    #screen-home .app-build-id {
+      margin-top: auto;
+      margin-bottom: 0;
+      padding: 16px 12px 8px;
+      width: 100%;
       font-size: 12px;
       color: var(--text-muted);
       text-align: center;
@@ -4055,9 +4065,9 @@
         font-size: 20px;
       }
 
-      body.gazprom-mobile-shell .app-build-id {
-        margin-top: 8px;
-        font-size: 10px;
+      body.gazprom-mobile-shell #screen-home .app-build-id {
+        padding-bottom: 4px;
+        font-size: 11px;
       }
 
       body.gazprom-mobile-shell .home-hero {
