@@ -42,7 +42,8 @@ const WizardController = (() => {
           draft.organization = { ...item };
         }
         if (type === 'object') {
-          draft.objectsCheck = [...(draft.objectsCheck || []), { ...item }];
+          normalizeObjectsCheck();
+          draft.objectsCheck = [{ ...item }];
         }
         if (type === 'commission') {
           draft.comission = [...(draft.comission || []), { ...item }];
@@ -121,10 +122,6 @@ const WizardController = (() => {
     const forceNew = options.forceNew === true;
     const savedStep = step;
     await loadCatalog();
-    if (!GazpromStore.hasData(catalog)) {
-      showEmpty(true);
-      return;
-    }
     showEmpty(false);
     setupModals();
     if (forceNew) {
@@ -139,14 +136,12 @@ const WizardController = (() => {
           return;
         }
         draft = AktUtils.clone(akt);
-        catalog.editableAkt = {
-          akt: draft,
-          isEditable: true,
-          lastModified: new Date().toISOString(),
-        };
+        AktUtils.applyCurrentEditable(catalog, draft);
+        await CatalogService.rememberLastOpenedAkt(draft);
       } else {
         initDraft();
       }
+      normalizeObjectsCheck();
     }
     step = aktId ? 0 : (preserveStep ? Math.min(savedStep, TOTAL_STEPS - 1) : 0);
     if (!preserveDraft) dirty = false;
@@ -164,6 +159,7 @@ const WizardController = (() => {
     descEditMode = false;
     predOrgFilters = new Set();
     step = Math.max(0, Math.min(TOTAL_STEPS - 1, newStep));
+    if (step === 2) normalizeObjectsCheck();
     syncStepperUI();
     render();
     updateSummary();
@@ -191,6 +187,7 @@ const WizardController = (() => {
     syncStepperUI();
     const host = panelsHost();
     if (!host || !draft) return;
+    if (step === 2) normalizeObjectsCheck();
 
     const renderers = [
       renderStepDateCommission,
@@ -293,72 +290,84 @@ const WizardController = (() => {
 
   function renderStepOrganization() {
     const orgs = catalog.organizations || [];
-    if (!orgs.length) {
-      return `<h3>Организация</h3><p class="wizard-hint">В бэкапе нет организаций.</p>`;
-    }
-    const rows = orgs
-      .map((o) => {
-        const selected = draft.organization?.id === o.id;
-        const checked = selected ? 'checked' : '';
-        const rowClass = selected ? 'wizard-select-row wizard-select-row--selected' : 'wizard-select-row';
-        return `<tr class="${rowClass}" data-org-id="${o.id}" role="button" tabindex="0">
-          <td style="width:40px"><input type="radio" name="wOrg" value="${o.id}" ${checked}></td>
-          <td>${AktUtils.escapeHtml(o.title)}</td>
-          <td>${AktUtils.escapeHtml(o.shortTitle || '—')}</td>
-        </tr>`;
-      })
+    const selected = draft.organization;
+    const selectedId = selected?.id;
+
+    const selectedChip = selected?.title
+      ? `<span class="chip chip-removable" data-clear-org title="Нажмите, чтобы убрать">${AktUtils.escapeHtml(selected.title)}${selected.shortTitle ? ' — ' + AktUtils.escapeHtml(selected.shortTitle) : ''}</span>`
+      : '';
+
+    const catalogChips = orgs
+      .filter((o) => o.id !== selectedId)
+      .map(
+        (o) =>
+          `<span class="chip chip-catalog" data-select-org="${o.id}" title="Нажмите, чтобы выбрать">${AktUtils.escapeHtml(o.title)}${o.shortTitle ? ' — ' + AktUtils.escapeHtml(o.shortTitle) : ''}</span>`
+      )
       .join('');
+
+    const catalogBlock = orgs.length
+      ? `<div class="chip-list">${catalogChips || '<span class="wizard-hint">Все из справочника уже выбраны</span>'}</div>`
+      : '<p class="wizard-hint">В бэкапе нет организаций — добавьте через кнопку справа.</p>';
 
     return `
       <h3>Организация проверки</h3>
       <p class="wizard-hint">Выберите одну организацию (как в iOS-приложении)</p>
-      <table class="list-table">
-        <thead><tr><th></th><th>Наименование</th><th>Краткое</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <div class="wizard-actions-row">
-        <button type="button" class="btn-ghost" id="wNewOrgBtn">+ Новая организация</button>
+      <div class="chip-list" id="wOrgChips">${selectedChip || '<span class="wizard-hint">Выберите организацию из справочника</span>'}</div>
+      <div class="commission-divider"></div>
+      <div class="commission-catalog-section">
+        <div class="commission-catalog-header">
+          <span class="commission-catalog-label">Выбрать из справочника</span>
+          <button type="button" class="btn-ghost" id="wNewOrgBtn">+ Добавить в справочник</button>
+        </div>
+        ${catalogBlock}
       </div>
     `;
   }
 
+  function normalizeObjectsCheck() {
+    const list = draft.objectsCheck || [];
+    draft.objectsCheck = list.length ? list.slice(0, 1) : [];
+  }
+
   function renderStepObjects() {
+    normalizeObjectsCheck();
     const objects = catalog.objects || [];
-    const selectedIds = new Set((draft.objectsCheck || []).map((o) => o.id));
+    const selected = (draft.objectsCheck || [])[0];
+    const selectedId = selected?.id;
 
-    if (!objects.length) {
-      return `<h3>Объекты проверки</h3><p class="wizard-hint">Справочник объектов пуст.</p>`;
-    }
+    const objectViolCount = (o) =>
+      (draft.violations || []).filter((v) => v.mesto === o.title || v.mesto === o.subTitle).length;
 
-    const rows = objects
+    const selectedViolHint =
+      selected && objectViolCount(selected) > 0 ? ` · ${objectViolCount(selected)} наруш.` : '';
+    const selectedChip = selected?.title
+      ? `<span class="chip chip-removable" data-clear-object title="Нажмите, чтобы убрать">${AktUtils.escapeHtml(selected.title)}${selected.subTitle ? ' — ' + AktUtils.escapeHtml(selected.subTitle) : ''}${selectedViolHint}</span>`
+      : '';
+
+    const catalogChips = objects
+      .filter((o) => o.id !== selectedId)
       .map((o) => {
-        const selected = selectedIds.has(o.id);
-        const violCount = (draft.violations || []).filter(
-          (v) => v.mesto === o.title || v.mesto === o.subTitle
-        ).length;
-        const badge =
-          violCount > 0
-            ? `<span class="badge badge-blue">${violCount} наруш.</span>`
-            : `<span class="badge badge-green">OK</span>`;
-        const rowClass = selected ? 'wizard-select-row wizard-select-row--selected' : 'wizard-select-row';
-        return `<tr class="${rowClass}" data-obj-id="${o.id}" role="button" tabindex="0">
-          <td style="width:40px"><input type="radio" name="wObj" value="${o.id}" ${selected ? 'checked' : ''}></td>
-          <td>${AktUtils.escapeHtml(o.title)}</td>
-          <td>${AktUtils.escapeHtml(o.subTitle || '—')}</td>
-          <td>${badge}</td>
-        </tr>`;
+        const violCount = objectViolCount(o);
+        const violHint = violCount > 0 ? ` · ${violCount} наруш.` : '';
+        return `<span class="chip chip-catalog" data-select-object="${o.id}" title="Нажмите, чтобы выбрать">${AktUtils.escapeHtml(o.title)}${o.subTitle ? ' — ' + AktUtils.escapeHtml(o.subTitle) : ''}${violHint}</span>`;
       })
       .join('');
 
+    const catalogBlock = objects.length
+      ? `<div class="chip-list">${catalogChips || '<span class="wizard-hint">Все из справочника уже выбраны</span>'}</div>`
+      : '<p class="wizard-hint">Справочник объектов пуст — добавьте через кнопку справа.</p>';
+
     return `
-      <h3>Объекты проверки</h3>
-      <p class="wizard-hint">Выберите один объект, включённый в акт</p>
-      <table class="list-table">
-        <thead><tr><th></th><th>Объект</th><th>Адрес / примечание</th><th></th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <div class="wizard-actions-row">
-        <button type="button" class="btn-ghost" id="wNewObjBtn">+ Новый объект</button>
+      <h3>Объект проверки</h3>
+      <p class="wizard-hint">Выберите объект проверки (как в iOS-приложении)</p>
+      <div class="chip-list" id="wObjectChips">${selectedChip || '<span class="wizard-hint">Выберите объект из справочника</span>'}</div>
+      <div class="commission-divider"></div>
+      <div class="commission-catalog-section">
+        <div class="commission-catalog-header">
+          <span class="commission-catalog-label">Выбрать из справочника</span>
+          <button type="button" class="btn-ghost" id="wNewObjBtn">+ Новый объект</button>
+        </div>
+        ${catalogBlock}
       </div>
     `;
   }
@@ -546,10 +555,8 @@ const WizardController = (() => {
     (draft.comission || []).forEach((p) => {
       lines.push(`• ${AktUtils.escapeHtml(p.fio)} — ${AktUtils.escapeHtml(p.jobTitle || '')}`);
     });
-    lines.push(`<br><strong>Объекты:</strong>`);
-    (draft.objectsCheck || []).forEach((o) => {
-      lines.push(`• ${AktUtils.escapeHtml(o.title)} (${AktUtils.escapeHtml(o.subTitle || '')})`);
-    });
+    const obj = (draft.objectsCheck || [])[0];
+    lines.push(`<br><strong>Объект:</strong> ${obj ? `${AktUtils.escapeHtml(obj.title)} (${AktUtils.escapeHtml(obj.subTitle || '')})` : '—'}`);
     lines.push(`<br><strong>Нарушения (${(draft.violations || []).length}):</strong>`);
     (draft.violations || []).forEach((v, i) => {
       lines.push(
@@ -578,7 +585,7 @@ const WizardController = (() => {
       <div class="wizard-checklist" style="margin-bottom:16px">
         <div>✓ Акт № <strong>${AktUtils.escapeHtml(draft.number)}</strong> от ${AktUtils.formatDateShort(draft.date)}</div>
         <div>✓ ${AktUtils.escapeHtml(org)}</div>
-        <div>✓ Комиссия: ${(draft.comission || []).length} чел. · Объектов: ${(draft.objectsCheck || []).length}</div>
+        <div>✓ Комиссия: ${(draft.comission || []).length} чел. · Объект: ${AktUtils.escapeHtml((draft.objectsCheck || [])[0]?.title || '—')}</div>
         <div>✓ Нарушений: ${(draft.violations || []).length} · Фото: ${photos}</div>
         <div>✓ Статус: ${isDone ? '<span class="badge badge-green">Готов (веб)</span>' : '<span class="badge badge-orange">Черновик</span>'}</div>
       </div>
@@ -726,84 +733,42 @@ const WizardController = (() => {
     });
   }
 
-  function selectOrganization(orgId) {
-    const radio = document.querySelector(`input[name="wOrg"][value="${CSS.escape(orgId)}"]`);
-    if (radio) radio.checked = true;
-    const org = (catalog.organizations || []).find((o) => o.id === orgId);
-    if (org) draft.organization = { ...org };
-    panelsHost()?.querySelectorAll('tr[data-org-id]').forEach((row) => {
-      row.classList.toggle('wizard-select-row--selected', row.dataset.orgId === orgId);
-    });
+  function selectOrganizationById(id) {
+    const org = (catalog.organizations || []).find((o) => o.id === id);
+    if (!org) return;
+    draft.organization = { ...org };
     scheduleAutosave();
+    render();
     updateSummary();
   }
 
-  function bindOrganizationRowSelect() {
-    panelsHost()?.querySelectorAll('tr[data-org-id]').forEach((row) => {
-      row.addEventListener('click', () => selectOrganization(row.dataset.orgId));
-      row.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          selectOrganization(row.dataset.orgId);
-        }
-      });
-    });
-    panelsHost()?.querySelectorAll('input[name="wOrg"]').forEach((radio) => {
-      radio.addEventListener('change', () => {
-        if (radio.checked) selectOrganization(radio.value);
-      });
-    });
+  function clearOrganization() {
+    draft.organization = { id: '', title: '', shortTitle: '' };
+    scheduleAutosave();
+    render();
+    updateSummary();
   }
 
-  function setObjectChecked(objId, checked) {
-    const obj = (catalog.objects || []).find((o) => o.id === objId);
+  function selectObjectById(id) {
+    const obj = (catalog.objects || []).find((o) => o.id === id);
     if (!obj) return;
-    if (checked) {
-      // single-select: deselect all other rows in DOM
-      panelsHost()?.querySelectorAll('tr[data-obj-id]').forEach((r) => {
-        if (r.dataset.objId !== objId) {
-          r.classList.remove('wizard-select-row--selected');
-          const rb = r.querySelector('input[name="wObj"]');
-          if (rb) rb.checked = false;
-        }
-      });
-      draft.objectsCheck = [{ ...obj }];
-    } else {
-      draft.objectsCheck = (draft.objectsCheck || []).filter((o) => o.id !== objId);
-    }
-    const row = panelsHost()?.querySelector(`tr[data-obj-id="${CSS.escape(objId)}"]`);
-    if (row) {
-      row.classList.toggle('wizard-select-row--selected', checked);
-      const rb = row.querySelector('input[name="wObj"]');
-      if (rb) rb.checked = checked;
-    }
+    normalizeObjectsCheck();
+    draft.objectsCheck = [{ ...obj }];
     scheduleAutosave();
+    render();
     updateSummary();
   }
 
-  function toggleObject(objId) {
-    setObjectChecked(objId, true);
-  }
-
-  function bindObjectRowSelect() {
-    panelsHost()?.querySelectorAll('tr[data-obj-id]').forEach((row) => {
-      row.addEventListener('click', (e) => {
-        if (e.target.closest('input[type="radio"]')) return;
-        toggleObject(row.dataset.objId);
-      });
-      row.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          toggleObject(row.dataset.objId);
-        }
-      });
-    });
-    panelsHost()?.querySelectorAll('input[name="wObj"]').forEach((rb) => {
-      rb.addEventListener('change', () => setObjectChecked(rb.value, rb.checked));
-    });
+  function clearObject() {
+    draft.objectsCheck = [];
+    scheduleAutosave();
+    render();
+    updateSummary();
   }
 
   function bindPanelEvents() {
+    if (step === 2) normalizeObjectsCheck();
+
     panelsHost()?.querySelectorAll('[data-add-person]').forEach((chip) => {
       chip.addEventListener('click', () => addPersonById(chip.dataset.addPerson));
     });
@@ -813,21 +778,38 @@ const WizardController = (() => {
       const numEl = document.getElementById('wNumber');
       if (!dateEl?.value || !numEl) return;
       draft.date = new Date(dateEl.value + 'T12:00:00').toISOString();
+      const year = new Date(draft.date).getFullYear();
+      const occupied = AktUtils.occupiedNumbers(catalog.akts, draft.id, year);
+      let selected = numEl.value;
+      if (occupied.has(String(selected))) {
+        selected = AktUtils.nextAktNumberForYear(catalog.akts, year, draft.id);
+        draft.number = selected;
+      }
       const opts = numberOptions();
-      const currentVal = numEl.value;
       numEl.size = 1;
       numEl.innerHTML = opts
-        .map((n) => `<option value="${n}" ${String(currentVal) === String(n) ? 'selected' : ''}>${n}</option>`)
+        .map((n) => `<option value="${n}" ${String(selected) === String(n) ? 'selected' : ''}>${n}</option>`)
         .join('');
+      scheduleAutosave();
     });
     document.getElementById('wNewPersonBtn')?.addEventListener('click', () =>
       WizardModals.openQuickAdd('commission')
     );
     document.getElementById('wNewOrgBtn')?.addEventListener('click', () => WizardModals.openQuickAdd('org'));
-
-    bindOrganizationRowSelect();
-    bindObjectRowSelect();
     document.getElementById('wNewObjBtn')?.addEventListener('click', () => WizardModals.openQuickAdd('object'));
+
+    panelsHost()?.querySelectorAll('[data-select-org]').forEach((chip) => {
+      chip.addEventListener('click', () => selectOrganizationById(chip.dataset.selectOrg));
+    });
+    panelsHost()?.querySelectorAll('[data-clear-org]').forEach((chip) => {
+      chip.addEventListener('click', () => clearOrganization());
+    });
+    panelsHost()?.querySelectorAll('[data-select-object]').forEach((chip) => {
+      chip.addEventListener('click', () => selectObjectById(chip.dataset.selectObject));
+    });
+    panelsHost()?.querySelectorAll('[data-clear-object]').forEach((chip) => {
+      chip.addEventListener('click', () => clearObject());
+    });
     document.getElementById('wNewPredBtn')?.addEventListener('click', () => WizardModals.openQuickAdd('pred'));
 
     panelsHost()?.querySelectorAll('[data-remove-person]').forEach((btn) => {
@@ -1094,20 +1076,8 @@ const WizardController = (() => {
       if (numEl?.value) draft.number = numEl.value;
     }
 
-    if (s === 1) {
-      const radio = document.querySelector('input[name="wOrg"]:checked');
-      if (radio) {
-        const org = (catalog.organizations || []).find((o) => o.id === radio.value);
-        if (org) draft.organization = { ...org };
-      }
-    }
-
-    if (s === 2) {
-      const checked = [...document.querySelectorAll('input[name="wObj"]:checked')];
-      draft.objectsCheck = checked
-        .map((el) => (catalog.objects || []).find((o) => o.id === el.value))
-        .filter(Boolean);
-    }
+    // Шаги 1–2 (организация, объект): выбор через chips, draft уже актуален
+    if (s === 2) normalizeObjectsCheck();
 
     if (s === 4) {
       const desc = document.getElementById('wDescription');
@@ -1140,9 +1110,12 @@ const WizardController = (() => {
       GazpromToast.error('Выберите организацию');
       return false;
     }
-    if (s === 2 && !(draft.objectsCheck || []).length) {
-      GazpromToast.error('Выберите объект проверки');
-      return false;
+    if (s === 2) {
+      normalizeObjectsCheck();
+      if (!(draft.objectsCheck || [])[0]?.title) {
+        GazpromToast.error('Выберите объект проверки');
+        return false;
+      }
     }
     return true;
   }
@@ -1157,16 +1130,7 @@ const WizardController = (() => {
     const draftNumber = draftCopy.number;
 
     const op = saveDraftChain.then(async () => {
-      catalog.editableAkt = {
-        akt: draftCopy,
-        isEditable: true,
-        lastModified: new Date().toISOString(),
-      };
-      catalog.editableAktReference = {
-        aktId: draftId,
-        aktNumber: draftNumber,
-        lastModified: catalog.editableAkt.lastModified,
-      };
+      AktUtils.applyCurrentEditable(catalog, draftCopy);
 
       const idx = (catalog.akts || []).findIndex((a) => a.id === draftId);
       if (idx >= 0) catalog.akts[idx] = draftCopy;
@@ -1210,7 +1174,7 @@ const WizardController = (() => {
       AktUtils.formatDateShort(draft.date),
       `${(draft.comission || []).length} чел.`,
       draft.organization?.title ? '1' : '0',
-      `${(draft.objectsCheck || []).length}`,
+      (draft.objectsCheck || [])[0]?.title ? '1' : '0',
       `${(draft.violations || []).length}`,
       `${photos}`,
     ];

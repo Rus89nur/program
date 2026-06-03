@@ -50,6 +50,15 @@ const GazpromBackup = (() => {
       };
     }
 
+    const templateKey =
+      typeof DocGenerator !== 'undefined' && DocGenerator.TEMPLATE_KEY
+        ? DocGenerator.TEMPLATE_KEY
+        : 'wordTemplate';
+    const templates = raw.descriptionTemplates;
+    const descriptionTemplates = Array.isArray(templates)
+      ? templates.slice(0, 3).concat(['', '', '']).slice(0, 3)
+      : ['', '', ''];
+
     return {
       version: raw.version || '1.0',
       timestamp: raw.timestamp || new Date().toISOString(),
@@ -63,6 +72,10 @@ const GazpromBackup = (() => {
       editableAktReference: raw.editableAktReference || null,
       scheduleItems: raw.scheduleItems || [],
       violationEliminations: raw.violationEliminations || [],
+      violationRegistry: raw.violationRegistry || [],
+      descriptionTemplates,
+      [templateKey]: raw[templateKey] || raw.wordTemplate || null,
+      wordTemplateName: raw.wordTemplateName || null,
       importedAt: new Date().toISOString(),
       sourceFileName: raw.sourceFileName || null,
     };
@@ -107,6 +120,7 @@ const GazpromBackup = (() => {
       predstavitely: backup.predstavitely.length,
       schedule: backup.scheduleItems.length,
       eliminations: backup.violationEliminations.length,
+      registry: (backup.violationRegistry || []).length,
       photos: photoCount(backup.akts) + photoCount(backup.trash),
       editable: backup.editableAkt ? `№${backup.editableAkt.akt?.number}` : '—',
     };
@@ -141,9 +155,10 @@ const GazpromBackup = (() => {
   }
 
   function parseJsonText(text, fileName) {
+    const cleaned = String(text).replace(/^\uFEFF/, '').trim();
     let raw;
     try {
-      raw = JSON.parse(text);
+      raw = JSON.parse(cleaned);
     } catch {
       throw new Error('Файл не является корректным JSON');
     }
@@ -201,6 +216,23 @@ const GazpromBackup = (() => {
     const violationEliminations = [...current.violationEliminations];
     incoming.violationEliminations.forEach((x) => byId(violationEliminations, x));
 
+    const violationRegistry = [...(current.violationRegistry || [])];
+    (incoming.violationRegistry || []).forEach((x) => byId(violationRegistry, x));
+
+    const templateKey =
+      typeof DocGenerator !== 'undefined' && DocGenerator.TEMPLATE_KEY
+        ? DocGenerator.TEMPLATE_KEY
+        : 'wordTemplate';
+    const mergedTemplates = [...(current.descriptionTemplates || ['', '', ''])];
+    const incomingTemplates = incoming.descriptionTemplates || ['', '', ''];
+    for (let i = 0; i < 3; i += 1) {
+      const t = incomingTemplates[i];
+      if (t && String(t).trim()) mergedTemplates[i] = t;
+    }
+
+    const wordTemplate = incoming[templateKey] || current[templateKey] || null;
+    const wordTemplateName = incoming.wordTemplateName || current.wordTemplateName || null;
+
     return {
       ...incoming,
       akts,
@@ -211,6 +243,10 @@ const GazpromBackup = (() => {
       trash: incoming.trash,
       scheduleItems,
       violationEliminations,
+      violationRegistry,
+      descriptionTemplates: mergedTemplates,
+      [templateKey]: wordTemplate,
+      wordTemplateName,
       importedAt: new Date().toISOString(),
       sourceFileName: incoming.sourceFileName,
     };
@@ -248,5 +284,6 @@ const GazpromBackup = (() => {
     formatBytes,
     formatDate,
     normalizeBackup,
+    mergeBackups,
   };
 })();

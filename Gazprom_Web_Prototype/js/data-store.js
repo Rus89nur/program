@@ -117,7 +117,11 @@ const GazpromStore = (() => {
     if (typeof PhotoStore !== 'undefined') {
       await PhotoStore.clearAll();
     }
-    cache = null;
+    const empty = emptyCatalog();
+    await GazpromIdb.transaction(STORE, 'readwrite', (tx) => {
+      tx.objectStore(STORE).put(empty, KEY);
+    });
+    cache = empty;
   }
 
   async function getForExport() {
@@ -126,9 +130,19 @@ const GazpromStore = (() => {
     return PhotoStore.expandCatalog(AktUtils.clone(data));
   }
 
+  /** Есть сохранённые акты или метка импорта бэкапа (для merge/отчётов). */
   function hasData(data) {
     if (!data || !Array.isArray(data.akts)) return false;
-    return data.akts.length > 0 || !!data.importedAt;
+    return data.akts.length > 0 || !!data.importedAt || !!data.timestamp || !!data.sourceFileName;
+  }
+
+  /** Каталог инициализирован (можно открыть мастер с пустыми справочниками). */
+  function isReady(data) {
+    return Boolean(data && Array.isArray(data.akts));
+  }
+
+  function updateCache(data) {
+    cache = data;
   }
 
   function invalidateCache() {
@@ -142,6 +156,8 @@ const GazpromStore = (() => {
     persistCatalog,
     clear,
     hasData,
+    isReady,
+    updateCache,
     invalidateCache,
     getForExport,
   };

@@ -8,6 +8,26 @@ const CatalogService = (() => {
     await GazpromStore.set(catalog);
   }
 
+  /**
+   * Запомнить последний открытый акт (полный или сокращённый) — для «Продолжить» на главной.
+   * @param {object|string} aktOrId — акт или его id
+   */
+  async function rememberLastOpenedAkt(aktOrId) {
+    const catalog = await load();
+    let akt = aktOrId;
+    if (typeof aktOrId === 'string') {
+      akt = (catalog.akts || []).find((a) => a.id === aktOrId);
+    }
+    if (!akt) return false;
+
+    AktUtils.applyCurrentEditable(catalog, akt);
+    await save(catalog);
+    if (typeof GazpromUI !== 'undefined') {
+      GazpromUI.renderHome(catalog);
+    }
+    return true;
+  }
+
   async function addOrganization(title, shortTitle) {
     const catalog = await load();
     const org = {
@@ -60,8 +80,12 @@ const CatalogService = (() => {
   async function exportBackup(catalog) {
     const data = catalog ? await PhotoStore.expandCatalog(AktUtils.clone(catalog)) : await GazpromStore.getForExport();
     if (!data) throw new Error('Нет данных для экспорта');
+    const templateKey =
+      typeof DocGenerator !== 'undefined' && DocGenerator.TEMPLATE_KEY
+        ? DocGenerator.TEMPLATE_KEY
+        : 'wordTemplate';
     const exportData = {
-      version: data.version || '1.2',
+      version: '1.3',
       timestamp: new Date().toISOString(),
       akts: data.akts || [],
       comissionPeople: data.comissionPeople || [],
@@ -73,6 +97,10 @@ const CatalogService = (() => {
       editableAktReference: data.editableAktReference || null,
       scheduleItems: data.scheduleItems || [],
       violationEliminations: data.violationEliminations || [],
+      violationRegistry: data.violationRegistry || [],
+      descriptionTemplates: data.descriptionTemplates || ['', '', ''],
+      [templateKey]: data[templateKey] || null,
+      wordTemplateName: data.wordTemplateName || null,
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], {
       type: 'application/json',
@@ -80,7 +108,7 @@ const CatalogService = (() => {
     const a = document.createElement('a');
     const date = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '').replace('T', '_');
     a.href = URL.createObjectURL(blob);
-    a.download = `manual_${date}.json`;
+    a.download = `gazprom_${date}.gazprombackup`;
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -93,5 +121,6 @@ const CatalogService = (() => {
     exportBackup,
     load,
     save,
+    rememberLastOpenedAkt,
   };
 })();

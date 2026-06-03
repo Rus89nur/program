@@ -2,10 +2,31 @@
  * Экспорт отчётов в Excel (SheetJS).
  */
 const ReportExporter = (() => {
-  function ensureXlsx() {
-    if (typeof XLSX === 'undefined') {
-      throw new Error('Библиотека SheetJS не загружена');
+  const XLSX_LOCAL = './assets/vendor/xlsx.full.min.js';
+
+  async function ensureXlsx() {
+    if (typeof XLSX !== 'undefined') return;
+    if (typeof ViolationRegistry !== 'undefined' && ViolationRegistry.loadXlsx) {
+      await ViolationRegistry.loadXlsx();
+      return;
     }
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = XLSX_LOCAL;
+      const timer = setTimeout(() => {
+        reject(new Error('Время ожидания загрузки SheetJS истекло.'));
+      }, 15000);
+      s.onload = () => {
+        clearTimeout(timer);
+        if (typeof XLSX === 'undefined') reject(new Error('Библиотека SheetJS не загружена'));
+        else resolve();
+      };
+      s.onerror = () => {
+        clearTimeout(timer);
+        reject(new Error('Не удалось загрузить SheetJS из assets/vendor.'));
+      };
+      document.head.appendChild(s);
+    });
   }
 
   function downloadWorkbook(wb, filename) {
@@ -14,7 +35,7 @@ const ReportExporter = (() => {
   }
 
   async function exportViolationsReport() {
-    ensureXlsx();
+    await ensureXlsx();
     const data = await GazpromStore.get();
     if (!GazpromStore.hasData(data)) throw new Error('Нет данных');
 
@@ -43,15 +64,16 @@ const ReportExporter = (() => {
   }
 
   async function exportHistory() {
-    ensureXlsx();
+    await ensureXlsx();
     const data = await GazpromStore.get();
     if (!GazpromStore.hasData(data)) throw new Error('Нет данных');
 
-    const rows = [['№', 'Дата', 'Организация', 'Объектов', 'Нарушений', 'Статус']];
+    const rows = [['№', 'Дата', 'Тип', 'Организация', 'Объектов', 'Нарушений', 'Статус']];
     for (const akt of data.akts || []) {
       rows.push([
         akt.number,
         AktUtils.formatDateShort(akt.date),
+        AktUtils.formatKindLabel(akt),
         akt.organization?.title || '',
         (akt.objectsCheck || []).length,
         (akt.violations || []).length,
@@ -66,7 +88,7 @@ const ReportExporter = (() => {
   }
 
   async function exportSchedule() {
-    ensureXlsx();
+    await ensureXlsx();
     const data = await GazpromStore.get();
     const items = data?.scheduleItems || [];
     const rows = [['Год', 'Месяц', 'Организация', 'План', 'Факт']];

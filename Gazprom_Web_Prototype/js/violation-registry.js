@@ -10,7 +10,7 @@
  */
 const ViolationRegistry = (() => {
   const LIST_KEY = 'violationRegistry';
-  const XLSX_CDN = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+  const XLSX_LOCAL = './assets/vendor/xlsx.full.min.js';
 
   /* ——— Хранилище ——— */
 
@@ -57,7 +57,7 @@ const ViolationRegistry = (() => {
     GazpromToast.info('Загрузка библиотеки Excel…');
     return new Promise((resolve, reject) => {
       const s = document.createElement('script');
-      s.src = XLSX_CDN;
+      s.src = XLSX_LOCAL;
       const timer = setTimeout(() => {
         reject(new Error('Время ожидания загрузки SheetJS истекло. Проверьте интернет.'));
       }, 15000);
@@ -375,7 +375,7 @@ const ViolationRegistry = (() => {
         </div>
         <div class="form-group">
           <label class="form-label">Ссылка на нормативный документ</label>
-          <textarea class="form-control" data-field="subTitle" rows="2" placeholder="п. 4.1 СП 12-135-2003">${escHtml(item?.subTitle || '')}</textarea>
+          <textarea class="form-control" data-field="subTitle" rows="2" data-no-capitalize placeholder="п. 4.1 СП 12-135-2003">${escHtml(item?.subTitle || '')}</textarea>
         </div>
         <div class="form-group">
           <label class="form-label">Примечание</label>
@@ -478,5 +478,6 @@ const ViolationRegistry = (() => {
     deleteItem,
     importFromExcel,
     exportToExcel,
+    loadXlsx,
   };
 })();

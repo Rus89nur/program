@@ -213,7 +213,7 @@ const WizardModals = (() => {
       </div>
       <div class="form-group">
         <label class="form-label">Пункт / ссылка на правило</label>
-        <textarea class="form-control" id="mvUrl" rows="2" placeholder="п. 4.1 СП 12-135-2003">${AktUtils.escapeHtml(v?.urlToPravilo || '')}</textarea>
+        <textarea class="form-control" id="mvUrl" rows="2" data-no-capitalize placeholder="п. 4.1 СП 12-135-2003">${AktUtils.escapeHtml(v?.urlToPravilo || '')}</textarea>
       </div>
       <div class="form-group">
         <label class="form-label">Формулировка из правил</label>
@@ -669,7 +669,7 @@ const WizardModals = (() => {
         <div class="form-group">
           <label class="form-label">Пункт / ссылка на правило</label>
           <input class="form-control" id="arvSubTitle" list="arvSubTitleList"
-            placeholder="п. 4.1 СП 12-135-2003" autocomplete="off">
+            placeholder="п. 4.1 СП 12-135-2003" autocomplete="off" data-no-capitalize>
           <datalist id="arvSubTitleList">${subTitleDatalist}</datalist>
           ${rulePickerItems ? `
           <button type="button" class="btn-ghost btn-sm arv-pick-btn" id="arvPickRule"

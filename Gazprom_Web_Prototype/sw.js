@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gazprom-web-v28';
+const CACHE_NAME = 'gazprom-web-v31';
 const IS_LOCALHOST = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
 const STATIC_ASSETS = [
   './',
@@ -21,10 +21,14 @@ const STATIC_ASSETS = [
   './js/elimination-editor.js',
   './js/wizard-modals.js',
   './js/wizard.js',
+  './js/short-akt-form.js',
   './js/doc-generator.js',
   './js/report-exporter.js',
   './js/app.js',
   './assets/sample-demo.gazprombackup',
+  './assets/vendor/xlsx.full.min.js',
+  './assets/vendor/pizzip.min.js',
+  './assets/vendor/docxtemplater.js',
 ];
 
 self.addEventListener('install', (event) => {

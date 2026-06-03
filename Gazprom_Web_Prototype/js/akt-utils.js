@@ -30,6 +30,142 @@ const AktUtils = (() => {
       .replace(/"/g, '&quot;');
   }
 
+  /** Префиксы заголовков нарушений сокращённого акта (как в iOS AKT.isShortFormat). */
+  const SHORT_VIOLATION_PREFIXES = ['Сокращенный:', 'Сокращённый:', 'Внешний:'];
+
+  /** Виды нарушений для сокращённого акта (ViolationType.displayName, iOS). */
+  const SHORT_VIOLATION_TYPES = [
+    'Обучение работников в области производственной безопасности',
+    'Обеспечение работников СИЗ, применении работниками СИЗ',
+    'Работы на высоте',
+    'Пожароопасные работы',
+    'Газоопасные работы',
+    'Земляные работы',
+    'Погрузочно-разгрузочные работы,складирование материалов',
+    'Эксплуатация инструмента и приспособлений',
+    'Эксплуатация машин и механизмов, подъёмных сооружений, подъёмных средств, подъёмных механизмов',
+    'Эксплуатация, перевозка, хранение баллонов с сжиженным газом и газовых баллонов',
+    'Пожарная безопасность',
+    'Электробезопасность',
+    'Безопасность дорожного движения, перевозка пассажиров и грузов',
+    'Санитарно-бытовое обеспечение',
+    'Организация внутреннего контроля за соблюдением требований производственной безопасности на ОРП',
+    'Организация работы с происшествиями (несчастными случаями, авариями, инцидентами, пожарами, транспортными происшествиями)',
+    'Прочие работы',
+  ];
+
+  const LEGACY_FULL_NUMBERS = new Set(['19', '20']);
+
+  function isShortViolationTitle(title) {
+    const t = String(title || '').trim();
+    return SHORT_VIOLATION_PREFIXES.some((p) => t.startsWith(p));
+  }
+
+  function isShortFormat(akt) {
+    return (akt?.violations || []).some((v) => isShortViolationTitle(v.title));
+  }
+
+  function isFullFormat(akt) {
+    if (isShortFormat(akt)) return false;
+    const url = akt?.urlToFllACT;
+    if (typeof url === 'string' && url.length > 0 && !isDraft(akt)) return true;
+    return LEGACY_FULL_NUMBERS.has(String(akt?.number ?? ''));
+  }
+
+  function getFormatKind(akt) {
+    if (isShortFormat(akt)) return 'short';
+    if (isFullFormat(akt)) return 'full';
+    return 'other';
+  }
+
+  function formatKindLabel(akt) {
+    const k = getFormatKind(akt);
+    if (k === 'short') return 'Сокращённый';
+    if (k === 'full') return 'Полный';
+    return '—';
+  }
+
+  /** Срок устранения: для сокращённых — дата предоставления отчёта; для полных — actustranenDate. */
+  function getEliminationDeadline(akt) {
+    if (!akt) return null;
+    if (isShortFormat(akt)) {
+      return akt.actPredostavlenDate || akt.actustranenDate || null;
+    }
+    if (akt.actustranenDate) return akt.actustranenDate;
+    if (akt.date) {
+      const d = new Date(akt.date);
+      if (!Number.isNaN(d.getTime())) {
+        const plus = new Date(d);
+        plus.setMonth(plus.getMonth() + 1);
+        return plus.toISOString();
+      }
+    }
+    return null;
+  }
+
+  function parseShortViolationCounts(akt) {
+    const counts = {};
+    SHORT_VIOLATION_TYPES.forEach((t) => {
+      counts[t] = 0;
+    });
+    for (const v of akt?.violations || []) {
+      const vid = String(v.vid || '').trim();
+      if (vid && counts[vid] != null) {
+        counts[vid] += 1;
+        continue;
+      }
+      if (!isShortViolationTitle(v.title)) continue;
+      const raw = String(v.title).replace(/^[^:]+:\s*/, '').trim();
+      if (counts[raw] != null) counts[raw] += 1;
+    }
+    return counts;
+  }
+
+  function buildShortViolations(countsByType) {
+    const violations = [];
+    for (const type of SHORT_VIOLATION_TYPES) {
+      const count = Math.max(0, parseInt(countsByType[type], 10) || 0);
+      for (let i = 0; i < count; i += 1) {
+        violations.push({
+          id: uuid(),
+          title: `Сокращенный: ${type}`,
+          mesto: '',
+          urlToPravilo: '',
+          photo: [],
+          vid: type,
+          formulaFromRules: null,
+        });
+      }
+    }
+    return violations;
+  }
+
+  function addMonthsIso(iso, months) {
+    const d = new Date(iso || Date.now());
+    if (Number.isNaN(d.getTime())) return new Date().toISOString();
+    const out = new Date(d);
+    out.setMonth(out.getMonth() + months);
+    return out.toISOString();
+  }
+
+  /** Помечает акт как «текущий» для главной (Продолжить…) и бэкапа. */
+  function applyCurrentEditable(catalog, akt) {
+    if (!catalog || !akt) return catalog;
+    const copy = clone(akt);
+    const now = new Date().toISOString();
+    catalog.editableAkt = {
+      akt: copy,
+      isEditable: true,
+      lastModified: now,
+    };
+    catalog.editableAktReference = {
+      aktId: copy.id,
+      aktNumber: copy.number,
+      lastModified: now,
+    };
+    return catalog;
+  }
+
   function isDraft(akt) {
     const url = akt?.urlToFllACT;
     if (url == null || url === '') return true;
@@ -62,6 +198,21 @@ const AktUtils = (() => {
     return photoSrc(photoData);
   }
 
+  function nextAktNumberForYear(akts, year, excludeId = null) {
+    const nums = (akts || [])
+      .filter((a) => {
+        if (excludeId && a.id === excludeId) return false;
+        if (year == null) return true;
+        const aktYear = a.date ? new Date(a.date).getFullYear() : null;
+        return aktYear === year;
+      })
+      .map((a) => parseInt(a.number, 10))
+      .filter((n) => !Number.isNaN(n));
+    const max = nums.length ? Math.max(...nums) : 0;
+    return String(max + 1);
+  }
+
+  /** Следующий номер по всем годам (для обратной совместимости). */
   function nextAktNumber(akts) {
     const nums = (akts || [])
       .map((a) => parseInt(a.number, 10))
@@ -95,14 +246,14 @@ const AktUtils = (() => {
     const in30 = new Date(now);
     in30.setDate(in30.getDate() + 30);
 
-    const number = nextAktNumber(catalog?.akts);
-    const comission = (catalog?.comissionPeople || []).slice(0, 1).map((p) => ({ ...p }));
+    const year = new Date(iso).getFullYear();
+    const number = nextAktNumberForYear(catalog?.akts, year);
 
     return {
       id: uuid(),
       number,
       date: iso,
-      comission,
+      comission: [],
       organization: defaultOrg(catalog),
       objectsCheck: [],
       predstavitelyComission: [],
@@ -121,19 +272,98 @@ const AktUtils = (() => {
     return JSON.parse(JSON.stringify(obj));
   }
 
+  const SKIP_INPUT_TYPES = new Set([
+    'search',
+    'date',
+    'datetime-local',
+    'month',
+    'week',
+    'time',
+    'number',
+    'email',
+    'url',
+    'tel',
+    'password',
+    'file',
+    'hidden',
+    'checkbox',
+    'radio',
+    'range',
+    'color',
+  ]);
+
+  function capitalizeFirstLetter(text) {
+    const val = String(text ?? '');
+    if (!val) return val;
+    const m = val.match(/^(\s*)(\p{Ll})/u);
+    if (!m) return val;
+    const idx = m[1].length;
+    return val.slice(0, idx) + m[2].toLocaleUpperCase('ru-RU') + val.slice(idx + 1);
+  }
+
+  function isAutoCapitalizeField(el) {
+    if (!el || !(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return false;
+    if (el.readOnly || el.disabled) return false;
+    if (el.dataset.noCapitalize != null) return false;
+    if (el.id === 'backupPasteText') return false;
+    const type = (el.type || 'text').toLowerCase();
+    return !SKIP_INPUT_TYPES.has(type);
+  }
+
+  function applyAutoCapitalize(el) {
+    const val = el.value;
+    const next = capitalizeFirstLetter(val);
+    if (next === val) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    el.value = next;
+    if (start != null && end != null) {
+      el.setSelectionRange(start, end);
+    }
+  }
+
+  let autoCapitalizeBound = false;
+
+  function bindAutoCapitalize(root = document) {
+    if (autoCapitalizeBound) return;
+    autoCapitalizeBound = true;
+    root.addEventListener('input', (e) => {
+      const el = e.target;
+      if (!isAutoCapitalizeField(el)) return;
+      applyAutoCapitalize(el);
+    });
+  }
+
   return {
     uuid,
     toDateInputValue,
     formatDateShort,
     escapeHtml,
+    SHORT_VIOLATION_PREFIXES,
+    SHORT_VIOLATION_TYPES,
+    isShortViolationTitle,
+    isShortFormat,
+    isFullFormat,
+    getFormatKind,
+    formatKindLabel,
+    getEliminationDeadline,
+    parseShortViolationCounts,
+    buildShortViolations,
+    addMonthsIso,
+    applyCurrentEditable,
     isDraft,
     countPhotos,
     photoSrc,
     photoSrcAsync,
     nextAktNumber,
+    nextAktNumberForYear,
     occupiedNumbers,
     createEmptyDraft,
     clone,
     defaultOrg,
+    capitalizeFirstLetter,
+    isAutoCapitalizeField,
+    applyAutoCapitalize,
+    bindAutoCapitalize,
   };
 })();

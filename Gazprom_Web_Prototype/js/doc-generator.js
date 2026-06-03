@@ -5,8 +5,8 @@
  */
 const DocGenerator = (() => {
   const TEMPLATE_KEY = 'wordTemplate';
-  const PIZZIP_CDN = 'https://unpkg.com/pizzip@3.2.0/dist/pizzip.js';
-  const DOCX_CDN   = 'https://unpkg.com/docxtemplater@3.68.7/build/docxtemplater.js';
+  const PIZZIP_LOCAL = './assets/vendor/pizzip.min.js';
+  const DOCX_LOCAL = './assets/vendor/docxtemplater.js';
 
   function loadScript(url, checkFn) {
     return new Promise((resolve, reject) => {
@@ -26,8 +26,8 @@ const DocGenerator = (() => {
     if (typeof PizZip === 'undefined' || !(window.docxtemplater || window.Docxtemplater)) {
       GazpromToast.info('Загрузка библиотек для Word…');
     }
-    await loadScript(PIZZIP_CDN, () => typeof PizZip !== 'undefined');
-    await loadScript(DOCX_CDN,   () => Boolean(window.docxtemplater || window.Docxtemplater));
+    await loadScript(PIZZIP_LOCAL, () => typeof PizZip !== 'undefined');
+    await loadScript(DOCX_LOCAL, () => Boolean(window.docxtemplater || window.Docxtemplater));
   }
 
   async function loadTemplateBlob(catalogOverride) {
@@ -570,7 +570,7 @@ const DocGenerator = (() => {
   }
 
   async function generateFromAkt(akt, catalogOverride) {
-    await loadScript(PIZZIP_CDN, () => typeof PizZip !== 'undefined');
+    await ensureLibs();
 
     const templateBytes = await loadTemplateBlob(catalogOverride);
     if (!templateBytes) {
@@ -587,7 +587,7 @@ const DocGenerator = (() => {
 
     if (hasCurlyTokens) {
       // Шаблон использует {placeholder} — docxtemplater
-      await loadScript(DOCX_CDN, () => Boolean(window.docxtemplater || window.Docxtemplater));
+      await loadScript(DOCX_LOCAL, () => Boolean(window.docxtemplater || window.Docxtemplater));
       const DocxTemplate = window.docxtemplater || window.Docxtemplater;
       if (!DocxTemplate) throw new Error('Библиотека docxtemplater не загружена');
       const doc = new DocxTemplate(zip, { paragraphLoop: true, linebreaks: true });

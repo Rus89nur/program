@@ -171,15 +171,38 @@ function scrollToBackupImport() {
 }
 
 function bindHistory() {
-  const pills = document.querySelectorAll('#screen-history .filter-pill');
+  const pills = document.querySelectorAll('#screen-history .filter-pill[data-filter]');
+  const subPills = () => [...pills].filter((p) => p.dataset.filter !== 'all');
+  const allPill = () => document.querySelector('#screen-history .filter-pill[data-filter="all"]');
+
+  const applyFiltersFromPills = async () => {
+    GazpromUI.setHistoryFilter(AktSearch.filterFromActivePills(subPills()));
+    const data = await GazpromStore.get();
+    GazpromUI.renderHistory(data);
+  };
+
+  const syncAllPill = () => {
+    const all = allPill();
+    if (!all) return;
+    const subs = subPills();
+    const allSubActive = subs.length > 0 && subs.every((p) => p.classList.contains('active'));
+    const noneSubActive = subs.every((p) => !p.classList.contains('active'));
+    all.classList.toggle('active', allSubActive || noneSubActive);
+  };
+
   pills.forEach((btn) => {
     btn.addEventListener('click', async () => {
-      pills.forEach((p) => p.classList.remove('active'));
-      btn.classList.add('active');
-      const parsed = AktSearch.parseFilterPill(btn.textContent);
-      GazpromUI.setHistoryFilter(parsed);
-      const data = await GazpromStore.get();
-      GazpromUI.renderHistory(data);
+      if (btn.dataset.filter === 'all') {
+        const subs = subPills();
+        const allSubActive = subs.every((p) => p.classList.contains('active'));
+        subs.forEach((p) => p.classList.toggle('active', !allSubActive));
+        syncAllPill();
+        await applyFiltersFromPills();
+        return;
+      }
+      btn.classList.toggle('active');
+      syncAllPill();
+      await applyFiltersFromPills();
     });
   });
 
@@ -197,10 +220,83 @@ function bindHistory() {
     }
   });
 
+  const openHistoryAkt = async (row) => {
+    const aktId = row?.dataset?.aktId;
+    if (!aktId) return;
+    await CatalogService.rememberLastOpenedAkt(aktId);
+    if (row.dataset.aktShort === '1') {
+      ShortAktForm.open(aktId);
+      return;
+    }
+    goTo('wizard', { aktId });
+  };
+
   document.getElementById('historyTableBody')?.addEventListener('click', async (e) => {
-    const btn = e.target.closest('[data-akt-open]');
+    const trashBtn = e.target.closest('[data-history-trash]');
+    if (trashBtn) {
+      e.stopPropagation();
+      const id = trashBtn.dataset.historyTrash;
+      if (!id) return;
+      const catalog = await GazpromStore.get();
+      if (!catalog) return;
+      const akt = (catalog.akts || []).find((a) => a.id === id);
+      if (!akt) return;
+      const ok = await GazpromToast.confirm(
+        `Переместить акт № ${akt.number} в корзину? Его можно будет восстановить в настройках.`
+      );
+      if (!ok) return;
+      catalog.akts = (catalog.akts || []).filter((a) => a.id !== id);
+      catalog.trash = [...(catalog.trash || []), akt];
+      if (catalog.editableAkt?.akt?.id === id) {
+        catalog.editableAkt = null;
+        catalog.editableAktReference = null;
+      }
+      await GazpromStore.set(catalog);
+      GazpromStore.invalidateCache();
+      await GazpromUI.refreshAll();
+      GazpromToast.success(`Акт № ${akt.number} перемещён в корзину`);
+      return;
+    }
+    const row = e.target.closest('tr.history-row[data-akt-id]');
+    if (!row) return;
+    await openHistoryAkt(row);
+  });
+
+  document.getElementById('historyTableBody')?.addEventListener('keydown', async (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const row = e.target.closest('tr.history-row[data-akt-id]');
+    if (!row) return;
+    e.preventDefault();
+    await openHistoryAkt(row);
+  });
+
+  document.getElementById('homeShortAktBtn')?.addEventListener('click', () => {
+    ShortAktForm.open();
+  });
+  document.getElementById('homeSubAction')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-short-continue]');
     if (!btn) return;
-    goTo('wizard', { aktId: btn.dataset.aktOpen });
+    ShortAktForm.open(btn.dataset.shortContinue);
+  });
+
+  const historyThead = document.querySelector('#screen-history .list-table thead');
+  const handleHistorySort = async (th) => {
+    if (!th?.dataset.sortKey) return;
+    GazpromUI.toggleHistorySort(th.dataset.sortKey);
+    const data = await GazpromStore.get();
+    GazpromUI.renderHistory(data);
+  };
+  historyThead?.addEventListener('click', (e) => {
+    const th = e.target.closest('th[data-sort-key]');
+    if (!th) return;
+    handleHistorySort(th);
+  });
+  historyThead?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const th = e.target.closest('th[data-sort-key]');
+    if (!th) return;
+    e.preventDefault();
+    handleHistorySort(th);
   });
 }
 
@@ -229,7 +325,7 @@ function bindReports() {
   const actions = [
     () => ReportExporter.exportViolationsReport(),
     () => ScheduleEditor.open(),
-    () => ReportExporter.exportHistory(),
+    () => ReportExporter.exportSchedule(),
   ];
   tiles.forEach((tile, i) => {
     tile.addEventListener('click', async () => {
@@ -299,13 +395,26 @@ function init() {
   setInterval(updateClock, 30000);
   registerServiceWorker();
 
-  document.querySelectorAll('[data-go]').forEach((el) => {
-    el.addEventListener('click', () => {
-      const opts = {};
-      if (el.dataset.wizardNew === '1') opts.forceNew = true;
-      if (el.dataset.aktId) opts.aktId = el.dataset.aktId;
-      goTo(el.dataset.go, opts);
-    });
+  document.addEventListener('click', async (e) => {
+    const el = e.target.closest('[data-go]');
+    if (!el) return;
+    const opts = {};
+    if (el.dataset.wizardNew === '1') opts.forceNew = true;
+    if (el.dataset.aktId) opts.aktId = el.dataset.aktId;
+    const target = el.dataset.go;
+    if (target === 'wizard' && opts.forceNew) {
+      goTo('wizard', opts);
+      return;
+    }
+    if (target === 'wizard' && !opts.forceNew && !opts.aktId) {
+      const data = await GazpromStore.get();
+      const editable = data.editableAkt?.akt;
+      if (editable && AktUtils.isShortFormat(editable)) {
+        ShortAktForm.open(editable.id);
+        return;
+      }
+    }
+    goTo(target, opts);
   });
 
   const backupTile = document.querySelector('.settings-tile--backup');
@@ -382,6 +491,7 @@ function init() {
     const ok = await GazpromToast.confirm('Удалить все загруженные данные из браузера?');
     if (!ok) return;
     await GazpromStore.clear();
+    GazpromStore.invalidateCache();
     await GazpromUI.refreshAll();
     const preview = document.getElementById('backupPreview');
     if (preview) preview.hidden = true;
@@ -409,6 +519,8 @@ function init() {
     });
   }
 
+  AktUtils.bindAutoCapitalize();
+
   bindHistory();
   bindGlobalSearch();
   bindReports();
@@ -417,6 +529,7 @@ function init() {
   CatalogEditor.bindSettingsTiles();
   ViolationRegistry.bindScreen();
   EliminationEditor.bindFilters();
+  EliminationEditor.bindBulkActions();
   EliminationEditor.bindTableActions();
 
   document.addEventListener('visibilitychange', () => {

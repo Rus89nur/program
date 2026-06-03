@@ -3,7 +3,14 @@
  */
 const GazpromUI = (() => {
   let historyQuery = '';
-  let historyFilter = { year: null, violationsOnly: false, draftsOnly: false };
+  let historyFilter = {
+    years: [],
+    violationsOnly: false,
+    draftsOnly: false,
+    shortOnly: false,
+    fullOnly: false,
+  };
+  let historySort = { key: 'date', direction: 'desc' };
 
   function formatDateShort(iso) {
     if (!iso) return '—';
@@ -37,12 +44,21 @@ const GazpromUI = (() => {
 
     const btn = document.querySelector('#screen-home .btn-primary[data-go="wizard"]');
     if (btn) {
+      const shortEditable = editable && AktUtils.isShortFormat(editable);
       btn.textContent = editable
-        ? `Продолжить акт № ${editable.number}`
-        : 'Создать новый акт';
+        ? shortEditable
+          ? `Продолжить сокращённый № ${editable.number}`
+          : `Продолжить полный акт № ${editable.number}`
+        : 'Создать полный акт';
     }
     const subAction = document.getElementById('homeSubAction');
-    if (subAction) subAction.hidden = !editable;
+    if (subAction) {
+      subAction.hidden = !editable;
+      if (editable) {
+        subAction.innerHTML =
+          '<button class="btn-secondary home-akt-actions__sub" type="button" data-go="wizard" data-wizard-new="1">Начать новый полный Акт</button>';
+      }
+    }
 
     renderScheduleProgress(data);
   }
@@ -99,74 +115,66 @@ const GazpromUI = (() => {
     const query = options.query ?? historyQuery;
     const filter = options.filter ?? historyFilter;
 
-    const akts = AktSearch.filterAkts(data.akts, {
+    const filtered = AktSearch.filterAkts(data.akts, {
       query,
-      year: filter.year,
+      years: filter.years,
       violationsOnly: filter.violationsOnly,
       draftsOnly: filter.draftsOnly,
+      shortOnly: filter.shortOnly,
+      fullOnly: filter.fullOnly,
     });
+    const akts = AktSearch.sortAkts(filtered, historySort.key, historySort.direction);
+    updateHistorySortHeaders();
 
     if (!akts.length) {
       tbody.innerHTML =
-        '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:32px;">Нет актов по выбранным критериям.</td></tr>';
+        '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:32px;">Нет актов по выбранным критериям.</td></tr>';
       return;
     }
 
     tbody.innerHTML = akts
       .map((akt) => {
         const draft = isDraft(akt);
+        const short = AktUtils.isShortFormat(akt);
+        const full = AktUtils.isFullFormat(akt);
         const org = AktSearch.getOrgTitle(akt) || '—';
         const viol = countViolations(akt);
-        const objs = (akt.objectsCheck || []).length;
-        const icon = draft ? '✏️' : '📄';
-        const title = draft ? 'Редактировать' : 'Открыть';
-        return `<tr>
+        const openLabel = short
+          ? 'Редактировать сокращённый акт'
+          : draft
+            ? 'Редактировать полный акт'
+            : 'Открыть полный акт';
+        const rowClass = short
+          ? 'history-row history-row--short'
+          : full
+            ? 'history-row history-row--full'
+            : 'history-row';
+        const typeBadge = short
+          ? '<span class="akt-badge akt-badge--short">Сокращённый</span>'
+          : full
+            ? '<span class="akt-badge akt-badge--full">Полный</span>'
+            : '<span class="akt-badge akt-badge--muted">—</span>';
+        const draftBadge = draft
+          ? ' <span class="akt-badge akt-badge--draft">Черновик</span>'
+          : '';
+        return `<tr class="${rowClass}" data-akt-id="${escapeHtml(akt.id)}" data-akt-short="${short ? '1' : '0'}" role="button" tabindex="0" title="${openLabel}" aria-label="${openLabel}: № ${escapeHtml(akt.number)}">
           <td><strong>${escapeHtml(akt.number)}</strong></td>
           <td>${formatDateShort(akt.date)}</td>
           <td>${escapeHtml(org)}</td>
-          <td>${objs}</td>
           <td>${viol}</td>
-          <td><span class="badge ${draft ? 'badge-orange' : 'badge-green'}">${draft ? 'Черновик' : 'Завершён'}</span></td>
-          <td><button class="btn-ghost" type="button" title="${title}" data-akt-open="${escapeHtml(akt.id)}">${icon}</button></td>
+          <td class="history-type-cell">${typeBadge}${draftBadge}</td>
+          <td class="history-actions-cell">
+            <button type="button" class="history-delete-btn" data-history-trash="${escapeHtml(akt.id)}" aria-label="Переместить акт № ${escapeHtml(akt.number)} в корзину" title="В корзину">🗑</button>
+          </td>
         </tr>`;
       })
       .join('');
   }
 
-  function renderElimination(data, options = {}) {
-    const tbody = document.querySelector('#eliminationTableBody');
-    if (!tbody) return;
-
-    const mode = options.filterMode || EliminationEditor.filterMode?.() || 'open';
-    let list = data.violationEliminations || [];
-    if (mode === 'open') list = list.filter((e) => !e.isEliminated);
-    else list = list.filter((e) => e.isEliminated);
-
-    if (!list.length) {
-      tbody.innerHTML =
-        '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">Нет записей</td></tr>';
-      return;
+  function renderElimination(data) {
+    if (typeof EliminationEditor?.render === 'function') {
+      EliminationEditor.render(data);
     }
-
-    tbody.innerHTML = list
-      .map((e) => {
-        const deadline =
-          e.deadlineHistory?.length > 0
-            ? e.deadlineHistory[e.deadlineHistory.length - 1].deadlineDate
-            : e.newEliminationDate || e.originalEliminationDate;
-        const overdue = deadline && new Date(deadline) < new Date() && !e.isEliminated;
-        const before = (e.beforePhotos || []).length;
-        const after = (e.afterPhotos || []).length;
-        const photoCell = `📷 ${before} / ${after ? '📷 ' + after : '—'}`;
-        return `<tr>
-          <td>№ ${escapeHtml(e.aktNumber)}</td>
-          <td>${escapeHtml((e.violationTitle || '').slice(0, 80))}${(e.violationTitle || '').length > 80 ? '…' : ''}</td>
-          <td class="${overdue ? 'text-danger' : ''}">${deadline ? formatDateShort(deadline) : '—'}${overdue ? ' ⚠' : ''}</td>
-          <td>${photoCell}</td>
-          <td><button class="btn-secondary btn-sm" type="button" data-elim-mark="${escapeHtml(e.id)}">Отметить</button></td>
-        </tr>`;
-      })
-      .join('');
   }
 
   function renderTrash(data) {
@@ -196,21 +204,25 @@ const GazpromUI = (() => {
 
   function renderDataStatus(data) {
     const el = document.getElementById('dataStatusBar');
-    if (!el) return;
+    if (!el || !data) return;
+
+    const s = GazpromBackup.getStats(data);
+    const isFresh =
+      !data.importedAt &&
+      !data.timestamp &&
+      !data.sourceFileName &&
+      s.akts === 0;
+    if (isFresh) {
+      el.className = 'data-status data-status--ok';
+      el.innerHTML =
+        '<span>✓ Новая база данных</span> — создавайте акты и заполняйте справочники в Настройках';
+      return;
+    }
 
     if (!GazpromStore.hasData(data)) {
       el.className = 'data-status data-status--empty';
       el.innerHTML =
         '<span>Данные не загружены</span> — импортируйте файл <code>.gazprombackup</code> или начните работу с нуля';
-      return;
-    }
-
-    const s = GazpromBackup.getStats(data);
-    const isFresh = !data.importedAt && !data.timestamp && s.akts === 0;
-    if (isFresh) {
-      el.className = 'data-status data-status--ok';
-      el.innerHTML =
-        '<span>✓ Новая база данных</span> — создавайте акты и заполняйте справочники в Настройках';
       return;
     }
 
@@ -233,18 +245,42 @@ const GazpromUI = (() => {
       .replace(/"/g, '&quot;');
   }
 
+  function updateHistorySortHeaders() {
+    document.querySelectorAll('#screen-history .list-table thead th[data-sort-key]').forEach((th) => {
+      const active = th.dataset.sortKey === historySort.key;
+      th.classList.toggle('th--sorted', active);
+      th.classList.toggle('th--sorted-asc', active && historySort.direction === 'asc');
+      th.classList.toggle('th--sorted-desc', active && historySort.direction === 'desc');
+      th.setAttribute('aria-sort', active ? (historySort.direction === 'asc' ? 'ascending' : 'descending') : 'none');
+    });
+  }
+
+  function toggleHistorySort(key) {
+    if (historySort.key === key) {
+      historySort = { key, direction: historySort.direction === 'asc' ? 'desc' : 'asc' };
+    } else {
+      historySort = { key, direction: 'asc' };
+    }
+  }
+
   function setHistoryQuery(q) {
     historyQuery = q;
   }
 
   function setHistoryFilter(filter) {
-    historyFilter = { ...historyFilter, ...filter };
+    historyFilter = {
+      years: [],
+      violationsOnly: false,
+      draftsOnly: false,
+      shortOnly: false,
+      fullOnly: false,
+      ...filter,
+    };
   }
 
   async function refreshAll() {
     const data = await GazpromStore.get();
     renderDataStatus(data);
-    if (!GazpromStore.hasData(data)) return;
     renderHome(data);
     renderHistory(data);
     renderElimination(data);
@@ -309,5 +345,6 @@ const GazpromUI = (() => {
     renderDataStatus,
     setHistoryQuery,
     setHistoryFilter,
+    toggleHistorySort,
   };
 })();
