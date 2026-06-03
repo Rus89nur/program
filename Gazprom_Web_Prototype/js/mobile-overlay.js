@@ -1,8 +1,14 @@
 /**
- * Мобильная оболочка (≤900px): блокировка .main при модалках, высота visualViewport для модалок.
+ * Мобильная оболочка: узкий портрет ≤900px или landscape на телефоне (низкий viewport, touch).
+ * Без второго условия на Plus/Max в альбомной ширина >900px — включается десктоп и ломается вёрстка.
  */
 const GazpromMobileOverlay = (() => {
-  const mq = window.matchMedia('(max-width: 900px)');
+  const PHONE_LAYOUT_MQ =
+    window.GAZPROM_PHONE_LAYOUT_MQ ||
+    '(max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none)';
+  window.GAZPROM_PHONE_LAYOUT_MQ = PHONE_LAYOUT_MQ;
+
+  const mq = window.matchMedia(PHONE_LAYOUT_MQ);
   let depth = 0;
 
   const mainEl = () => document.querySelector('.main');
@@ -19,6 +25,20 @@ const GazpromMobileOverlay = (() => {
     }
   };
 
+  const hasOpenOverlay = () =>
+    !!document.querySelector(
+      '.modal-root.show, .catalog-editor-root:not([hidden]), .catalog-form-overlay:not([hidden]), ' +
+        '.photo-lightbox.show, .vr-form-overlay:not([hidden]), .confirm-overlay:not([hidden]), ' +
+        '.schedule-form-overlay:not([hidden]), .elimination-detail-overlay:not([hidden])'
+    );
+
+  const clearStaleScrollLock = () => {
+    if (hasOpenOverlay()) return;
+    depth = 0;
+    document.documentElement.classList.remove('gazprom-scroll-lock');
+    mainEl()?.classList.remove('gazprom-main-scroll-lock');
+  };
+
   const syncMobileShellClass = () => {
     document.body.classList.toggle('gazprom-mobile-shell', mq.matches);
     syncVisualViewport();
@@ -26,6 +46,19 @@ const GazpromMobileOverlay = (() => {
       window.scrollTo(0, window.scrollY);
       document.documentElement.scrollLeft = 0;
       document.body.scrollLeft = 0;
+    } else {
+      document.documentElement.style.removeProperty('--vv-height');
+    }
+  };
+
+  const recoverViewportLayout = () => {
+    syncMobileShellClass();
+    clampScrollX();
+    clearStaleScrollLock();
+    const main = mainEl();
+    if (main) {
+      main.scrollLeft = 0;
+      void main.offsetHeight;
     }
   };
 
@@ -90,16 +123,21 @@ const GazpromMobileOverlay = (() => {
   };
 
   syncMobileShellClass();
-  mq.addEventListener('change', syncMobileShellClass);
+  mq.addEventListener('change', recoverViewportLayout);
 
   if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', syncVisualViewport);
+    window.visualViewport.addEventListener('resize', () => {
+      syncVisualViewport();
+      clampScrollX();
+    });
     window.visualViewport.addEventListener('scroll', syncVisualViewport);
   }
-  window.addEventListener('resize', syncVisualViewport);
+  window.addEventListener('resize', recoverViewportLayout);
   window.addEventListener('orientationchange', () => {
-    setTimeout(syncVisualViewport, 80);
-    setTimeout(syncVisualViewport, 320);
+    recoverViewportLayout();
+    [80, 200, 400, 700].forEach((ms) => {
+      setTimeout(recoverViewportLayout, ms);
+    });
   });
   document.addEventListener('touchstart', handleTouchStart, { passive: true });
   document.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -107,5 +145,5 @@ const GazpromMobileOverlay = (() => {
   document.addEventListener('touchcancel', handleTouchEnd, { passive: true });
   window.addEventListener('scroll', clampScrollX, { passive: true });
 
-  return { lock, unlock, syncVisualViewport };
+  return { lock, unlock, syncVisualViewport, recoverViewportLayout };
 })();

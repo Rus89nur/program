@@ -1,6 +1,6 @@
 # Телефонный режим веб-PWA «программа НЕТ»
 
-Документ для продолжения работы **без контекста чата**. Актуальная сборка на момент последнего обновления файла: **web-58** (проверьте в UI: Настройки → «Сборка: web-XX»).
+Документ для продолжения работы **без контекста чата**. Актуальная сборка на момент последнего обновления файла: **web-59** (проверьте в UI: Настройки → «Сборка: web-XX»).
 
 Деплой: GitHub Pages — https://rus89nur.github.io/program/  
 Локально: `cd Gazprom_Web_Prototype && python3 dev-server.py` или `python3 -m http.server 8765`
@@ -11,10 +11,17 @@
 
 | Условие | Поведение |
 |---------|-----------|
-| Ширина окна **≤ 900px** | Телефонный UI: нижняя навигация, шапка в 2 ряда, скролл только в `.main` |
-| Ширина **> 900px** | Десктоп: боковое меню, прежняя вёрстка **без изменений** |
+| **Портрет:** ширина **≤ 900px** | Телефонный UI |
+| **Альбом:** высота **≤ 520px**, ширина **≤ 1280px**, touch (`hover: none`) | Тот же телефонный UI (иначе на Plus/Max ширина >900 → десктоп и ломается вёрстка) |
+| Иначе (широкий десктоп с мышью) | Десктоп: боковое меню, прежняя вёрстка **без изменений** |
 
-Класс на `<body>`: **`gazprom-mobile-shell`** (ставит `js/mobile-overlay.js` при загрузке и при `resize`).
+**Media query (CSS и JS):**
+
+```text
+(max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none)
+```
+
+Константа в JS: `window.GAZPROM_PHONE_LAYOUT_MQ`. Класс на `<body>`: **`gazprom-mobile-shell`** (`index.html` ранний скрипт + `js/mobile-overlay.js`, `toggle` при `change` / `orientationchange`).
 
 ---
 
@@ -23,7 +30,7 @@
 | Файл | Назначение |
 |------|------------|
 | `css/app.css` | Блоки **`Mobile shell`** (~3580+) и **`Mobile overlays`** (~3750+), медиа `@media (max-width: 900px)` |
-| `js/mobile-overlay.js` | Блокировка горизонтального свайпа, `visualViewport` (--vv-height), lock скролла `.main` при модалках |
+| `js/mobile-overlay.js` | MQ телефона, `recoverViewportLayout` после поворота, блокировка свайпа, `--vv-height`, lock `.main` |
 | `index.html` | `viewport-fit=cover`, `interactive-widget=resizes-content`, ранний скрипт `gazprom-mobile-shell`, подключение `mobile-overlay.js` |
 | `js/wizard.js` | Lightbox фото (`photoSrcAsync`), галерея «Все фото акта», класс `wizard-akt-meta-row` (дата + номер) |
 | `js/wizard-modals.js` | Модалки нарушений, `GazpromMobileOverlay.lock/unlock` |
@@ -97,6 +104,27 @@
 
 ---
 
+## 5.1. Поворот экрана (portrait ↔ landscape) — web-59
+
+**Симптом:** в альбомной — «десктоп»/сжатая вёрстка; после возврата в портрет — поля мастера в одну колонку, сдвиг, залипший scroll-lock.
+
+**Причины:**
+
+1. В landscape на iPhone Plus/Max **ширина > 900px** → снимался `gazprom-mobile-shell`, включался десктоп-grid с сайдбаром.
+2. Ранний скрипт в `index.html` **только добавлял** класс, не снимал при `resize`.
+3. `.form-row { 1fr }` перебивал дату/номер, если класс shell пропадал.
+4. После поворота оставались `gazprom-scroll-lock` / `--vv-height` от landscape.
+
+**Исправления (web-59):**
+
+- Единый MQ (см. §1) во всех `@media` в `app.css` и в `mobile-overlay.js`.
+- `recoverViewportLayout()` на `orientationchange` / `resize` / `mq.change` (с задержками 80–700 ms для iOS).
+- `.form-row.wizard-akt-meta-row` всегда **2 колонки** в phone MQ (без зависимости от shell).
+- Сброс залипшего scroll-lock, если модалка не открыта.
+- Компактные стили мастера в landscape (секция `@media … landscape` в `app.css`).
+
+---
+
 ## 6. Импорт бэкапа и фото (кратко)
 
 - **Десктоп:** фото остаются base64 в каталоге (`skipPhotoIngest`), быстрый просмотр.
@@ -122,6 +150,7 @@
 | web-56 | Модалки 90%, жёсткий запрет горизонтального свайпа |
 | web-57 | Нижний бар `bottom: 0` (вплотную к Safari) |
 | web-58 | Детальная настройка: дата проверки = размер поля «Номер акта» (`wizard-akt-meta-row`), этот файл в репозитории |
+| web-59 | Поворот экрана: phone MQ в landscape, `recoverViewportLayout`, фикс дата/номер после rotate |
 
 При правках **всегда bump**: `js/app.js` → `GAZPROM_WEB_BUILD`, `index.html` (текст сборки + `?v=` у css/js), `sw.js` → `CACHE_NAME`.
 
@@ -135,7 +164,7 @@
 4. Модалка нарушения — по центру, 90% ширины, поля не вылезают.
 5. Фото: миниатюра → lightbox; «Все фото акта» листает все фото акта.
 6. Нижний бар — сразу над панелью браузера, не перекрывает иконки.
-7. Поворот landscape — модалки и текст читаемы.
+7. Поворот landscape → portrait: поля мастера (дата/номер) в 2 колонки, без сдвига; в landscape — телефонный UI, не сайдбар.
 
 ---
 
@@ -156,6 +185,7 @@
 - [ ] История, устранение, настройки — отступы карточек
 - [ ] Модалки — ширина 85–92%, поля форм
 - [ ] PWA «На экран Домой» vs Safari in-browser
+- [x] Поворот portrait ↔ landscape — **web-59**
 
 **Не трогать** стили desktop (`> 900px`) без явного запроса.
 

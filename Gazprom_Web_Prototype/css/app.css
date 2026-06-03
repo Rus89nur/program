@@ -1142,7 +1142,7 @@
     }
 
     /* Responsive: tablet collapses sidebar */
-    @media (max-width: 900px) {
+    @media (max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none) {
       .app {
         grid-template-columns: 64px 1fr;
         --sidebar-w: 64px;
@@ -1153,6 +1153,10 @@
       .sidebar-brand::after { content: 'Г'; font-family: Montserrat; font-weight: 800; font-size: 1.2rem; color: #26c6da; }
       .home-grid { grid-template-columns: 1fr; }
       .form-row { grid-template-columns: 1fr; }
+      .form-row.wizard-akt-meta-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
     }
 
     /* Notes panel below app */
@@ -2709,7 +2713,7 @@
       #vrScreenTableWrap td:nth-child(4) { display: none; }
     }
 
-    @media (max-width: 900px) {
+    @media (max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none) {
       .sidebar { display: none; }
       .bottom-nav { display: flex; }
       .header-actions .header-sync,
@@ -3588,7 +3592,7 @@
     }
 
     /* ===== Mobile shell: скролл только в .main, нижний бар не съезжает (≤900px) ===== */
-    @media (max-width: 900px) {
+    @media (max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none) {
       html {
         overflow: hidden;
         width: 100%;
@@ -3786,7 +3790,7 @@
     }
 
     /* ===== Mobile overlays: центрирование, без горизонтального сдвига (только ≤900px) ===== */
-    @media (max-width: 900px) {
+    @media (max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none) {
       .modal-root,
       .modal-root.show,
       .catalog-form-overlay:not([hidden]),
@@ -3983,7 +3987,33 @@
       }
     }
 
-    @media (max-width: 900px) and (orientation: landscape) {
+    @media (max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none) and (orientation: landscape) {
+      body.gazprom-mobile-shell .wizard-akt-meta-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      body.gazprom-mobile-shell .wizard-akt-meta-row .wizard-akt-meta-control {
+        min-height: 40px;
+        font-size: 14px;
+        padding: 10px 8px;
+      }
+
+      body.gazprom-mobile-shell .main {
+        padding-top: 8px;
+        padding-bottom: calc(8px + var(--gazprom-nav-block));
+      }
+
+      body.gazprom-mobile-shell .header {
+        padding-top: 6px;
+        padding-bottom: 6px;
+        gap: 6px;
+      }
+
+      body.gazprom-mobile-shell .header-title {
+        font-size: 0.95rem;
+      }
+
       .modal-dialog,
       .catalog-editor-panel,
       .catalog-form-dialog,
