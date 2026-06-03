@@ -32,6 +32,21 @@ const GazpromUI = (() => {
     ].forEach((prop) => el.style.removeProperty(prop));
   }
 
+  function hideDataStatusBar(el) {
+    if (!el) return;
+    clearTimeout(dataStatusHideTimer);
+    dataStatusHideTimer = null;
+    el.classList.remove('data-status--peek', 'data-status--hidden', 'data-status--empty', 'data-status--ok');
+    el.className = 'data-status';
+    el.innerHTML = '';
+    clearDataStatusInlineHide(el);
+    el.hidden = true;
+    el.style.display = 'none';
+    el.removeAttribute('role');
+    el.removeAttribute('aria-live');
+    el.removeAttribute('aria-hidden');
+  }
+
   function resetDataStatusPeek(el) {
     if (!el) return;
     clearTimeout(dataStatusHideTimer);
@@ -68,6 +83,7 @@ const GazpromUI = (() => {
     if (!el) return;
     clearTimeout(dataStatusHideTimer);
     el.hidden = false;
+    el.style.removeProperty('display');
     clearDataStatusInlineHide(el);
     el.classList.add('data-status--peek', 'data-status--hidden');
     el.setAttribute('aria-hidden', 'true');
@@ -346,20 +362,12 @@ const GazpromUI = (() => {
       !data.sourceFileName &&
       s.akts === 0;
     if (isFresh) {
-      resetDataStatusPeek(el);
-      el.className = 'data-status data-status--ok';
-      el.innerHTML =
-        '<span class="data-status__line data-status__line--full"><span>✓ Новая база данных</span> — создавайте акты и заполняйте справочники в Настройках</span>' +
-        '<span class="data-status__line data-status__line--compact">✓ Новая база — создавайте акты в Настройках</span>';
+      hideDataStatusBar(el);
       return;
     }
 
     if (!GazpromStore.hasData(data)) {
-      resetDataStatusPeek(el);
-      el.className = 'data-status data-status--empty';
-      el.innerHTML =
-        '<span class="data-status__line data-status__line--full"><span>Данные не загружены</span> — импортируйте файл <code>.gazprombackup</code> или начните работу с нуля</span>' +
-        '<span class="data-status__line data-status__line--compact">Данные не загружены — импорт <code>.gazprombackup</code></span>';
+      hideDataStatusBar(el);
       return;
     }
 

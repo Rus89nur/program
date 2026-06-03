@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '94';</script>
+  <script>window.GAZPROM_ASSET_V = '95';</script>
   <script>
   (function () {
     var h = location.hostname;
@@ -30,13 +30,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=94" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=95" id="appCss">
   <script>
   (function () {
     var css = document.getElementById('appCss');
     if (!css) return;
     var base = String(css.getAttribute('href') || 'css/app.css').split('?')[0];
-    var v = window.GAZPROM_ASSET_V || '94';
+    var v = window.GAZPROM_ASSET_V || '95';
     var h = location.hostname;
     var dev = (h === 'localhost' || h === '127.0.0.1') ? ('&dev=' + Date.now()) : '';
     css.href = base + '?v=' + v + dev;
@@ -60,9 +60,7 @@
   <!-- Вне модалок: iOS Safari не открывает picker у input внутри [hidden] -->
   <input type="file" id="backupFileInput" class="backup-file-input" accept=".gazprombackup,.json,application/json,text/json,text/plain,application/octet-stream" tabindex="-1" aria-hidden="true">
 
-  <div id="dataStatusBar" class="data-status data-status--empty">
-    <span>Данные не загружены</span> — импортируйте файл <code>.gazprombackup</code> или начните работу с нуля
-  </div>
+  <div id="dataStatusBar" class="data-status" hidden></div>
 
   <div class="app">
     <aside class="sidebar">
@@ -90,7 +88,7 @@
       </button>
       <div class="sidebar-footer" id="sidebarAppBuild" aria-label="Версия веб-приложения">
         <span class="sidebar-footer__brand">программа НЕТ</span>
-        Сборка: <span data-app-build>web-94</span> · PWA
+        Сборка: <span data-app-build>web-95</span> · PWA
       </div>
     </aside>
 
@@ -395,7 +393,7 @@
         </div>
       </section>
 
-      <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-94</p>
+      <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-95</p>
     </main>
   </div>
 
@@ -494,7 +492,7 @@
   <script src="js/catalog-service.js"></script>
   <script src="js/backup-import.js?v=29"></script>
   <script src="js/akt-search.js"></script>
-  <script src="js/ui-bindings.js?v=25"></script>
+  <script src="js/ui-bindings.js?v=26"></script>
   <script src="js/catalog-editor.js?v=12"></script>
   <script src="js/schedule-editor.js?v=2"></script>
   <script src="js/elimination-editor.js?v=7"></script>
@@ -503,6 +501,6 @@
   <script src="js/wizard.js?v=38"></script>
   <script src="js/short-akt-form.js?v=2"></script>
   <script src="js/doc-generator.js?v=29"></script>
-  <script src="js/app.js?v=49"></script>
+  <script src="js/app.js?v=50"></script>
 </body>
 </html>
