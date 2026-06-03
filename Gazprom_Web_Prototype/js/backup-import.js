@@ -129,15 +129,6 @@ const GazpromBackup = (() => {
 
   /** Чтение текста файла: iOS Safari теряет доступ к File после сброса input.value. */
   async function readFileText(file) {
-    // #region agent log
-    if (typeof DebugAgent !== 'undefined') {
-      DebugAgent.log('backup-import.js:readFileText', 'read start', {
-        name: file?.name,
-        size: file?.size,
-        type: file?.type,
-      }, 'A');
-    }
-    // #endregion
     const viaReader = () =>
       new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -161,14 +152,6 @@ const GazpromBackup = (() => {
     if (!text) {
       throw new Error('Файл пустой или не удалось прочитать содержимое');
     }
-    // #region agent log
-    if (typeof DebugAgent !== 'undefined') {
-      DebugAgent.log('backup-import.js:readFileText', 'read ok', {
-        textLen: text.length,
-        head: text.slice(0, 40),
-      }, 'A');
-    }
-    // #endregion
     return text;
   }
 
@@ -183,14 +166,6 @@ const GazpromBackup = (() => {
     const backup = normalizeBackup(raw);
     if (fileName) backup.sourceFileName = fileName;
     restoreEditableReference(backup);
-    // #region agent log
-    if (typeof DebugAgent !== 'undefined') {
-      DebugAgent.log('backup-import.js:parseJsonText', 'parse ok', {
-        akts: backup.akts.length,
-        version: backup.version,
-      }, 'B');
-    }
-    // #endregion
     return backup;
   }
 
@@ -277,23 +252,6 @@ const GazpromBackup = (() => {
       needsMobilePhotoExtract &&
       typeof PhotoStore !== 'undefined';
 
-    // #region agent log
-    if (typeof DebugAgent !== 'undefined') {
-      DebugAgent.log('backup-import.js:importFile', 'before save', {
-        replace,
-        sizeHint,
-        fileBytes,
-        inlineBytes,
-        importWithoutPhotos,
-        usePhotoIngest,
-        needsMobilePhotoExtract,
-        isMobile: isCoarsePointerDevice(),
-        akts: merged.akts?.length,
-        build: typeof window !== 'undefined' ? window.GAZPROM_WEB_BUILD : '',
-      }, 'C');
-    }
-    // #endregion
-
     if (importWithoutPhotos) {
       merged = stripForMobileIdb(merged);
       if (typeof GazpromToast !== 'undefined') {
@@ -311,13 +269,6 @@ const GazpromBackup = (() => {
     if (usePhotoIngest) {
       await ensureStorageForPhotos(inlineBytes || fileBytes);
       const loadingLabel = document.getElementById('backupLoadingText');
-      // #region agent log
-      if (typeof DebugAgent !== 'undefined') {
-        DebugAgent.log('backup-import.js:importFile', 'in-place photos start', {
-          inlineBefore: approximateInlinePhotoBytes(merged),
-        }, 'C');
-      }
-      // #endregion
       merged = await PhotoStore.ingestCatalogInPlace(merged, {
         onProgress: (done, total) => {
           if (loadingLabel && total > 0) {
@@ -325,13 +276,6 @@ const GazpromBackup = (() => {
           }
         },
       });
-      // #region agent log
-      if (typeof DebugAgent !== 'undefined') {
-        DebugAgent.log('backup-import.js:importFile', 'in-place photos done', {
-          inlineAfter: approximateInlinePhotoBytes(merged),
-        }, 'C');
-      }
-      // #endregion
       merged = await offloadLargeWordTemplate(merged);
     }
 
@@ -348,16 +292,6 @@ const GazpromBackup = (() => {
       stats.photosIngestFailed = ingest.failed;
       stats.photosIngestTotal = ingest.total;
     }
-
-    // #region agent log
-    if (typeof DebugAgent !== 'undefined') {
-      DebugAgent.log('backup-import.js:importFile', 'set ok', {
-        akts: merged.akts?.length,
-        photosStored: storedIds,
-        ingest,
-      }, 'C');
-    }
-    // #endregion
 
     if (usePhotoIngest && ingest && ingest.total > 0 && storedIds === 0) {
       throw new Error(

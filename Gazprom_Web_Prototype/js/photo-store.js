@@ -107,15 +107,8 @@ const PhotoStore = (() => {
       await GazpromIdb.transaction(STORE_PHOTOS, 'readwrite', (tx) => {
         tx.objectStore(STORE_PHOTOS).clear();
       });
-    } catch (err) {
-      // #region agent log
-      if (typeof DebugAgent !== 'undefined') {
-        DebugAgent.log('photo-store.js:clearAll', 'clear failed (ignored)', {
-          msg: err?.message,
-          name: err?.name,
-        }, 'D');
-      }
-      // #endregion
+    } catch {
+      /* ignore */
     }
     dataUrlCache.clear();
   }
@@ -183,15 +176,7 @@ const PhotoStore = (() => {
       try {
         await putB64Record(prepared.id, prepared.fallbackB64);
         return { id: prepared.id, mode: 'b64' };
-      } catch (b64Err) {
-        // #region agent log
-        if (typeof DebugAgent !== 'undefined') {
-          DebugAgent.log('photo-store.js:commitPrepared', 'blob and b64 failed', {
-            blobMsg: blobErr?.message,
-            b64Msg: b64Err?.message,
-          }, 'D');
-        }
-        // #endregion
+      } catch {
         return { id: null, mode: 'failed' };
       }
     }
@@ -333,12 +318,6 @@ const PhotoStore = (() => {
     stats.ms = Date.now() - t0;
     catalog.photoIngestStats = stats;
     lastIngestStats = stats;
-
-    // #region agent log
-    if (typeof DebugAgent !== 'undefined') {
-      DebugAgent.log('photo-store.js:ingestCatalogInPlace', 'stats', stats, 'C');
-    }
-    // #endregion
 
     return catalog;
   }

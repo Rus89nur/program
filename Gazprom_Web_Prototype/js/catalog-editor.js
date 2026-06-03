@@ -200,13 +200,6 @@ const CatalogEditor = (() => {
     const tbody = el.querySelector('tbody');
     const countEl = el.querySelector('.catalog-editor-count');
     const searchInput = el.querySelector('.catalog-search-input');
-    const panelEl = el.querySelector('.catalog-editor-panel');
-    const bodyEl = el.querySelector('.catalog-editor-body');
-    const tableEl = el.querySelector('.list-table');
-
-    // #region agent log
-    fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'34659e'},body:JSON.stringify({sessionId:'34659e',location:'catalog-editor.js:open',message:'initial widths',data:{panelW:panelEl?.offsetWidth,bodyW:bodyEl?.offsetWidth,inputW:searchInput?.offsetWidth,tableW:tableEl?.offsetWidth},timestamp:Date.now(),hypothesisId:'H-A,H-B,H-C',runId:'run2'})}).catch(()=>{});
-    // #endregion
 
     searchInput?.addEventListener('input', (e) => {
       const q = e.target.value;
@@ -214,9 +207,6 @@ const CatalogEditor = (() => {
       tbody.innerHTML = buildRowsHtml(cfg, fields, f, q ? 'Ничего не найдено' : 'Нет записей — нажмите «+ Добавить»');
       countEl.textContent = countHint(q, f);
       bindRowButtons(tbody, all, cfg, catalog, () => searchInput.value);
-      // #region agent log
-      fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'34659e'},body:JSON.stringify({sessionId:'34659e',location:'catalog-editor.js:input',message:'widths after filter',data:{q,panelW:panelEl?.offsetWidth,bodyW:bodyEl?.offsetWidth,inputW:searchInput?.offsetWidth,tableW:tableEl?.offsetWidth,count:f.length},timestamp:Date.now(),hypothesisId:'H-A,H-B',runId:'run2'})}).catch(()=>{});
-      // #endregion
     });
 
     el.querySelector('[data-add]')?.addEventListener('click', () => openForm(cfg, catalog, null, searchInput?.value ?? query));
