@@ -2704,7 +2704,12 @@
       .header-actions .header-sync,
       .header-actions .avatar { display: none; }
       .wizard-layout { grid-template-columns: 1fr !important; }
-      .summary-panel { order: -1; }
+      .summary-panel {
+        order: -1;
+        position: relative;
+        top: auto;
+        z-index: 0;
+      }
       .toolbar-filters { flex-wrap: wrap; }
       #screen-history .toolbar-filters--pills { flex-wrap: nowrap; }
       .history-list-item {
@@ -3581,9 +3586,11 @@
       }
 
       body.gazprom-mobile-shell {
-        --gazprom-nav-lift: calc(10px + env(safe-area-inset-bottom, 0px));
+        /* +14px — нижняя панель Safari на реальном iPhone (в симуляторе её нет) */
+        --gazprom-nav-lift: calc(20px + env(safe-area-inset-bottom, 0px) + 14px);
         --gazprom-nav-block: calc(56px + var(--gazprom-nav-lift) + 8px);
         overflow: hidden;
+        overflow-x: clip;
         width: 100%;
         max-width: 100%;
         height: 100dvh;
@@ -3592,6 +3599,7 @@
         flex-direction: column;
         touch-action: pan-y;
         overscroll-behavior: none;
+        overscroll-behavior-x: none;
         position: relative;
       }
 
@@ -3656,11 +3664,12 @@
       body.gazprom-mobile-shell .bottom-nav {
         display: flex;
         position: fixed;
-        left: 0;
-        right: 0;
+        top: auto;
+        right: auto;
+        left: var(--vv-offset-left, 0);
         bottom: var(--gazprom-nav-lift);
-        width: 100%;
-        max-width: 100%;
+        width: var(--vv-width, 100%);
+        max-width: var(--vv-width, 100%);
         z-index: 200;
         transform: translateZ(0);
         padding: 6px 8px 8px;
@@ -3699,17 +3708,24 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        inset: 0;
-        width: 100%;
-        max-width: 100%;
+        position: fixed;
+        top: var(--vv-offset-top, 0);
+        left: var(--vv-offset-left, 0);
+        width: var(--vv-width, 100%);
+        height: var(--vv-height, 100%);
+        right: auto;
+        bottom: auto;
+        max-width: var(--vv-width, 100%);
         z-index: 10000;
         overflow: hidden;
+        overflow-x: clip;
         overscroll-behavior: none;
-        touch-action: none;
+        overscroll-behavior-x: none;
+        touch-action: pan-y;
         padding:
           max(12px, env(safe-area-inset-top))
           max(12px, env(safe-area-inset-right))
-          calc(max(12px, env(safe-area-inset-bottom, 0px)) + 10px)
+          calc(max(12px, env(safe-area-inset-bottom, 0px)) + 14px)
           max(12px, env(safe-area-inset-left));
         box-sizing: border-box;
       }
@@ -3729,13 +3745,15 @@
       .photo-lightbox-inner {
         touch-action: pan-y;
         overflow-x: hidden;
-        width: 100%;
-        max-width: min(100%, 560px);
-        margin: auto;
+        width: calc(var(--vv-width, 100%) - 24px);
+        max-width: min(calc(var(--vv-width, 100%) - 24px), 560px);
+        margin-left: auto;
+        margin-right: auto;
         flex: 0 1 auto;
         align-self: center;
         box-sizing: border-box;
         overscroll-behavior: contain;
+        overscroll-behavior-x: none;
         -webkit-overflow-scrolling: touch;
       }
 
@@ -3775,13 +3793,14 @@
 
       .elimination-detail-overlay .elimination-detail-sheet {
         touch-action: pan-y;
-        width: 100%;
-        max-width: min(100%, 640px);
-        margin: 0 auto;
+        width: calc(var(--vv-width, 100%) - 16px);
+        max-width: min(calc(var(--vv-width, 100%) - 16px), 640px);
+        margin-left: auto;
+        margin-right: auto;
         flex: 0 1 auto;
         max-height: min(
-          92dvh,
-          calc(100dvh - env(safe-area-inset-top, 0px) - 16px)
+          var(--vv-height, 92dvh),
+          calc(var(--vv-height, 100dvh) - env(safe-area-inset-top, 0px) - 16px)
         );
       }
 
@@ -3851,15 +3870,8 @@
         max-width: none;
       }
 
-      .elimination-detail-overlay {
-        align-items: stretch;
-        justify-content: flex-end;
-        padding: 0;
-      }
-
       .elimination-detail-sheet {
         border-radius: 20px 20px 0 0;
-        max-height: min(94dvh, calc(100dvh - env(safe-area-inset-top)));
       }
     }
 
