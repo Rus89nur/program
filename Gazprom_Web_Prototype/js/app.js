@@ -1,4 +1,5 @@
 /** Газпром — веб-приложение: навигация, PWA, импорт, экраны */
+window.GAZPROM_WEB_BUILD = 'web-41';
 const titles = {
   home: 'Главная',
   wizard: 'Редактируемый акт',
@@ -575,6 +576,7 @@ function init() {
         DebugAgent.log('app.js:init', 'startup catalog', {
           akts: (data?.akts || []).length,
           hasImportedAt: !!data?.importedAt,
+          build: window.GAZPROM_WEB_BUILD,
           sw: navigator.serviceWorker?.controller?.scriptURL?.slice(-24) || 'none',
           href: location.href.slice(0, 80),
         }, 'G');

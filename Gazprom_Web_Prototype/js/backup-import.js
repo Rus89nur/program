@@ -199,6 +199,16 @@ const GazpromBackup = (() => {
     return parseJsonText(text, file.name);
   }
 
+  function getTemplateKey() {
+    return typeof DocGenerator !== 'undefined' && DocGenerator.TEMPLATE_KEY
+      ? DocGenerator.TEMPLATE_KEY
+      : 'wordTemplate';
+  }
+
+  function isCoarsePointerDevice() {
+    return window.matchMedia('(pointer: coarse)').matches;
+  }
+
   function stripInlinePhotos(catalog) {
     const stripAkt = (akt) => {
       if (!akt) return akt;
@@ -219,6 +229,28 @@ const GazpromBackup = (() => {
     return out;
   }
 
+  /** iPhone: убрать base64-фото и тяжёлый Word-шаблон перед записью в IndexedDB. */
+  function stripForMobileIdb(catalog) {
+    const out = stripInlinePhotos(catalog);
+    const templateKey = getTemplateKey();
+    const wt = out[templateKey] || out.wordTemplate;
+    if (typeof wt === 'string' && wt.length > 50000) {
+      out[templateKey] = null;
+      out.wordTemplate = null;
+      out.mobileStrippedTemplate = true;
+    }
+    return out;
+  }
+
+  function approximateCatalogStoreBytes(catalog) {
+    if (!catalog) return 0;
+    let bytes = approximateInlinePhotoBytes(catalog);
+    const templateKey = getTemplateKey();
+    const wt = catalog[templateKey] || catalog.wordTemplate;
+    if (typeof wt === 'string') bytes += wt.length;
+    return bytes;
+  }
+
   async function importFile(file, { replace = true, parsed = null } = {}) {
     const incoming = parsed || await parseFile(file);
     let merged = incoming;
@@ -236,7 +268,10 @@ const GazpromBackup = (() => {
     const fileBytes = file?.size > 0 ? file.size : 0;
     const inlineBytes = approximateInlinePhotoBytes(merged);
     const sizeHint = fileBytes || inlineBytes;
+    const mobileLightImport =
+      isCoarsePointerDevice() && fileBytes > 50 * 1024 * 1024;
     const useChunkedPhotos =
+      !mobileLightImport &&
       typeof PhotoStore !== 'undefined' &&
       (fileBytes > 12 * 1024 * 1024 || inlineBytes > 12 * 1024 * 1024);
 
@@ -247,13 +282,20 @@ const GazpromBackup = (() => {
         sizeHint,
         fileBytes,
         inlineBytes,
+        mobileLightImport,
         useChunkedPhotos,
         akts: merged.akts?.length,
+        build: typeof window !== 'undefined' ? window.GAZPROM_WEB_BUILD : '',
       }, 'C');
     }
     // #endregion
 
-    if (sizeHint > 40 * 1024 * 1024 && typeof GazpromToast !== 'undefined') {
+    if (mobileLightImport && typeof GazpromToast !== 'undefined') {
+      const ok = await GazpromToast.confirm(
+        `Копия ${formatBytes(fileBytes)}. На iPhone сохранятся акты и справочники без фото и без Word-шаблона. Продолжить?`
+      );
+      if (!ok) throw new Error('Импорт отменён');
+    } else if (sizeHint > 40 * 1024 * 1024 && typeof GazpromToast !== 'undefined') {
       const ok = await GazpromToast.confirm(
         useChunkedPhotos
           ? `Копия большая (${formatBytes(sizeHint)}). Фото будут сохранены по частям — это займёт несколько минут. Продолжить?`
@@ -262,7 +304,23 @@ const GazpromBackup = (() => {
       if (!ok) throw new Error('Импорт отменён');
     }
 
-    if (useChunkedPhotos) {
+    if (mobileLightImport) {
+      merged = stripForMobileIdb(merged);
+      // #region agent log
+      if (typeof DebugAgent !== 'undefined') {
+        DebugAgent.log('backup-import.js:importFile', 'mobile-light-import', {
+          storeBytes: approximateCatalogStoreBytes(merged),
+        }, 'J');
+      }
+      // #endregion
+      if (typeof GazpromToast !== 'undefined') {
+        GazpromToast.show(
+          'Импорт без фото и Word-шаблона (ограничение Safari на iPhone).',
+          'info',
+          6000
+        );
+      }
+    } else if (useChunkedPhotos) {
       const catalogBeforePhotos =
         typeof AktUtils !== 'undefined' ? AktUtils.clone(merged) : merged;
       const loadingLabel = document.getElementById('backupLoadingText');
@@ -303,7 +361,7 @@ const GazpromBackup = (() => {
           }, 'D');
         }
         // #endregion
-        merged = stripInlinePhotos(catalogBeforePhotos);
+        merged = stripForMobileIdb(catalogBeforePhotos);
         if (typeof GazpromToast !== 'undefined') {
           GazpromToast.show(
             'Фото не поместились в память Safari. Импортированы акты и справочники без фотографий.',
@@ -314,7 +372,23 @@ const GazpromBackup = (() => {
       }
     }
 
-    await GazpromStore.set(merged, { skipPhotoIngest: true, verifyWrite: true });
+    try {
+      await GazpromStore.set(merged, { skipPhotoIngest: true, verifyWrite: true });
+    } catch (setErr) {
+      if (merged.importedWithoutPhotos) throw setErr;
+      // #region agent log
+      if (typeof DebugAgent !== 'undefined') {
+        DebugAgent.log('backup-import.js:importFile', 'set failed → strip retry', {
+          msg: setErr?.message,
+        }, 'D');
+      }
+      // #endregion
+      merged = stripForMobileIdb(merged);
+      await GazpromStore.set(merged, { skipPhotoIngest: true, verifyWrite: true });
+      if (typeof GazpromToast !== 'undefined') {
+        GazpromToast.show('Сохранено без фото (ограничение браузера).', 'info', 7000);
+      }
+    }
     // #region agent log
     if (typeof DebugAgent !== 'undefined') {
       DebugAgent.log('backup-import.js:importFile', 'set ok', {

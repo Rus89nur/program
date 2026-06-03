@@ -202,6 +202,9 @@ const GazpromStore = (() => {
   function verifyCatalogWrite(expected, actual) {
     if (!actual || !Array.isArray(actual.akts)) return false;
     if (hasData(expected) && !hasData(actual)) return false;
+    if (expected.importedWithoutPhotos || expected.mobileStrippedTemplate) {
+      return (expected.akts || []).length === (actual.akts || []).length;
+    }
     return catalogFingerprint(expected) === catalogFingerprint(actual);
   }
 
