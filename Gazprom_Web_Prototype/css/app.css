@@ -3581,6 +3581,8 @@
       }
 
       body.gazprom-mobile-shell {
+        --gazprom-nav-lift: calc(10px + env(safe-area-inset-bottom, 0px));
+        --gazprom-nav-block: calc(56px + var(--gazprom-nav-lift) + 8px);
         overflow: hidden;
         width: 100%;
         max-width: 100%;
@@ -3644,7 +3646,7 @@
         -webkit-overflow-scrolling: touch;
         padding-left: max(16px, env(safe-area-inset-left));
         padding-right: max(16px, env(safe-area-inset-right));
-        padding-bottom: 16px;
+        padding-bottom: calc(16px + var(--gazprom-nav-block));
       }
 
       body.gazprom-mobile-shell .main.gazprom-main-scroll-lock {
@@ -3653,16 +3655,29 @@
 
       body.gazprom-mobile-shell .bottom-nav {
         display: flex;
-        flex-shrink: 0;
-        position: relative;
-        left: auto;
-        right: auto;
-        bottom: auto;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: var(--gazprom-nav-lift);
         width: 100%;
         max-width: 100%;
+        z-index: 200;
         transform: translateZ(0);
+        padding: 6px 8px 8px;
         padding-left: max(8px, env(safe-area-inset-left));
         padding-right: max(8px, env(safe-area-inset-right));
+        box-sizing: border-box;
+      }
+
+      body.gazprom-mobile-shell .summary-panel {
+        position: relative;
+        top: auto;
+        z-index: 0;
+      }
+
+      html.gazprom-scroll-lock body.gazprom-mobile-shell .summary-panel,
+      html.gazprom-scroll-lock body.gazprom-mobile-shell .wizard-stepper {
+        z-index: 0;
       }
 
       html.gazprom-scroll-lock {
@@ -3670,9 +3685,8 @@
       }
     }
 
-    /* ===== Mobile overlays: без горизонтального сдвига, адаптация к повороту (только ≤900px) ===== */
+    /* ===== Mobile overlays: центрирование, без горизонтального сдвига (только ≤900px) ===== */
     @media (max-width: 900px) {
-
       .modal-root,
       .modal-root.show,
       .catalog-form-overlay:not([hidden]),
@@ -3682,18 +3696,26 @@
       .vr-form-overlay,
       .schedule-form-overlay,
       .elimination-detail-overlay {
+        display: flex;
+        align-items: center;
+        justify-content: center;
         inset: 0;
         width: 100%;
         max-width: 100%;
+        z-index: 10000;
         overflow: hidden;
         overscroll-behavior: none;
         touch-action: none;
         padding:
           max(12px, env(safe-area-inset-top))
           max(12px, env(safe-area-inset-right))
-          max(12px, env(safe-area-inset-bottom))
+          calc(max(12px, env(safe-area-inset-bottom, 0px)) + 10px)
           max(12px, env(safe-area-inset-left));
         box-sizing: border-box;
+      }
+
+      .photo-lightbox.show {
+        z-index: 10050;
       }
 
       .modal-root .modal-dialog,
@@ -3704,12 +3726,14 @@
       .vr-form-overlay .vr-form-dialog,
       .schedule-form-overlay .catalog-form-dialog,
       .schedule-form-overlay .catalog-form-dialog--wide,
-      .elimination-detail-overlay .elimination-detail-sheet,
       .photo-lightbox-inner {
         touch-action: pan-y;
         overflow-x: hidden;
-        max-width: 100%;
         width: 100%;
+        max-width: min(100%, 560px);
+        margin: auto;
+        flex: 0 1 auto;
+        align-self: center;
         box-sizing: border-box;
         overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
@@ -3720,17 +3744,45 @@
       .catalog-form-dialog,
       .backup-modal-dialog,
       .confirm-dialog,
-      .vr-form-dialog,
-      .elimination-detail-sheet {
+      .vr-form-dialog {
         max-height: min(
-          92dvh,
-          calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)
+          90dvh,
+          calc(
+            100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 48px
+          )
         );
       }
 
       .catalog-editor-panel {
-        height: min(85dvh, calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px));
-        max-height: min(85dvh, calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px));
+        height: auto;
+        max-height: min(
+          88dvh,
+          calc(
+            100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 48px
+          )
+        );
+      }
+
+      .elimination-detail-overlay {
+        align-items: flex-end;
+        justify-content: center;
+        padding:
+          0
+          max(0px, env(safe-area-inset-right))
+          calc(max(0px, env(safe-area-inset-bottom, 0px)) + 10px)
+          max(0px, env(safe-area-inset-left));
+      }
+
+      .elimination-detail-overlay .elimination-detail-sheet {
+        touch-action: pan-y;
+        width: 100%;
+        max-width: min(100%, 640px);
+        margin: 0 auto;
+        flex: 0 1 auto;
+        max-height: min(
+          92dvh,
+          calc(100dvh - env(safe-area-inset-top, 0px) - 16px)
+        );
       }
 
       .modal-body,
