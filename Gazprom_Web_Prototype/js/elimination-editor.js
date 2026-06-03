@@ -302,7 +302,6 @@ const EliminationEditor = (() => {
       (i) => i.totalViolations === 0 || i.allEliminated
     ).length;
     const open = total - done;
-    const pct = (n) => (total ? `${Math.round((n / total) * 100)}%` : '0%');
     const set = (id, val) => {
       const el = document.getElementById(id);
       if (el) el.textContent = String(val);
@@ -310,9 +309,6 @@ const EliminationEditor = (() => {
     set('elimStatTotal', total);
     set('elimStatDone', done);
     set('elimStatOpen', open);
-    set('elimStatTotalPct', total ? '100%' : '0%');
-    set('elimStatDonePct', pct(done));
-    set('elimStatOpenPct', pct(open));
   }
 
   function renderDonut(stats) {

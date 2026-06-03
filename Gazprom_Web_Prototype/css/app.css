@@ -2764,40 +2764,38 @@
     .elim-stat-card {
       display: flex;
       align-items: center;
-      gap: 14px;
-      padding: 18px 20px;
+      justify-content: center;
+      padding: 18px 16px;
       margin-bottom: 0;
-      text-align: left;
+      text-align: center;
     }
 
     .elim-stat-card__body {
-      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
       min-width: 0;
+      text-align: center;
     }
 
     .elim-stat-card__body .stat-label {
       margin-top: 0;
-      text-align: left;
+      text-align: center;
       font-size: 12px;
       font-weight: 600;
     }
 
     .elim-stat-card__body .stat-value {
-      text-align: left;
+      text-align: center;
       font-size: 1.75rem;
       line-height: 1.15;
-      margin-top: 2px;
+      margin-top: 4px;
     }
 
     .elim-stat-card--done .stat-value { color: var(--success); }
     .elim-stat-card--open .stat-value { color: var(--danger); }
-
-    .elim-stat-card__pct {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--text-muted);
-      flex-shrink: 0;
-    }
 
     .elim-year-pills .btn-org-filter--overdue:not(.btn-org-filter-active) {
       border-color: rgba(198, 40, 40, 0.35);
