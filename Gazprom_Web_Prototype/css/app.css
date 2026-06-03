@@ -4005,13 +4005,26 @@
       }
 
       body.gazprom-mobile-shell .wizard-panel--conclusions .pred-filter-row {
+        flex-direction: column;
         flex-wrap: nowrap;
-        overflow-x: auto;
+        align-items: stretch;
         max-width: 100%;
+        max-height: min(160px, 30vh);
+        overflow-y: auto;
+        overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
-        overscroll-behavior-x: contain;
+        overscroll-behavior: contain;
+        gap: 8px;
         padding-bottom: 4px;
         margin-bottom: 8px;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--conclusions .pred-filter-row .btn-org-filter,
+      body.gazprom-mobile-shell .wizard-panel--conclusions .pred-filter-row .btn-org-filter-reset {
+        width: 100%;
+        text-align: center;
+        white-space: normal;
+        word-break: break-word;
       }
 
       body.gazprom-mobile-shell .wizard-panel--conclusions .chip-list {
