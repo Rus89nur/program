@@ -132,9 +132,80 @@
     }
     .nav-icon {
       width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       text-align: center;
       font-size: 16px;
       opacity: 0.9;
+    }
+    .nav-icon svg {
+      width: 20px;
+      height: 20px;
+      display: block;
+    }
+
+    /* Variant 4 — sidebar FAB + draft link */
+    .sidebar--nav-v4 .sidebar-fab-wrap {
+      padding: 4px 16px 12px;
+    }
+    .sidebar--nav-v4 .sidebar-fab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 14px 16px;
+      border: none;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #26c6da, var(--accent));
+      color: #fff;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(38, 198, 218, 0.4), 0 0 0 3px rgba(38, 198, 218, 0.12);
+      transition: transform 0.12s, box-shadow 0.15s, filter 0.15s;
+    }
+    .sidebar--nav-v4 .sidebar-fab:hover {
+      filter: brightness(1.06);
+      transform: translateY(-1px);
+    }
+    .sidebar--nav-v4 .sidebar-fab:active {
+      transform: translateY(0);
+    }
+    .sidebar--nav-v4 .sidebar-fab:focus-visible {
+      outline: 2px solid #26c6da;
+      outline-offset: 2px;
+    }
+    .sidebar--nav-v4 .sidebar-fab__icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.22);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .sidebar--nav-v4 .sidebar-fab__icon svg {
+      width: 18px;
+      height: 18px;
+    }
+    .sidebar--nav-v4 .sidebar-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.08);
+      margin: 4px 16px 8px;
+    }
+    .sidebar--nav-v4 .nav-item--draft {
+      opacity: 0.72;
+      font-size: 13px;
+    }
+    .sidebar--nav-v4 .nav-item--draft.active,
+    .sidebar--nav-v4 .nav-item--draft:hover {
+      opacity: 1;
     }
     .sidebar-footer {
       margin-top: auto;
@@ -1244,6 +1315,13 @@
         --sidebar-w: 64px;
       }
       .nav-item span:not(.nav-icon) { display: none; }
+      .sidebar--nav-v4 .sidebar-fab {
+        padding: 12px;
+        gap: 0;
+      }
+      .sidebar--nav-v4 .sidebar-fab > span:not(.sidebar-fab__icon) { display: none; }
+      .sidebar--nav-v4 .sidebar-fab-wrap { padding: 4px 8px 10px; }
+      .sidebar--nav-v4 .sidebar-divider { margin: 4px 8px 8px; }
       .sidebar-brand .logo, .sidebar-brand small, .sidebar-footer { display: none; }
       .sidebar-brand { padding: 12px 8px; text-align: center; }
       .sidebar-brand::after { content: 'Г'; font-family: Montserrat; font-weight: 800; font-size: 1.2rem; color: #26c6da; }
@@ -1931,6 +2009,37 @@
     }
     .bottom-nav-item.active { color: var(--primary); }
     .bottom-nav-item .nav-icon { font-size: 18px; }
+
+    .bottom-nav--v4 {
+      align-items: flex-end;
+      padding-top: 10px;
+    }
+    .bottom-nav-fab {
+      flex: 0 0 auto;
+      width: 54px;
+      height: 54px;
+      margin: -18px 4px 2px;
+      border: none;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #26c6da, var(--accent));
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(38, 198, 218, 0.45), 0 0 0 4px rgba(38, 198, 218, 0.12);
+      transition: transform 0.12s, filter 0.15s;
+    }
+    .bottom-nav-fab svg {
+      width: 26px;
+      height: 26px;
+    }
+    .bottom-nav-fab:hover { filter: brightness(1.05); }
+    .bottom-nav-fab:active { transform: scale(0.96); }
+    .bottom-nav-fab:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 3px;
+    }
 
     /* Catalog / schedule editors */
     .catalog-editor-root {
@@ -4605,8 +4714,28 @@
         font-size: 0;
       }
 
+      body.gazprom-mobile-shell .bottom-nav-item span:not(.nav-icon) {
+        display: none;
+      }
+
+      body.gazprom-mobile-shell .bottom-nav--v4 {
+        --gazprom-nav-block: calc(56px + env(safe-area-inset-bottom, 0px) + var(--gazprom-nav-shift-down));
+        padding-top: 8px;
+      }
+
       body.gazprom-mobile-shell .bottom-nav-item .nav-icon {
         font-size: 20px;
+      }
+
+      body.gazprom-mobile-shell .bottom-nav-fab {
+        width: 50px;
+        height: 50px;
+        margin-top: -16px;
+      }
+
+      body.gazprom-mobile-shell .bottom-nav-fab svg {
+        width: 24px;
+        height: 24px;
       }
 
       body.gazprom-mobile-shell #screen-home .app-build-id {
