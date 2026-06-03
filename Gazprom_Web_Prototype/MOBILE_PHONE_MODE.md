@@ -1,6 +1,9 @@
 # Телефонный режим веб-PWA «программа НЕТ»
 
-Документ для продолжения работы **без контекста чата**. Актуальная сборка на момент последнего обновления файла: **web-65** (проверьте в UI: Настройки → «Сборка: web-XX»).
+Документ для продолжения работы **без контекста чата**.  
+**Перед правками mobile — читать этот файл целиком**, особенно §7 (история) и §10 (чеклист).
+
+Актуальная сборка: **web-68** (в UI: **Главная** → внизу «Сборка: web-XX»).
 
 Деплой: GitHub Pages — https://rus89nur.github.io/program/  
 Локально: `cd Gazprom_Web_Prototype && python3 dev-server.py` или `python3 -m http.server 8765`
@@ -21,7 +24,7 @@
 (max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none)
 ```
 
-Константа в JS: `window.GAZPROM_PHONE_LAYOUT_MQ`. Класс на `<body>`: **`gazprom-mobile-shell`** (`index.html` ранний скрипт + `js/mobile-overlay.js`, `toggle` при `change` / `orientationchange`).
+Константа: `window.GAZPROM_PHONE_LAYOUT_MQ`. Класс на `<body>`: **`gazprom-mobile-shell`** (`index.html` ранний скрипт + `js/mobile-overlay.js`, `toggle` при `change` / `orientationchange`).
 
 ---
 
@@ -29,16 +32,16 @@
 
 | Файл | Назначение |
 |------|------------|
-| `css/app.css` | Блоки **`Mobile shell`** (~3580+) и **`Mobile overlays`** (~3750+), медиа `@media (max-width: 900px)` |
-| `js/mobile-overlay.js` | MQ телефона, `recoverViewportLayout` после поворота, блокировка свайпа, `--vv-height`, lock `.main` |
-| `index.html` | `viewport-fit=cover`, `interactive-widget=resizes-content`, ранний скрипт `gazprom-mobile-shell`, подключение `mobile-overlay.js` |
-| `js/wizard.js` | Lightbox фото (`photoSrcAsync`), галерея «Все фото акта», класс `wizard-akt-meta-row` (дата + номер) |
-| `js/wizard-modals.js` | Модалки нарушений, `GazpromMobileOverlay.lock/unlock` |
-| `js/app.js` | `closeBackupModal`, `GAZPROM_WEB_BUILD` |
-| `js/toast.js`, `js/catalog-editor.js`, `js/schedule-editor.js`, `js/violation-registry.js`, `js/elimination-editor.js`, `js/short-akt-form.js` | Вызовы `GazpromMobileOverlay` при открытии/закрытии оверлеев |
-| `sw.js` | `CACHE_NAME` = `gazprom-web-vXX` — bump при каждом релизе |
+| `css/app.css` | Mobile shell ~3595+, mobile overlays ~3788+, landscape ~3993+, мастер `wizard-panel--*` ~3766+ |
+| `js/mobile-overlay.js` | MQ, `recoverViewportLayout`, свайп, `--vv-height`, lock `.main` |
+| `index.html` | Shell-скрипт, `#appBuildId` на **Главной**, без `#globalSearch` в шапке на телефоне |
+| `js/wizard.js` | Панели `wizard-panel--violations` / `--conclusions`, шаги мастера, lightbox |
+| `js/ui-bindings.js` | `renderDataStatus` — полный и компактный текст баннера |
+| `js/wizard-modals.js` | Модалки нарушений |
+| `js/app.js` | `GAZPROM_WEB_BUILD` |
+| `sw.js` | `CACHE_NAME` = `gazprom-web-vXX` |
 
-**Отладочная инструментация удалена** (web-50): нет `debug-agent.js`, нет кнопки «Скопировать журнал отладки».
+**Отладка удалена** (web-50): нет `debug-agent.js`.
 
 ---
 
@@ -47,100 +50,100 @@
 ```
 ┌ data-status ─────────────┐
 ├ .app ────────────────────┤
-│  header (2 ряда)         │
+│  header (только заголовок)│
 │  .main (скролл Y)        │
-├ bottom-nav (fixed bottom)┤  ← поверх контента, bottom: 0 + safe-area
+├ bottom-nav (fixed) ──────┤
 └──────────────────────────┘
 ```
 
-- **`html` / `body`**: `overflow: hidden`, высота `100dvh`, без горизонтального скролла страницы.
-- **`.main`**: единственная вертикальная прокрутка контента; `padding-bottom` = высота нижнего бара (`--gazprom-nav-block`).
-- **Нижний бар**: `position: fixed; bottom: 0; left: 0; right: 0` — сразу над панелью браузера Safari (без лишнего подъёма с web-57).
-- **Шапка**: заголовок на всю ширину, поиск **на всю ширину** (`min-width: 0`, убран `min-width: 200px` у `.search-box` на mobile).
+- **`html` / `body`**: `overflow: hidden`, `100dvh`, без горизонтального скролла страницы.
+- **`.main`**: скролл контента; `padding-bottom` = `--gazprom-nav-block`.
+- **Шапка (телефон):** только `#pageTitle`; **`.header-actions` скрыт** — нет глобального поиска (web-61). Поиск актов — на экране **История** (`#historySearch`).
+- **Нижний бар:** `fixed`, `bottom: 0`, сдвиг вниз `--gazprom-nav-shift-down` (web-62).
 
 ### CSS-переменные (mobile)
 
 ```css
 --gazprom-nav-lift: 0px;
---gazprom-nav-block: calc(52px + env(safe-area-inset-bottom, 0px) + 6px);
+--gazprom-nav-shift-down: 6px;   /* portrait; в landscape 4px */
+--gazprom-nav-block: calc(50px + env(safe-area-inset-bottom) + 4px);
 --mobile-modal-gutter: 20px;
 --mobile-modal-width: 90%;
---vv-height: …px  /* из visualViewport, JS */
+--vv-height: …px
 ```
 
----
+### 3.1. Сборка приложения (web-63, web-64)
 
-## 3.1. Экран «Редактирование акта» — дата и номер (web-58)
+- `#appBuildId` на экране **Главная** (`#screen-home`), не в Настройках.
+- Внизу главной по центру: `#screen-home.active` — flex-колонка, у `.app-build-id` — `margin-top: auto`.
 
-Шаг 1 мастера (`js/wizard.js`):
+### 3.2. Мастер — шаг 1: дата и номер (web-58)
 
-- Обёртка: `.form-row.wizard-akt-meta-row` — две колонки 50/50 на телефоне.
-- Поля: `#wDate` и `#wNumber` с классом **`wizard-akt-meta-control`** (одинаковая высота **44px**, `width: 100%`, `box-sizing: border-box`).
-- Для `input[type=date]` на iOS: `-webkit-appearance: none` (см. `#wDate.wizard-akt-meta-control` в `app.css`).
+- `.wizard-akt-meta-row` — 2 колонки 50/50.
+- `#wDate`, `#wNumber` — класс `wizard-akt-meta-control`, высота 44px.
 
-Стили: общие правила ~строка 477 в `app.css`, mobile — блок `gazprom-mobile-shell` ~3735.
+### 3.3. Мастер — шаг 4 «Нарушения» (web-65)
+
+Класс панели: **`wizard-panel--violations`** (ставится в `wizard.js` → `render()`).
+
+- Шапка шага: заголовок + кнопка «+ Добавить» **столбиком**, кнопка на всю ширину.
+- Карточки `.viol-card` — **колонка** (номер, тело, действия снизу), текст с переносом.
+- `#wPhotoGrid` — адаптивная сетка миниатюр.
+
+### 3.4. Мастер — шаг 5 «Выводы комиссии» (web-65, web-67)
+
+Класс панели: **`wizard-panel--conclusions`**.
+
+- `#screen-wizard .wizard-layout` — **flex column**, `min-width: 0`, без overflow по X.
+- Даты — **одна колонка** (`form-row` → flex column).
+- Чипы представителей — **на всю ширину**, столбиком, длинный текст переносится.
+- Шаблоны выводов / «Редактировать» — кнопки на всю ширину.
+- Фильтры организаций — горизонтальный скролл в `.pred-filter-row`.
+
+### 3.5. Кнопки «Назад» / «Далее» (web-66, web-68)
+
+- На телефоне: **одна строка**, `justify-content: space-between`, обе кнопки `flex: 1` (одинаковая ширина).
+- Размер: padding 12×10px, font 14px, `min-height: 48px`, текст с переносом.
+- Подпись последнего шага: **«💾 Сохранить черновик»** (полная, как на десктопе).
+- web-67 временно уменьшал кнопки (12px) — **откат в web-68**.
 
 ---
 
 ## 4. Модальные окна и lightbox
 
-- Оверлеи: `z-index: 10000`, `display: flex; align-items: center; justify-content: center`.
-- Диалоги: **90%** ширины, боковые отступы **20px**, `max-height` с учётом `--vv-height` и safe-area.
-- **Lightbox** (`wizard.js` → `openLightbox`): `photoSrcAsync`, галерея по всему акту в `#wPhotoGrid`, стрелки в стиле «чипов» под фото.
-- При открытии модалки: `GazpromMobileOverlay.lock()` — скролл `.main` блокируется.
-- **Сводка акта** (`.summary-panel`): на mobile `position: relative`, не sticky; под модалками не перекрывает (`z-index` оверлеев выше).
+- Оверлеи: `z-index: 10000`, центрирование flex.
+- Диалоги: 90% ширины, `--vv-height` для max-height.
+- Lightbox: `photoSrcAsync`, галерея по акту.
+- `.summary-panel` на mobile: не sticky; на шагах мастера layout — колонка (сводка может быть выше контента, `order: -1` в phone MQ).
 
 ---
 
-## 5. Горизонтальный свайп (реальный iPhone)
+## 5. Горизонтальный свайп
 
-`mobile-overlay.js`:
-
-- Блокирует жест влево/вправо, если `|dx| ≥ |dy| * 0.45` (кроме `.list-table`, `.wizard-stepper`, `.toolbar-filters--pills`).
-- Сбрасывает `window.scrollX` и `main.scrollLeft` на touchstart/touchend/scroll.
-- `touch-action: pan-y` на `body`, `.app`, `.main`.
-
-**Причина прошлых багов:** шапка в одну строку (заголовок + поиск `min-width: 200px`) раздувала страницу шире экрана; `grid-column: 2` у header/main при одной колонке сетки.
+`mobile-overlay.js`: блокировка доминирующего горизонтального жеста; сброс `scrollX` / `main.scrollLeft`.
 
 ---
 
-## 5.1. Поворот экрана (portrait ↔ landscape) — web-59
+## 5.1. Поворот экрана — web-59
 
-**Симптом:** в альбомной — «десктоп»/сжатая вёрстка; после возврата в портрет — поля мастера в одну колонку, сдвиг, залипший scroll-lock.
+- Единый phone MQ в CSS и JS.
+- `recoverViewportLayout()` на `orientationchange` (80–700 ms).
+- `.wizard-akt-meta-row` — всегда 2 колонки в phone MQ.
 
-**Причины:**
+### 5.2. Читаемый landscape — web-60, web-61
 
-1. В landscape на iPhone Plus/Max **ширина > 900px** → снимался `gazprom-mobile-shell`, включался десктоп-grid с сайдбаром.
-2. Ранний скрипт в `index.html` **только добавлял** класс, не снимал при `resize`.
-3. `.form-row { 1fr }` перебивал дату/номер, если класс shell пропадал.
-4. После поворота оставались `gazprom-scroll-lock` / `--vv-height` от landscape.
-
-**Исправления (web-59):**
-
-- Единый MQ (см. §1) во всех `@media` в `app.css` и в `mobile-overlay.js`.
-- `recoverViewportLayout()` на `orientationchange` / `resize` / `mq.change` (с задержками 80–700 ms для iOS).
-- `.form-row.wizard-akt-meta-row` всегда **2 колонки** в phone MQ (без зависимости от shell).
-- Сброс залипшего scroll-lock, если модалка не открыта.
-- Компактные стили мастера в landscape (секция `@media … landscape` в `app.css`).
-
-### 5.2. Читаемый landscape (web-60)
-
-**Проблема:** мало высоты — зелёный баннер на 3+ строки, шапка в 2 ряда, нижний бар с подписями — контент (настройки) не виден.
-
-**Решение:**
-
-- `ui-bindings.js` → `renderDataStatus`: две версии текста — `.data-status__line--full` (портрет) и `--compact` (альбомная, одна строка с ellipsis).
-- `app.css` landscape: шапка только заголовок (без поиска); `--gazprom-nav-block` ~36px; bottom-nav без подписей. Плитки настроек — как в портрете (без ужатия web-60).
-- **web-61:** `body.gazprom-mobile-shell .header-actions { display: none }` — глобальный поиск убран на всех вкладках; на «Истории» свой `#historySearch`.
+- Баннер: `.data-status__line--compact` (одна строка).
+- Шапка: только заголовок (поиск скрыт на всех вкладках).
+- Bottom-nav: только иконки, меньше `--gazprom-nav-block`.
+- Плитки **Настроек** — обычный вид (без ужатия web-60).
 
 ---
 
 ## 6. Импорт бэкапа и фото (кратко)
 
-- **Десктоп:** фото остаются base64 в каталоге (`skipPhotoIngest`), быстрый просмотр.
-- **iPhone + файл > 50 МБ:** `PhotoStore.ingestCatalogInPlace` — фото в IndexedDB как `photo:id`.
-- Опция «Импорт без фото» в модалке бэкапа.
-- Подробности импорта — в коде `js/backup-import.js`, `js/photo-store.js`, `js/data-store.js`.
+- Десктоп: base64 в каталоге (`skipPhotoIngest`).
+- iPhone + большой файл: `PhotoStore.ingestCatalogInPlace`.
+- См. `js/backup-import.js`, `js/photo-store.js`.
 
 ---
 
@@ -149,67 +152,72 @@
 | Сборка | Что сделано |
 |--------|-------------|
 | web-46 | Lightbox: `photoSrcAsync` |
-| web-47 | Галерея «Все фото акта», lightbox по центру |
-| web-48–49 | Стиль стрелок lightbox (чипы) |
+| web-47–49 | Галерея акта, стиль стрелок lightbox |
 | web-50 | Удалена debug-инструментация |
-| web-51 | Mobile overlay lock, первый mobile shell |
-| web-52 | Shell: скролл в `.main`, бар без сдвига |
-| web-53 | Бар и модалки: стиль чипов; центрирование |
-| web-54 | `visualViewport` (потом упрощён) |
-| web-55 | Шапка 2 ряда, фикс overflow, сводка под модалками |
-| web-56 | Модалки 90%, жёсткий запрет горизонтального свайпа |
-| web-57 | Нижний бар `bottom: 0` (вплотную к Safari) |
-| web-58 | Детальная настройка: дата проверки = размер поля «Номер акта» (`wizard-akt-meta-row`), этот файл в репозитории |
-| web-59 | Поворот экрана: phone MQ в landscape, `recoverViewportLayout`, фикс дата/номер после rotate |
-| web-60 | Читаемый landscape: компактный статус, шапка в 1 ряд, нижний бар без подписей, плотная сетка настроек |
-| web-61 | Настройки — прежний вид плиток; на телефоне скрыт верхний `#globalSearch` (поиск остаётся на экране «История») |
+| web-51–56 | Mobile shell, модалки, overflow |
+| web-57 | Нижний бар `bottom: 0` |
+| web-58 | Дата/номер акта; файл `MOBILE_PHONE_MODE.md` в репо |
+| web-59 | Поворот: phone MQ + `recoverViewportLayout` |
+| web-60 | Landscape: компактный статус, бар без подписей |
+| web-61 | Скрыт `#globalSearch`; настройки — обычные плитки |
+| web-62 | Нижний бар чуть ниже (`--gazprom-nav-shift-down`) |
+| web-63 | Сборка перенесена на **Главную** |
+| web-64 | Надпись сборки по центру внизу главной |
+| web-65 | Мастер шаги 4–5: классы панелей + mobile CSS |
+| web-66 | Кнопки Назад/Далее в одну строку, равная ширина |
+| web-67 | Выводы: без overflow; кнопки временно уменьшены |
+| web-68 | Кнопки мастера возвращены к виду web-66 |
 
-При правках **всегда bump**: `js/app.js` → `GAZPROM_WEB_BUILD`, `index.html` (текст сборки + `?v=` у css/js), `sw.js` → `CACHE_NAME`.
+**При каждом релизе mobile обязательно:**
+
+1. Bump `GAZPROM_WEB_BUILD`, `index.html` (сборка + `?v=` css/js), `sw.js` `CACHE_NAME`.
+2. **Обновить этот файл** — строка сборки в шапке документа, таблица §7, §10 при необходимости.
 
 ---
 
 ## 8. Чеклист проверки на телефоне
 
-1. **Главная** → внизу «Сборка: web-XX» совпадает с ожидаемой.
-2. **Главная / История / Устранение / Настройки** — нет сдвига влево-вправо, поиск на всю ширину.
-3. **Редактируемый акт** — дата и номер одной высоты, в одной строке (50/50).
-4. Модалка нарушения — по центру, 90% ширины, поля не вылезают.
-5. Фото: миниатюра → lightbox; «Все фото акта» листает все фото акта.
-6. Нижний бар — сразу над панелью браузера, не перекрывает иконки.
-7. Поворот landscape → portrait: поля мастера (дата/номер) в 2 колонки, без сдвига; в landscape — телефонный UI, не сайдбар.
-8. Landscape: зелёная полоса — одна строка (краткий текст), шапка «заголовок + поиск» в ряд, настройки — плитки в несколько колонок, нижний бар — только иконки.
+1. **Главная** → внизу по центру «Сборка: web-68».
+2. Нет глобального поиска в шапке; на **Истории** — своё поле поиска.
+3. **Мастер шаг 1** — дата и номер 50/50, одна высота.
+4. **Мастер шаг 4** — карточки нарушений без обрезки справа; кнопка добавления на всю ширину.
+5. **Мастер шаг 5** — даты столбиком, чипы представителей на всю ширину, без горизонтального сдвига.
+6. **Назад / Далее** — в одну строку, одинаковая ширина, текст читаем.
+7. Модалка нарушения — по центру, ~90% ширины.
+8. Поворот landscape ↔ portrait — вёрстка не «ломается»; в landscape баннер — одна строка.
+9. Нижний бар — удобная высота, не перекрывает контент.
 
 ---
 
 ## 9. Симулятор vs реальный iPhone
 
-- **Simulator (Xcode):** нет нижней панели Safari → бар и отступы могут выглядеть иначе.
-- **Реальный Safari:** проверять обязательно после изменений mobile CSS/JS.
-- Локально: `python3 -m http.server 8765` + `xcrun simctl openurl booted http://127.0.0.1:8765/`
+- Simulator: нет панели Safari — отступы бара могут отличаться.
+- После CSS/JS mobile — проверка на **реальном iPhone** обязательна.
 
 ---
 
-## 10. Что делать дальше (детальная настройка)
+## 10. Что делать дальше
 
-Запросы пользователя вести **точечно по экранам**:
+- [x] Дата/номер — web-58
+- [x] Поворот — web-59
+- [x] Landscape chrome — web-60, web-61
+- [x] Нижний бар, сборка на главной — web-62–64
+- [x] Мастер шаги 4–5 — web-65, web-67
+- [x] Кнопки мастера в строку — web-66 / web-68
+- [ ] Мастер шаги 2–3 (организация, объект)
+- [ ] История, устранение — отступы карточек
+- [ ] Модалки — тонкая подстройка полей
+- [ ] PWA vs Safari in-browser
 
-- [x] Мастер: дата/номер — **web-58** (`wizard-akt-meta-row`, класс `wizard-akt-meta-control` на `#wDate` и `#wNumber`)
-- [ ] Остальные шаги мастера (организация, объект, нарушения…)
-- [ ] История, устранение, настройки — отступы карточек
-- [ ] Модалки — ширина 85–92%, поля форм
-- [ ] PWA «На экран Домой» vs Safari in-browser
-- [x] Поворот portrait ↔ landscape — **web-59**
-- [x] Читаемый landscape (компактный chrome) — **web-60**
-
-**Не трогать** стили desktop (`> 900px`) без явного запроса.
+**Не трогать** desktop (`> 900px` + мышь) без явного запроса.
 
 ---
 
 ## 11. Связанные документы
 
-- `QA_WEB.md` — общая приёмка PWA (не только mobile)
-- `README.md` — запуск, деплой
+- `QA_WEB.md` — общая приёмка PWA
+- `README.md` — запуск, деплой, ссылка на этот файл
 
 ---
 
-_Файл создан для передачи контекста ассистенту/разработчику. Обновляйте секцию 7 и номер сборки при каждом релизе mobile._
+_Обновлено под web-68. При следующем релизе — синхронизировать номер сборки и §7._
