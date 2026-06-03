@@ -4044,17 +4044,16 @@
       body.gazprom-mobile-shell .wizard-footer {
         flex-direction: row;
         flex-wrap: nowrap;
-        justify-content: center;
+        justify-content: space-between;
         align-items: stretch;
-        gap: 10px;
+        gap: 12px;
       }
 
       body.gazprom-mobile-shell .wizard-footer button {
-        flex: 0 1 auto;
+        flex: 1 1 0;
         min-width: 0;
-        max-width: 46%;
         width: auto;
-        padding: 10px 8px;
+        padding: 12px 10px;
         font-size: 14px;
         line-height: 1.25;
         white-space: normal;
