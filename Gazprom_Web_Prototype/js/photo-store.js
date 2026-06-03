@@ -131,17 +131,78 @@ const PhotoStore = (() => {
     return { ...akt, violations };
   }
 
-  async function ingestCatalog(catalog) {
+  const yieldToMain = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  function countInlinePhotos(catalog) {
+    let n = 0;
+    const scan = (list) => {
+      for (const a of list || []) {
+        for (const v of a.violations || []) {
+          for (const p of v.photo || []) {
+            if (p && !isPhotoId(p)) n += 1;
+          }
+        }
+      }
+    };
+    scan(catalog.akts);
+    scan(catalog.trash);
+    if (catalog.editableAkt?.akt) scan([catalog.editableAkt.akt]);
+    return n;
+  }
+
+  /** Пошаговый вынос base64 в store photos — для больших .gazprombackup на iPhone. */
+  async function ingestCatalogChunked(catalog, { onProgress } = {}) {
     if (!catalog) return catalog;
+
+    const photoTotal = countInlinePhotos(catalog);
+    let photoDone = 0;
+
+    const ingestViolation = async (violation) => {
+      if (!violation?.photo?.length) return violation;
+      const photo = [];
+      for (const p of violation.photo) {
+        if (!p) continue;
+        if (isPhotoId(p)) {
+          photo.push(p);
+          continue;
+        }
+        photo.push(await ingestPhotoRef(p));
+        photoDone += 1;
+        if (photoDone % 2 === 0) {
+          onProgress?.(photoDone, photoTotal);
+          await yieldToMain();
+        }
+      }
+      return { ...violation, photo };
+    };
+
+    const ingestAktChunked = async (akt) => {
+      if (!akt) return akt;
+      const violations = [];
+      for (const v of akt.violations || []) {
+        violations.push(await ingestViolation(v));
+      }
+      await yieldToMain();
+      return { ...akt, violations };
+    };
+
     const akts = [];
-    for (const a of catalog.akts || []) akts.push(await ingestAkt(a));
+    for (const a of catalog.akts || []) akts.push(await ingestAktChunked(a));
+
     const trash = [];
-    for (const a of catalog.trash || []) trash.push(await ingestAkt(a));
+    for (const a of catalog.trash || []) trash.push(await ingestAktChunked(a));
+
     let editableAkt = catalog.editableAkt;
     if (editableAkt?.akt) {
-      editableAkt = { ...editableAkt, akt: await ingestAkt(editableAkt.akt) };
+      editableAkt = { ...editableAkt, akt: await ingestAktChunked(editableAkt.akt) };
     }
+
+    onProgress?.(photoTotal, photoTotal);
     return { ...catalog, akts, trash, editableAkt };
+  }
+
+  async function ingestCatalog(catalog) {
+    return ingestCatalogChunked(catalog);
   }
 
   async function expandCatalog(catalog) {
@@ -160,6 +221,8 @@ const PhotoStore = (() => {
   return {
     isPhotoId,
     ingestCatalog,
+    ingestCatalogChunked,
+    countInlinePhotos,
     expandCatalog,
     ingestPhotoRef,
     resolveDataUrl,

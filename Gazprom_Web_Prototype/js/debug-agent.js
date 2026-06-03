@@ -5,7 +5,7 @@ const DebugAgent = (() => {
   const INGEST = 'http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8';
   const SESSION = '2c2db0';
   const LS_KEY = 'agentDebugLog_2c2db0';
-  let runId = 'pre-fix';
+  let runId = 'post-fix';
 
   function log(location, message, data, hypothesisId) {
     const entry = {

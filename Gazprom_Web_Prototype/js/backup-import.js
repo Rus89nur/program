@@ -212,35 +212,57 @@ const GazpromBackup = (() => {
     }
 
     await requestStoragePersistence();
-    let sizeHint = 0;
-    try {
-      sizeHint = estimateBackupBytes(merged);
-    } catch (sizeErr) {
-      // #region agent log
-      if (typeof DebugAgent !== 'undefined') {
-        DebugAgent.log('backup-import.js:importFile', 'estimateBackupBytes failed', {
-          err: sizeErr?.message || String(sizeErr),
-        }, 'I');
-      }
-      // #endregion
-    }
+
+    const fileBytes = file?.size > 0 ? file.size : 0;
+    const inlineBytes = approximateInlinePhotoBytes(merged);
+    const sizeHint = fileBytes || inlineBytes;
+    const useChunkedPhotos =
+      typeof PhotoStore !== 'undefined' &&
+      (fileBytes > 12 * 1024 * 1024 || inlineBytes > 12 * 1024 * 1024);
+
     // #region agent log
     if (typeof DebugAgent !== 'undefined') {
-      DebugAgent.log('backup-import.js:importFile', 'before set', {
+      DebugAgent.log('backup-import.js:importFile', 'before save', {
         replace,
         sizeHint,
+        fileBytes,
+        inlineBytes,
+        useChunkedPhotos,
         akts: merged.akts?.length,
       }, 'C');
     }
     // #endregion
+
     if (sizeHint > 40 * 1024 * 1024 && typeof GazpromToast !== 'undefined') {
       const ok = await GazpromToast.confirm(
-        `Копия большая (≈${formatBytes(sizeHint)}). На телефоне сохранение может занять несколько минут или не поместиться в память. Продолжить?`
+        useChunkedPhotos
+          ? `Копия большая (${formatBytes(sizeHint)}). Фото будут сохранены по частям — это займёт несколько минут. Продолжить?`
+          : `Копия большая (≈${formatBytes(sizeHint)}). Продолжить?`
       );
       if (!ok) throw new Error('Импорт отменён');
     }
 
-    // На iOS ingest всех фото в IDB может зависнуть/OOM — сохраняем base64 в каталоге.
+    if (useChunkedPhotos) {
+      if (replace && typeof PhotoStore.clearAll === 'function') {
+        await PhotoStore.clearAll();
+      }
+      const loadingLabel = document.getElementById('backupLoadingText');
+      merged = await PhotoStore.ingestCatalogChunked(merged, {
+        onProgress: (done, total) => {
+          if (loadingLabel && total > 0) {
+            loadingLabel.textContent = `Сохранение фото ${done}/${total}…`;
+          }
+        },
+      });
+      // #region agent log
+      if (typeof DebugAgent !== 'undefined') {
+        DebugAgent.log('backup-import.js:importFile', 'chunked photos done', {
+          inlineAfter: approximateInlinePhotoBytes(merged),
+        }, 'C');
+      }
+      // #endregion
+    }
+
     await GazpromStore.set(merged, { skipPhotoIngest: true, verifyWrite: true });
     // #region agent log
     if (typeof DebugAgent !== 'undefined') {
@@ -252,12 +274,25 @@ const GazpromBackup = (() => {
     return { backup: merged, stats: getStats(merged) };
   }
 
-  function estimateBackupBytes(backup) {
-    try {
-      return new Blob([JSON.stringify(backup)]).size;
-    } catch {
-      return 0;
-    }
+  /** Оценка без JSON.stringify всего каталога (на iPhone ~200MB копия роняет вкладку). */
+  function approximateInlinePhotoBytes(backup) {
+    if (!backup) return 0;
+    let bytes = 12000;
+    const scan = (list) => {
+      for (const a of list || []) {
+        bytes += 400;
+        for (const v of a.violations || []) {
+          bytes += 200;
+          for (const p of v.photo || []) {
+            if (typeof p === 'string' && !p.startsWith('photo:')) bytes += p.length;
+          }
+        }
+      }
+    };
+    scan(backup.akts);
+    scan(backup.trash);
+    if (backup.editableAkt?.akt) scan([backup.editableAkt.akt]);
+    return bytes;
   }
 
   async function requestStoragePersistence() {
