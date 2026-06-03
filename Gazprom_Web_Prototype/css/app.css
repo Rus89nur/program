@@ -3267,11 +3267,35 @@
     .elimination-card-list .elimination-act-card.card {
       display: flex;
       align-items: flex-start;
-      gap: 18px;
+      gap: 16px 18px;
       padding: 16px 20px;
       margin-bottom: 0;
       cursor: pointer;
       transition: box-shadow 0.15s, border-color 0.15s, transform 0.1s;
+    }
+
+    .elimination-act-card__content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .elimination-act-card__header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .elimination-act-card__foot {
+      min-width: 0;
+    }
+
+    .elimination-act-card__foot > :last-child {
+      margin-bottom: 0;
     }
 
     .elimination-act-card:hover {
@@ -3336,12 +3360,12 @@
 
     .elimination-act-card__head {
       display: flex;
-      align-items: baseline;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      gap: 4px 12px;
-      margin-bottom: 6px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      margin-bottom: 0;
       min-width: 0;
+      width: 100%;
     }
 
     .elimination-act-card__title {
@@ -3358,14 +3382,12 @@
       font-size: 13px;
       font-weight: 500;
       color: var(--text-muted);
-      text-align: right;
-      line-height: 1.3;
+      text-align: left;
+      line-height: 1.35;
       min-width: 0;
-      max-width: 55%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      margin-left: auto;
+      max-width: 100%;
+      word-break: normal;
+      overflow-wrap: break-word;
     }
 
     .elimination-act-card__deadline {
@@ -3390,13 +3412,15 @@
     }
 
     .elimination-act-card__object {
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 600;
       color: var(--text);
       margin: 0 0 6px;
       line-height: 1.45;
       white-space: normal;
-      word-break: break-word;
+      word-break: normal;
+      overflow-wrap: break-word;
+      hyphens: auto;
     }
 
     .elimination-act-card__status-line {
@@ -3422,10 +3446,9 @@
       align-items: center;
       align-self: flex-start;
       justify-content: flex-end;
-      gap: 12px;
+      gap: 8px;
       flex-shrink: 0;
-      margin-left: 8px;
-      margin-top: 4px;
+      margin: 0;
     }
 
     .elimination-act-card__pill--muted {
@@ -4194,6 +4217,102 @@
 
       html.gazprom-scroll-lock {
         overflow: hidden;
+      }
+
+      /* Устранение: карточки актов — сетка, объект на всю ширину (web-76) */
+      body.gazprom-mobile-shell .elimination-card-list .elimination-act-card.card {
+        display: grid;
+        grid-template-columns: 56px minmax(0, 1fr);
+        grid-template-rows: auto auto;
+        grid-template-areas:
+          "ring header"
+          "foot foot";
+        gap: 8px 12px;
+        padding: 12px 14px;
+        align-items: start;
+      }
+
+      body.gazprom-mobile-shell .elimination-act-card__ring {
+        grid-area: ring;
+        width: 56px;
+        height: 56px;
+        flex-shrink: 0;
+      }
+
+      body.gazprom-mobile-shell .elimination-act-card__ring .elim-ring {
+        width: 56px;
+        height: 56px;
+      }
+
+      body.gazprom-mobile-shell .elimination-act-card__ring .elim-ring__label {
+        font-size: 12px;
+      }
+
+      body.gazprom-mobile-shell .elimination-act-card__content {
+        display: contents;
+      }
+
+      body.gazprom-mobile-shell .elimination-act-card__header {
+        grid-area: header;
+        min-width: 0;
+        gap: 8px;
+      }
+
+      body.gazprom-mobile-shell .elimination-act-card__foot {
+        grid-area: foot;
+        min-width: 0;
+        padding-top: 2px;
+        border-top: 1px solid var(--border);
+      }
+
+      body.gazprom-mobile-shell .elimination-act-card__foot:empty {
+        display: none;
+        border-top: none;
+        padding-top: 0;
+      }
+
+      body.gazprom-mobile-shell .elimination-act-card__title {
+        font-size: 15px;
+      }
+
+      body.gazprom-mobile-shell .elimination-act-card__org {
+        font-size: 13px;
+      }
+
+      body.gazprom-mobile-shell .elimination-act-card__object {
+        font-size: 14px;
+        line-height: 1.45;
+        margin-bottom: 4px;
+        word-break: normal;
+        overflow-wrap: break-word;
+        hyphens: auto;
+      }
+
+      body.gazprom-mobile-shell .elimination-act-card__status-line {
+        font-size: 13px;
+        line-height: 1.45;
+        word-break: normal;
+        overflow-wrap: break-word;
+      }
+
+      body.gazprom-mobile-shell .elimination-act-card__aside {
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+      }
+
+      body.gazprom-mobile-shell .elimination-act-card__toggle {
+        font-size: 11px;
+        padding: 4px 10px;
+        max-width: 112px;
+        white-space: normal;
+        text-align: center;
+        line-height: 1.25;
+      }
+
+      body.gazprom-mobile-shell .elimination-act-card__chevron {
+        font-size: 18px;
+        line-height: 1;
       }
     }
 

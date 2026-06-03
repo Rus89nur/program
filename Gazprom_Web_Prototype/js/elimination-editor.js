@@ -449,14 +449,20 @@ const EliminationEditor = (() => {
             </svg>
             <span class="elim-ring__label">${AktUtils.escapeHtml(ring.label)}</span>
           </div>
-          <div class="elimination-act-card__body">
-            ${headerHtml}
-            ${objectHtml}
-            ${statusLineHtml}
-          </div>
-          <div class="elimination-act-card__aside">
-            ${toggleHtml}
-            <span class="elimination-act-card__chevron" aria-hidden="true">›</span>
+          <div class="elimination-act-card__content">
+            <div class="elimination-act-card__header">
+              <div class="elimination-act-card__body">
+                ${headerHtml}
+              </div>
+              <div class="elimination-act-card__aside">
+                ${toggleHtml}
+                <span class="elimination-act-card__chevron" aria-hidden="true">›</span>
+              </div>
+            </div>
+            <div class="elimination-act-card__foot">
+              ${objectHtml}
+              ${statusLineHtml}
+            </div>
           </div>
         </article>`;
       })
