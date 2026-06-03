@@ -3920,15 +3920,24 @@
       }
 
       body.gazprom-mobile-shell .wizard-footer {
-        flex-direction: column-reverse;
-        gap: 10px;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: stretch;
+        gap: 12px;
       }
 
       body.gazprom-mobile-shell .wizard-footer button {
-        width: 100%;
-        padding: 14px 16px;
-        font-size: 16px;
+        flex: 1 1 0;
+        min-width: 0;
+        width: auto;
+        padding: 12px 10px;
+        font-size: 14px;
+        line-height: 1.25;
+        white-space: normal;
+        text-align: center;
+        min-height: 48px;
         box-sizing: border-box;
+        box-shadow: 0 2px 10px rgba(13, 71, 161, 0.28);
       }
 
       body.gazprom-mobile-shell .bottom-nav {
