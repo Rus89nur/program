@@ -287,14 +287,14 @@ const WizardController = (() => {
 
     return `
       <h3>Дата проверки и номер акта</h3>
-      <div class="form-row">
+      <div class="form-row wizard-akt-meta-row">
         <div class="form-group">
           <label>Дата проверки</label>
-          <input class="form-control" type="date" id="wDate" value="${AktUtils.toDateInputValue(draft.date)}">
+          <input class="form-control wizard-akt-meta-control" type="date" id="wDate" value="${AktUtils.toDateInputValue(draft.date)}">
         </div>
         <div class="form-group">
           <label>Номер акта</label>
-          <select class="form-control" id="wNumber" size="1">${numOpts}</select>
+          <select class="form-control wizard-akt-meta-control" id="wNumber" size="1">${numOpts}</select>
         </div>
       </div>
       <h3 style="margin-top:8px;">Состав комиссии</h3>
