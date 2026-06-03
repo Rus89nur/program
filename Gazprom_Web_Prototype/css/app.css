@@ -124,11 +124,22 @@
       width: calc(100% - 16px);
       text-align: left;
       font-family: inherit;
+      position: relative;
     }
     .nav-item:hover { background: var(--sidebar-hover); color: #fff; }
     .nav-item.active {
       background: var(--sidebar-active);
       color: #fff;
+    }
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 8px;
+      bottom: 8px;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: #26c6da;
     }
     .nav-icon {
       width: 22px;
@@ -146,66 +157,8 @@
       height: 20px;
       display: block;
     }
-
-    /* Variant 4 — sidebar FAB + draft link */
-    .sidebar--nav-v4 .sidebar-fab-wrap {
-      padding: 4px 16px 12px;
-    }
-    .sidebar--nav-v4 .sidebar-fab {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      width: 100%;
-      padding: 14px 16px;
-      border: none;
-      border-radius: 14px;
-      background: linear-gradient(135deg, #26c6da, var(--accent));
-      color: #fff;
-      font-family: inherit;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 6px 20px rgba(38, 198, 218, 0.4), 0 0 0 3px rgba(38, 198, 218, 0.12);
-      transition: transform 0.12s, box-shadow 0.15s, filter 0.15s;
-    }
-    .sidebar--nav-v4 .sidebar-fab:hover {
-      filter: brightness(1.06);
-      transform: translateY(-1px);
-    }
-    .sidebar--nav-v4 .sidebar-fab:active {
-      transform: translateY(0);
-    }
-    .sidebar--nav-v4 .sidebar-fab:focus-visible {
-      outline: 2px solid #26c6da;
-      outline-offset: 2px;
-    }
-    .sidebar--nav-v4 .sidebar-fab__icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.22);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-    .sidebar--nav-v4 .sidebar-fab__icon svg {
-      width: 18px;
-      height: 18px;
-    }
-    .sidebar--nav-v4 .sidebar-divider {
-      height: 1px;
-      background: rgba(255,255,255,0.08);
-      margin: 4px 16px 8px;
-    }
-    .sidebar--nav-v4 .nav-item--draft {
-      opacity: 0.72;
-      font-size: 13px;
-    }
-    .sidebar--nav-v4 .nav-item--draft.active,
-    .sidebar--nav-v4 .nav-item--draft:hover {
-      opacity: 1;
+    .nav-item:not(.active) .nav-icon {
+      opacity: 0.65;
     }
     .sidebar-footer {
       margin-top: auto;
@@ -828,9 +781,12 @@
     #screen-history .toolbar-filters--pills {
       flex-wrap: nowrap;
       overflow-x: auto;
+      overflow-y: hidden;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
       scrollbar-width: none;
       padding-bottom: 2px;
+      padding-right: 8px;
     }
     #screen-history .toolbar-filters--pills::-webkit-scrollbar {
       display: none;
@@ -943,11 +899,25 @@
     .history-list-toolbar {
       display: flex;
       align-items: center;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       gap: 8px;
       padding: 12px 20px;
       border-bottom: 1px solid var(--border);
       background: var(--bg);
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
+      scrollbar-width: none;
+    }
+
+    .history-list-toolbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .history-list-toolbar__label,
+    .history-sort-btn {
+      flex-shrink: 0;
     }
 
     .history-list-toolbar__label {
@@ -1353,13 +1323,6 @@
         --sidebar-w: 64px;
       }
       .nav-item span:not(.nav-icon) { display: none; }
-      .sidebar--nav-v4 .sidebar-fab {
-        padding: 12px;
-        gap: 0;
-      }
-      .sidebar--nav-v4 .sidebar-fab > span:not(.sidebar-fab__icon) { display: none; }
-      .sidebar--nav-v4 .sidebar-fab-wrap { padding: 4px 8px 10px; }
-      .sidebar--nav-v4 .sidebar-divider { margin: 4px 8px 8px; }
       .sidebar-brand .logo, .sidebar-brand small, .sidebar-footer { display: none; }
       .sidebar-brand { padding: 12px 8px; text-align: center; }
       .sidebar-brand::after { content: 'Г'; font-family: Montserrat; font-weight: 800; font-size: 1.2rem; color: #26c6da; }
@@ -1432,6 +1395,29 @@
     .data-status--ok {
       background: #e8f5e9;
       color: #1b5e20;
+    }
+    .data-status--ok.data-status--peek {
+      overflow: hidden;
+      min-height: 0;
+      max-height: 8rem;
+      opacity: 1;
+      transition:
+        max-height 0.45s ease,
+        opacity 0.35s ease,
+        padding 0.45s ease,
+        border-bottom-color 0.45s ease;
+    }
+    .data-status--ok.data-status--peek.data-status--hidden {
+      max-height: 0;
+      opacity: 0;
+      padding-block: 0;
+      border-bottom-color: transparent;
+      pointer-events: none;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .data-status--ok.data-status--peek {
+        transition: none;
+      }
     }
     .data-status code {
       font-size: 12px;
@@ -2044,39 +2030,23 @@
       font-weight: 600;
       color: var(--text-muted);
       font-family: inherit;
+      position: relative;
     }
     .bottom-nav-item.active { color: var(--primary); }
     .bottom-nav-item .nav-icon { font-size: 18px; }
-
-    .bottom-nav--v4 {
-      align-items: flex-end;
-      padding-top: 10px;
+    .bottom-nav-item:not(.active) .nav-icon {
+      opacity: 0.55;
     }
-    .bottom-nav-fab {
-      flex: 0 0 auto;
-      width: 54px;
-      height: 54px;
-      margin: -18px 4px 2px;
-      border: none;
+    .bottom-nav-item.active::after {
+      content: '';
+      position: absolute;
+      bottom: 1px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 4px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #26c6da, var(--accent));
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 6px 18px rgba(38, 198, 218, 0.45), 0 0 0 4px rgba(38, 198, 218, 0.12);
-      transition: transform 0.12s, filter 0.15s;
-    }
-    .bottom-nav-fab svg {
-      width: 26px;
-      height: 26px;
-    }
-    .bottom-nav-fab:hover { filter: brightness(1.05); }
-    .bottom-nav-fab:active { transform: scale(0.96); }
-    .bottom-nav-fab:focus-visible {
-      outline: 2px solid var(--primary);
-      outline-offset: 3px;
+      background: #26c6da;
     }
 
     /* Catalog / schedule editors */
@@ -2989,6 +2959,12 @@
         position: relative;
         z-index: 1;
         flex-shrink: 0;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+        padding-right: 12px;
       }
       body.gazprom-mobile-shell #screen-history .history-card.card--flush {
         padding: 0;
@@ -3917,6 +3893,31 @@
         word-break: break-word;
       }
 
+      /* На телефоне — оверлей сверху: flex-shrink не мешает скрытию */
+      body.gazprom-mobile-shell #dataStatusBar.data-status--ok.data-status--peek {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1200;
+        max-height: none;
+        padding-top: max(4px, env(safe-area-inset-top));
+        padding-bottom: 4px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        transform: translate3d(0, 0, 0);
+        transition:
+          transform 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+          opacity 0.35s ease;
+      }
+
+      body.gazprom-mobile-shell #dataStatusBar.data-status--ok.data-status--peek.data-status--hidden {
+        max-height: none;
+        padding-block: max(4px, env(safe-area-inset-top)) 4px;
+        transform: translate3d(0, calc(-100% - 8px), 0);
+        opacity: 0;
+        pointer-events: none;
+      }
+
       body.gazprom-mobile-shell .app {
         flex: 1 1 auto;
         min-height: 0;
@@ -4006,10 +4007,62 @@
         margin-bottom: 0;
       }
 
+      body.gazprom-mobile-shell #screen-history .toolbar-history__body {
+        min-width: 0;
+        overflow: visible;
+      }
+
+      body.gazprom-mobile-shell #screen-history .toolbar-filters--pills {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+        touch-action: pan-x;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        padding-right: max(12px, env(safe-area-inset-right));
+        padding-bottom: 4px;
+        scrollbar-width: none;
+      }
+
+      body.gazprom-mobile-shell #screen-history .toolbar-filters--pills::-webkit-scrollbar {
+        display: none;
+      }
+
+      body.gazprom-mobile-shell #screen-history .toolbar-filters--pills .filter-pill {
+        flex-shrink: 0;
+      }
+
       body.gazprom-mobile-shell #screen-history .history-list-toolbar {
         position: relative;
         z-index: 1;
         background: var(--bg);
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+        touch-action: pan-x;
+        min-width: 0;
+        max-width: 100%;
+        padding-right: max(12px, env(safe-area-inset-right));
+        scrollbar-width: none;
+      }
+
+      body.gazprom-mobile-shell #screen-history .history-list-toolbar::-webkit-scrollbar {
+        display: none;
+      }
+
+      body.gazprom-mobile-shell #screen-history .history-list-toolbar__label,
+      body.gazprom-mobile-shell #screen-history .history-sort-btn {
+        flex-shrink: 0;
+      }
+
+      body.gazprom-mobile-shell #screen-history .history-sort-btn {
+        padding: 4px 8px;
+        font-size: 11px;
       }
 
       /* История: карточки актов — сетка как на Устранении (web-80) */
@@ -4776,24 +4829,12 @@
         display: none;
       }
 
-      body.gazprom-mobile-shell .bottom-nav--v4 {
-        --gazprom-nav-block: calc(56px + env(safe-area-inset-bottom, 0px) + var(--gazprom-nav-shift-down));
-        padding-top: 8px;
-      }
-
       body.gazprom-mobile-shell .bottom-nav-item .nav-icon {
         font-size: 20px;
       }
 
-      body.gazprom-mobile-shell .bottom-nav-fab {
-        width: 50px;
-        height: 50px;
-        margin-top: -16px;
-      }
-
-      body.gazprom-mobile-shell .bottom-nav-fab svg {
-        width: 24px;
-        height: 24px;
+      body.gazprom-mobile-shell .bottom-nav-item.active::after {
+        bottom: 0;
       }
 
       body.gazprom-mobile-shell #screen-home .app-build-id {

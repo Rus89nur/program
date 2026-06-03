@@ -37,7 +37,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=81" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=82" id="appCss">
 </head>
 <body>
   <script>
@@ -61,34 +61,25 @@
   </div>
 
   <div class="app">
-    <aside class="sidebar sidebar--nav-v4">
+    <aside class="sidebar">
       <div class="sidebar-brand">
         <div class="logo">Р.И. <span>Шелудько</span></div>
         <small>Акты проверок · веб</small>
       </div>
-      <div class="sidebar-fab-wrap">
-        <button class="sidebar-fab" type="button" data-go="wizard" data-wizard-new="1" aria-label="Новый акт">
-          <span class="sidebar-fab__icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-          </span>
-          <span>Новый акт</span>
-        </button>
-      </div>
-      <div class="sidebar-divider" aria-hidden="true"></div>
       <button class="nav-item active" data-screen="home" type="button">
-        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span>Главная</span>
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><span>Главная</span>
       </button>
-      <button class="nav-item nav-item--draft" data-screen="wizard" type="button">
-        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M10 13h4"/><path d="M10 17h4"/></svg></span><span>Текущий черновик</span>
+      <button class="nav-item" data-screen="wizard" type="button">
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span><span>Редактируемый акт</span>
       </button>
       <button class="nav-item" data-screen="history" type="button">
-        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span>История</span>
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg></span><span>История</span>
       </button>
       <button class="nav-item" data-screen="reports" type="button">
         <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-8"/></svg></span><span>Отчёты</span>
       </button>
       <button class="nav-item" data-screen="elimination" type="button">
-        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m22 4-10 10.01-3-3"/></svg></span><span>Устранение</span>
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg></span><span>Устранение</span>
       </button>
       <button class="nav-item" data-screen="settings" type="button">
         <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg></span><span>Настройки</span>
@@ -157,7 +148,7 @@
             <div class="stat-label">Черновиков</div>
           </div>
         </div>
-        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-80</p>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-81</p>
       </section>
 
       <section class="screen" id="screen-wizard">
@@ -259,7 +250,7 @@
             <span class="history-list-toolbar__label">Сортировка:</span>
             <button class="history-sort-btn" type="button" data-sort-key="number" tabindex="0" aria-sort="none">№</button>
             <button class="history-sort-btn" type="button" data-sort-key="date" tabindex="0" aria-sort="none">Дата</button>
-            <button class="history-sort-btn" type="button" data-sort-key="organization" tabindex="0" aria-sort="none">Организация</button>
+            <button class="history-sort-btn" type="button" data-sort-key="organization" tabindex="0" aria-sort="none" aria-label="Организация">Орг.</button>
             <button class="history-sort-btn" type="button" data-sort-key="violations" tabindex="0" aria-sort="none">Наруш.</button>
           </div>
           <div class="history-list" id="historyList" role="list"></div>
@@ -404,21 +395,21 @@
     </main>
   </div>
 
-  <nav class="bottom-nav bottom-nav--v4" aria-label="Мобильная навигация">
+  <nav class="bottom-nav" aria-label="Мобильная навигация">
     <button class="bottom-nav-item active" data-screen="home" type="button" aria-label="Главная">
-      <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span>Главная</span>
+      <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><span>Главная</span>
+    </button>
+    <button class="bottom-nav-item" data-screen="wizard" type="button" aria-label="Редактируемый акт">
+      <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span><span>Редакт.</span>
     </button>
     <button class="bottom-nav-item" data-screen="history" type="button" aria-label="История">
-      <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span>История</span>
-    </button>
-    <button class="bottom-nav-fab" type="button" data-go="wizard" data-wizard-new="1" aria-label="Новый акт">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+      <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg></span><span>История</span>
     </button>
     <button class="bottom-nav-item" data-screen="elimination" type="button" aria-label="Устранение">
-      <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m22 4-10 10.01-3-3"/></svg></span><span>Устран.</span>
+      <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg></span><span>Устран.</span>
     </button>
-    <button class="bottom-nav-item" data-screen="settings" type="button" aria-label="Настройки">
-      <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg></span><span>Настройки</span>
+    <button class="bottom-nav-item" data-screen="settings" type="button" aria-label="Ещё">
+      <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg></span><span>Ещё</span>
     </button>
   </nav>
 
@@ -489,14 +480,14 @@
   <script src="js/data-store.js?v=22"></script>
   <script src="js/photo-store.js?v=29"></script>
   <script src="js/toast.js"></script>
-  <script src="js/mobile-overlay.js?v=6"></script>
+  <script src="js/mobile-overlay.js?v=7"></script>
   <script src="js/akt-utils.js"></script>
   <script src="js/violation-templates.js?v=20"></script>
   <script src="js/violation-registry.js?v=2"></script>
   <script src="js/catalog-service.js"></script>
   <script src="js/backup-import.js?v=29"></script>
   <script src="js/akt-search.js"></script>
-  <script src="js/ui-bindings.js?v=21"></script>
+  <script src="js/ui-bindings.js?v=23"></script>
   <script src="js/catalog-editor.js?v=12"></script>
   <script src="js/schedule-editor.js?v=2"></script>
   <script src="js/elimination-editor.js?v=6"></script>
@@ -505,6 +496,6 @@
   <script src="js/wizard.js?v=38"></script>
   <script src="js/short-akt-form.js?v=2"></script>
   <script src="js/doc-generator.js?v=29"></script>
-  <script src="js/app.js?v=37"></script>
+  <script src="js/app.js?v=38"></script>
 </body>
 </html>
