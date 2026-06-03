@@ -35,15 +35,31 @@ const PhotoStore = (() => {
   }
 
   async function clearAll() {
-    await GazpromIdb.transaction(STORE_PHOTOS, 'readwrite', (tx) => {
-      tx.objectStore(STORE_PHOTOS).clear();
-    });
+    try {
+      await GazpromIdb.transaction(STORE_PHOTOS, 'readwrite', (tx) => {
+        tx.objectStore(STORE_PHOTOS).clear();
+      });
+    } catch (err) {
+      // #region agent log
+      if (typeof DebugAgent !== 'undefined') {
+        DebugAgent.log('photo-store.js:clearAll', 'clear failed (ignored)', {
+          msg: err?.message,
+          name: err?.name,
+        }, 'D');
+      }
+      // #endregion
+    }
     dataUrlCache.clear();
   }
 
   function base64ToBlob(b64, mime = 'image/jpeg') {
     const raw = b64.includes(',') ? b64.split(',')[1] : b64;
-    const bin = atob(raw);
+    let bin;
+    try {
+      bin = atob(raw);
+    } catch (e) {
+      throw new Error('Некорректные данные фото (base64)');
+    }
     const arr = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
     return new Blob([arr], { type: mime });
@@ -63,10 +79,22 @@ const PhotoStore = (() => {
 
   async function ingestPhotoRef(ref) {
     if (!ref || isPhotoId(ref)) return ref;
-    const id = ID_PREFIX + AktUtils.uuid();
-    const blob = typeof ref === 'string' ? base64ToBlob(ref) : ref;
-    await putBlob(id, blob instanceof Blob ? blob : base64ToBlob(String(ref)));
-    return id;
+    try {
+      const id = ID_PREFIX + AktUtils.uuid();
+      const blob = typeof ref === 'string' ? base64ToBlob(ref) : ref;
+      await putBlob(id, blob instanceof Blob ? blob : base64ToBlob(String(ref)));
+      return id;
+    } catch (err) {
+      // #region agent log
+      if (typeof DebugAgent !== 'undefined') {
+        DebugAgent.log('photo-store.js:ingestPhotoRef', 'skip photo', {
+          msg: err?.message,
+          len: typeof ref === 'string' ? ref.length : 0,
+        }, 'D');
+      }
+      // #endregion
+      return null;
+    }
   }
 
   async function resolveDataUrl(ref) {
@@ -166,7 +194,8 @@ const PhotoStore = (() => {
           photo.push(p);
           continue;
         }
-        photo.push(await ingestPhotoRef(p));
+        const id = await ingestPhotoRef(p);
+        if (id) photo.push(id);
         photoDone += 1;
         if (photoDone % 2 === 0) {
           onProgress?.(photoDone, photoTotal);

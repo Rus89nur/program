@@ -19,7 +19,11 @@ const GazpromIdb = (() => {
   }
 
   function mapStorageError(err) {
-    if (!err) return new Error('Ошибка хранилища браузера');
+    if (!err) {
+      return new Error(
+        'IndexedDB: транзакция прервана (Safari). Попробуйте импорт без фото или освободите память.'
+      );
+    }
     const name = err.name || '';
     if (name === 'QuotaExceededError') {
       return new Error(

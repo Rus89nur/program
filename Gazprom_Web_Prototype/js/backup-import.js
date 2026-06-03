@@ -199,6 +199,26 @@ const GazpromBackup = (() => {
     return parseJsonText(text, file.name);
   }
 
+  function stripInlinePhotos(catalog) {
+    const stripAkt = (akt) => {
+      if (!akt) return akt;
+      return {
+        ...akt,
+        violations: (akt.violations || []).map((v) => ({ ...v, photo: [] })),
+      };
+    };
+    const out = {
+      ...catalog,
+      akts: (catalog.akts || []).map(stripAkt),
+      trash: (catalog.trash || []).map(stripAkt),
+      importedWithoutPhotos: true,
+    };
+    if (out.editableAkt?.akt) {
+      out.editableAkt = { ...out.editableAkt, akt: stripAkt(out.editableAkt.akt) };
+    }
+    return out;
+  }
+
   async function importFile(file, { replace = true, parsed = null } = {}) {
     const incoming = parsed || await parseFile(file);
     let merged = incoming;
@@ -243,24 +263,55 @@ const GazpromBackup = (() => {
     }
 
     if (useChunkedPhotos) {
-      if (replace && typeof PhotoStore.clearAll === 'function') {
-        await PhotoStore.clearAll();
-      }
+      const catalogBeforePhotos =
+        typeof AktUtils !== 'undefined' ? AktUtils.clone(merged) : merged;
       const loadingLabel = document.getElementById('backupLoadingText');
-      merged = await PhotoStore.ingestCatalogChunked(merged, {
-        onProgress: (done, total) => {
-          if (loadingLabel && total > 0) {
-            loadingLabel.textContent = `Сохранение фото ${done}/${total}…`;
-          }
-        },
-      });
-      // #region agent log
-      if (typeof DebugAgent !== 'undefined') {
-        DebugAgent.log('backup-import.js:importFile', 'chunked photos done', {
-          inlineAfter: approximateInlinePhotoBytes(merged),
-        }, 'C');
+      try {
+        // #region agent log
+        if (typeof DebugAgent !== 'undefined') {
+          DebugAgent.log('backup-import.js:importFile', 'chunked start', {}, 'C');
+        }
+        // #endregion
+        if (replace && typeof PhotoStore.clearAll === 'function') {
+          await PhotoStore.clearAll();
+        }
+        // #region agent log
+        if (typeof DebugAgent !== 'undefined') {
+          DebugAgent.log('backup-import.js:importFile', 'after clearAll', {}, 'D');
+        }
+        // #endregion
+        merged = await PhotoStore.ingestCatalogChunked(merged, {
+          onProgress: (done, total) => {
+            if (loadingLabel && total > 0) {
+              loadingLabel.textContent = `Сохранение фото ${done}/${total}…`;
+            }
+          },
+        });
+        // #region agent log
+        if (typeof DebugAgent !== 'undefined') {
+          DebugAgent.log('backup-import.js:importFile', 'chunked photos done', {
+            inlineAfter: approximateInlinePhotoBytes(merged),
+          }, 'C');
+        }
+        // #endregion
+      } catch (chunkErr) {
+        // #region agent log
+        if (typeof DebugAgent !== 'undefined') {
+          DebugAgent.log('backup-import.js:importFile', 'chunked failed → strip photos', {
+            msg: chunkErr?.message,
+            name: chunkErr?.name,
+          }, 'D');
+        }
+        // #endregion
+        merged = stripInlinePhotos(catalogBeforePhotos);
+        if (typeof GazpromToast !== 'undefined') {
+          GazpromToast.show(
+            'Фото не поместились в память Safari. Импортированы акты и справочники без фотографий.',
+            'info',
+            8000
+          );
+        }
       }
-      // #endregion
     }
 
     await GazpromStore.set(merged, { skipPhotoIngest: true, verifyWrite: true });
