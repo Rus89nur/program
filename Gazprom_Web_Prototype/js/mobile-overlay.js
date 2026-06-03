@@ -103,7 +103,7 @@ const GazpromMobileOverlay = (() => {
   };
 
   const allowHorizontalScroll = (target) =>
-    !!target?.closest('.list-table, .wizard-stepper, .toolbar-filters--pills');
+    !!target?.closest('.list-table, .wizard-stepper, .toolbar-filters--pills, .pred-filter-row');
 
   const handleTouchMove = (e) => {
     if (!mq.matches || e.touches.length !== 1) return;
