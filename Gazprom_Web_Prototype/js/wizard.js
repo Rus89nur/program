@@ -204,9 +204,18 @@ const WizardController = (() => {
       renderStepDescription,
       renderStepGenerate,
     ];
+    const panelClasses = [
+      'wizard-panel--date',
+      'wizard-panel--org',
+      'wizard-panel--objects',
+      'wizard-panel--violations',
+      'wizard-panel--conclusions',
+      'wizard-panel--generate',
+    ];
     try {
       const html = renderers[step]();
-      host.innerHTML = `<div class="card wizard-panel-active">${html}</div>`;
+      const panelClass = panelClasses[step] || '';
+      host.innerHTML = `<div class="card wizard-panel-active ${panelClass}">${html}</div>`;
     } catch (err) {
       console.error(err);
       host.innerHTML = `<div class="card wizard-panel-active"><p style="color:red">Ошибка отрисовки: ${err}</p></div>`;

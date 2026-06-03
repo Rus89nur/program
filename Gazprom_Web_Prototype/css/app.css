@@ -3763,6 +3763,174 @@
         appearance: none;
       }
 
+      /* Мастер: шаг 4 «Нарушения» */
+      body.gazprom-mobile-shell .wizard-panel-active {
+        max-width: 100%;
+        overflow-x: hidden;
+        box-sizing: border-box;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations .viol-step-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations .viol-step-header .btn-primary {
+        width: 100%;
+        justify-content: center;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations .viol-cards-list {
+        max-width: 100%;
+        gap: 8px;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations .viol-card {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 12px;
+        max-width: 100%;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations .viol-card-num {
+        align-self: flex-start;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations .viol-card-body {
+        min-width: 0;
+        width: 100%;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations .viol-card-title {
+        display: block;
+        overflow: visible;
+        word-break: break-word;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations .viol-card-subtitle {
+        white-space: normal;
+        word-break: break-word;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations .viol-card-badge {
+        max-width: 100%;
+        white-space: normal;
+        word-break: break-word;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations .viol-card-mesto {
+        max-width: 100%;
+        word-break: break-word;
+        white-space: normal;
+        height: auto;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations .viol-card-thumbs {
+        flex-wrap: wrap;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations .viol-card-actions {
+        width: 100%;
+        justify-content: flex-end;
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations #wPhotoGrid {
+        grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+        max-width: 100%;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations .photo-grid {
+        max-width: 100%;
+      }
+
+      /* Мастер: шаг 5 «Выводы комиссии» */
+      body.gazprom-mobile-shell .wizard-panel--conclusions .form-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--conclusions .form-control {
+        max-width: 100%;
+        font-size: 16px;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--conclusions #wVyvody {
+        min-height: 112px;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--conclusions .vyvody-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--conclusions .vyvody-templates {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+        width: 100%;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--conclusions .btn-edit,
+      body.gazprom-mobile-shell .wizard-panel--conclusions .btn-edit-active,
+      body.gazprom-mobile-shell .wizard-panel--conclusions .btn-template,
+      body.gazprom-mobile-shell .wizard-panel--conclusions .btn-template-save,
+      body.gazprom-mobile-shell .wizard-panel--conclusions .btn-template-empty {
+        width: 100%;
+        justify-content: center;
+        white-space: normal;
+        text-align: center;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--conclusions .commission-catalog-header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--conclusions #wNewPredBtn {
+        width: 100%;
+        text-align: center;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--conclusions .pred-filter-row {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        max-width: 100%;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+        padding-bottom: 4px;
+        margin-bottom: 8px;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--conclusions .chip-list {
+        max-width: 100%;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--conclusions .chip {
+        max-width: 100%;
+        white-space: normal;
+        word-break: break-word;
+        line-height: 1.35;
+        height: auto;
+      }
+
+      body.gazprom-mobile-shell .wizard-footer {
+        flex-direction: column-reverse;
+        gap: 10px;
+      }
+
+      body.gazprom-mobile-shell .wizard-footer button {
+        width: 100%;
+        padding: 14px 16px;
+        font-size: 16px;
+        box-sizing: border-box;
+      }
+
       body.gazprom-mobile-shell .bottom-nav {
         display: flex;
         position: fixed;
