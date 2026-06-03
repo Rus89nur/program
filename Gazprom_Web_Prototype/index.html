@@ -308,7 +308,7 @@
           <div class="card settings-tile settings-tile--trash" role="button" tabindex="0"><div class="icon">🗑</div><h4>Корзина</h4><p>Удалённые акты</p><span class="tile-count" data-trash-count></span></div>
           <div class="card settings-tile settings-tile--ml settings-tile--disabled" aria-disabled="true" title="Только iOS (архив)"><div class="icon">🤖</div><h4>Обучение ML</h4><p>Только iOS (архив)</p></div>
         </div>
-        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-41</p>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-42</p>
       </section>
 
       <section class="screen" id="screen-trash">
@@ -420,6 +420,10 @@
           <input type="checkbox" id="backupMergeCheckbox">
           Объединить с уже загруженными (иначе — заменить все данные)
         </label>
+        <label class="backup-merge-option">
+          <input type="checkbox" id="backupSkipPhotosCheckbox">
+          Импорт без фото (только если на iPhone не хватает памяти)
+        </label>
         <div id="backupPreview" class="backup-preview" hidden></div>
         <p id="backupImportMessage" class="backup-import-message" role="status"></p>
         <button type="button" class="btn-ghost btn-sm" id="backupDebugCopyBtn" style="margin-top:8px;font-size:12px;">📋 Скопировать журнал отладки</button>
@@ -444,13 +448,13 @@
   <script src="js/debug-agent.js?v=1"></script>
   <script src="js/idb-connection.js?v=21"></script>
   <script src="js/data-store.js?v=21"></script>
-  <script src="js/photo-store.js?v=24"></script>
+  <script src="js/photo-store.js?v=26"></script>
   <script src="js/toast.js"></script>
   <script src="js/akt-utils.js"></script>
   <script src="js/violation-templates.js?v=20"></script>
   <script src="js/violation-registry.js"></script>
   <script src="js/catalog-service.js"></script>
-  <script src="js/backup-import.js?v=25"></script>
+  <script src="js/backup-import.js?v=26"></script>
   <script src="js/akt-search.js"></script>
   <script src="js/ui-bindings.js?v=17"></script>
   <script src="js/catalog-editor.js?v=10"></script>
@@ -461,6 +465,6 @@
   <script src="js/wizard.js?v=20"></script>
   <script src="js/short-akt-form.js"></script>
   <script src="js/doc-generator.js?v=29"></script>
-  <script src="js/app.js?v=25"></script>
+  <script src="js/app.js?v=26"></script>
 </body>
 </html>

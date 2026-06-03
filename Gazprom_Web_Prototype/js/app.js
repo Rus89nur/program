@@ -1,5 +1,5 @@
 /** Газпром — веб-приложение: навигация, PWA, импорт, экраны */
-window.GAZPROM_WEB_BUILD = 'web-41';
+window.GAZPROM_WEB_BUILD = 'web-42';
 const titles = {
   home: 'Главная',
   wizard: 'Редактируемый акт',
@@ -155,7 +155,13 @@ async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
     showBackupPreview(GazpromBackup.getStats(preview), previewName, previewSize);
 
     setBackupLoading(true, 'Сохранение в браузер…');
-    const { stats } = await GazpromBackup.importFile(file, { replace: !merge, parsed: preview });
+    const importWithoutPhotos =
+      document.getElementById('backupSkipPhotosCheckbox')?.checked ?? false;
+    const { stats } = await GazpromBackup.importFile(file, {
+      replace: !merge,
+      parsed: preview,
+      importWithoutPhotos,
+    });
 
     GazpromStore.invalidateCache();
     await GazpromUI.refreshAll();

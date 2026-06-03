@@ -72,9 +72,30 @@ const GazpromStore = (() => {
     );
   }
 
+  async function attachWordTemplateSidecar(catalog) {
+    if (!catalog?.wordTemplateOffloaded) return catalog;
+    try {
+      const sidecar = await GazpromIdb.transaction('app', 'readonly', (tx) =>
+        new Promise((resolve, reject) => {
+          const req = tx.objectStore('app').get('wordTemplateSidecar');
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        })
+      );
+      if (sidecar?.data) {
+        catalog.wordTemplate = sidecar.data;
+        catalog.wordTemplateName = sidecar.name || catalog.wordTemplateName;
+      }
+    } catch {
+      /* ignore */
+    }
+    return catalog;
+  }
+
   async function get() {
     if (cache) return cache;
     cache = await readCatalogFromDb();
+    cache = await attachWordTemplateSidecar(cache);
     return cache;
   }
 
