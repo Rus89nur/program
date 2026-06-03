@@ -827,7 +827,7 @@ const EliminationEditor = (() => {
 
   function showExtendDateDialog() {
     const overlay = document.createElement('div');
-    overlay.className = 'catalog-form-overlay';
+    overlay.className = 'catalog-form-overlay catalog-form-overlay--elevated';
     const defaultDate = new Date();
     defaultDate.setDate(defaultDate.getDate() + 30);
     overlay.innerHTML = `
@@ -929,7 +929,7 @@ const EliminationEditor = (() => {
     );
 
     const overlay = document.createElement('div');
-    overlay.className = 'catalog-form-overlay';
+    overlay.className = 'catalog-form-overlay catalog-form-overlay--elevated';
     const rows = entries.length
       ? entries
           .map(
