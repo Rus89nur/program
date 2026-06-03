@@ -1,5 +1,15 @@
 /** Газпром — веб-приложение: навигация, PWA, импорт, экраны */
-window.GAZPROM_WEB_BUILD = 'web-68';
+window.GAZPROM_WEB_BUILD = 'web-69';
+
+const syncAppBuildLabel = () => {
+  const build = window.GAZPROM_WEB_BUILD;
+  if (!build) return;
+  const el = document.getElementById('appBuildId');
+  if (el) el.textContent = `Сборка: ${build}`;
+  document.querySelectorAll('[data-app-build]').forEach((node) => {
+    node.textContent = build;
+  });
+};
 const titles = {
   home: 'Главная',
   wizard: 'Редактируемый акт',
@@ -424,6 +434,7 @@ function bindTemplateUpload() {
 }
 
 function init() {
+  syncAppBuildLabel();
   bindNavigation();
   updateClock();
   setInterval(updateClock, 30000);
