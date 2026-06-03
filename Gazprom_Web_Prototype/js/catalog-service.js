@@ -9,7 +9,7 @@ const CatalogService = (() => {
   }
 
   /**
-   * Запомнить последний открытый акт (полный или сокращённый) — для «Продолжить» на главной.
+   * Запомнить последний открытый полный акт — для «Продолжить» на главной.
    * @param {object|string} aktOrId — акт или его id
    */
   async function rememberLastOpenedAkt(aktOrId) {
@@ -18,7 +18,7 @@ const CatalogService = (() => {
     if (typeof aktOrId === 'string') {
       akt = (catalog.akts || []).find((a) => a.id === aktOrId);
     }
-    if (!akt) return false;
+    if (!akt || AktUtils.isShortFormat(akt)) return false;
 
     AktUtils.applyCurrentEditable(catalog, akt);
     await save(catalog);

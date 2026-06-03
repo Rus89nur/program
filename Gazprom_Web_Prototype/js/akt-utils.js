@@ -148,9 +148,16 @@ const AktUtils = (() => {
     return out.toISOString();
   }
 
-  /** Помечает акт как «текущий» для главной (Продолжить…) и бэкапа. */
+  /** Текущий полный акт для «Продолжить…» / мастера (сокращённые не учитываются). */
+  function getFullEditableAkt(catalog) {
+    const akt = catalog?.editableAkt?.akt;
+    if (!akt || isShortFormat(akt)) return null;
+    return akt;
+  }
+
+  /** Помечает акт как «текущий» для главной (Продолжить…) и бэкапа — только полные акты. */
   function applyCurrentEditable(catalog, akt) {
-    if (!catalog || !akt) return catalog;
+    if (!catalog || !akt || isShortFormat(akt)) return catalog;
     const copy = clone(akt);
     const now = new Date().toISOString();
     catalog.editableAkt = {
@@ -350,6 +357,7 @@ const AktUtils = (() => {
     parseShortViolationCounts,
     buildShortViolations,
     addMonthsIso,
+    getFullEditableAkt,
     applyCurrentEditable,
     isDraft,
     countPhotos,

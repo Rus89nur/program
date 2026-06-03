@@ -1,7 +1,7 @@
 /** Газпром — веб-приложение: навигация, PWA, импорт, экраны */
 const titles = {
   home: 'Главная',
-  wizard: 'Новый акт',
+  wizard: 'Редактируемый акт',
   history: 'История',
   reports: 'Отчёты',
   elimination: 'Устранение',
@@ -45,6 +45,12 @@ function updateClock() {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+  });
+}
+
+function bindHeaderSync() {
+  document.getElementById('headerSyncBtn')?.addEventListener('click', () => {
+    GazpromUI.refreshAll().catch(console.error);
   });
 }
 
@@ -406,14 +412,6 @@ function init() {
       goTo('wizard', opts);
       return;
     }
-    if (target === 'wizard' && !opts.forceNew && !opts.aktId) {
-      const data = await GazpromStore.get();
-      const editable = data.editableAkt?.akt;
-      if (editable && AktUtils.isShortFormat(editable)) {
-        ShortAktForm.open(editable.id);
-        return;
-      }
-    }
     goTo(target, opts);
   });
 
@@ -521,6 +519,7 @@ function init() {
 
   AktUtils.bindAutoCapitalize();
 
+  bindHeaderSync();
   bindHistory();
   bindGlobalSearch();
   bindReports();

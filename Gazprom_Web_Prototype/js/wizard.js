@@ -1,5 +1,5 @@
 /**
- * Мастер «Новый акт» — редактирование черновика из бэкапа.
+ * Мастер «Редактируемый акт» — редактирование черновика из бэкапа.
  */
 const WizardController = (() => {
   const TOTAL_STEPS = 6;
@@ -60,7 +60,7 @@ const WizardController = (() => {
   }
 
   function initDraft() {
-    const editable = catalog?.editableAkt?.akt;
+    const editable = AktUtils.getFullEditableAkt(catalog);
     draft = editable ? AktUtils.clone(editable) : AktUtils.createEmptyDraft(catalog);
   }
 
@@ -101,10 +101,13 @@ const WizardController = (() => {
       commitStep(step);
       await saveDraft();
       await GazpromStore.persistCatalog(catalog);
-    } else if (catalog?.editableAkt?.akt) {
-      draft = AktUtils.clone(catalog.editableAkt.akt);
-      await saveDraft();
-      await GazpromStore.persistCatalog(catalog);
+    } else {
+      const prevFull = AktUtils.getFullEditableAkt(catalog);
+      if (prevFull) {
+        draft = AktUtils.clone(prevFull);
+        await saveDraft();
+        await GazpromStore.persistCatalog(catalog);
+      }
     }
     draft = AktUtils.createEmptyDraft(catalog);
     step = 0;
@@ -133,6 +136,10 @@ const WizardController = (() => {
         const akt = (catalog.akts || []).find((a) => a.id === aktId);
         if (!akt) {
           GazpromToast.error('Акт не найден');
+          return;
+        }
+        if (AktUtils.isShortFormat(akt)) {
+          ShortAktForm.open(aktId);
           return;
         }
         draft = AktUtils.clone(akt);
@@ -1252,13 +1259,13 @@ const WizardController = (() => {
     document.getElementById('wizardNewBtn')?.addEventListener('click', async () => {
       if (draft) {
         const ok = await GazpromToast.confirm(
-          'Начать новый акт? Текущий черновик будет сохранён в списке актов.'
+          'Начать новый полный акт? Текущий черновик будет сохранён в списке актов.'
         );
         if (!ok) return;
       }
       try {
         await startNewDraft();
-        GazpromToast.success('Новый акт создан');
+        GazpromToast.success('Новый полный акт создан');
       } catch (e) {
         console.error(e);
         GazpromToast.error(e.message || 'Ошибка создания нового акта');

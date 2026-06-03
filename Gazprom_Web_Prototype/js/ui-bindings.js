@@ -11,6 +11,43 @@ const GazpromUI = (() => {
     fullOnly: false,
   };
   let historySort = { key: 'date', direction: 'desc' };
+  let lastSyncAt = null;
+
+  function formatSyncTime(date = new Date()) {
+    const d = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(d.getTime())) return '—';
+    const now = new Date();
+    const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    if (d.toDateString() === now.toDateString()) return `Сегодня, ${time}`;
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (d.toDateString() === yesterday.toDateString()) return `Вчера, ${time}`;
+    return d.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+
+  function updateHeaderSync({ busy = false } = {}) {
+    const btn = document.getElementById('headerSyncBtn');
+    const statusEl = document.getElementById('headerSyncStatus');
+    const timeEl = document.getElementById('headerSyncTime');
+    if (!btn || !statusEl || !timeEl) return;
+
+    if (busy) {
+      btn.classList.add('header-sync--busy');
+      statusEl.textContent = 'Обновление…';
+      return;
+    }
+
+    btn.classList.remove('header-sync--busy');
+    if (!lastSyncAt) lastSyncAt = new Date();
+    statusEl.textContent = 'Синхронизировано';
+    timeEl.textContent = formatSyncTime(lastSyncAt);
+  }
 
   function formatDateShort(iso) {
     if (!iso) return '—';
@@ -32,7 +69,7 @@ const GazpromUI = (() => {
 
     const akts = data.akts || [];
     const drafts = akts.filter(isDraft).length;
-    const editable = data.editableAkt?.akt;
+    const editable = AktUtils.getFullEditableAkt(data);
     const currentNum = editable?.number || (akts.length ? akts[akts.length - 1].number : '—');
 
     const elCurrent = document.getElementById('homeStatCurrent');
@@ -44,11 +81,8 @@ const GazpromUI = (() => {
 
     const btn = document.querySelector('#screen-home .btn-primary[data-go="wizard"]');
     if (btn) {
-      const shortEditable = editable && AktUtils.isShortFormat(editable);
       btn.textContent = editable
-        ? shortEditable
-          ? `Продолжить сокращённый № ${editable.number}`
-          : `Продолжить полный акт № ${editable.number}`
+        ? `Продолжить полный акт № ${editable.number}`
         : 'Создать полный акт';
     }
     const subAction = document.getElementById('homeSubAction');
@@ -279,15 +313,21 @@ const GazpromUI = (() => {
   }
 
   async function refreshAll() {
-    const data = await GazpromStore.get();
-    renderDataStatus(data);
-    renderHome(data);
-    renderHistory(data);
-    renderElimination(data);
-    renderTrash(data);
-    renderSettingsTilesSync(data);
-    if (document.getElementById('screen-wizard')?.classList.contains('active')) {
-      await WizardController.syncCatalog();
+    updateHeaderSync({ busy: true });
+    try {
+      const data = await GazpromStore.get();
+      renderDataStatus(data);
+      renderHome(data);
+      renderHistory(data);
+      renderElimination(data);
+      renderTrash(data);
+      renderSettingsTilesSync(data);
+      if (document.getElementById('screen-wizard')?.classList.contains('active')) {
+        await WizardController.syncCatalog();
+      }
+      lastSyncAt = new Date();
+    } finally {
+      updateHeaderSync({ busy: false });
     }
   }
 

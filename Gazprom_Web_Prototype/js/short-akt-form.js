@@ -315,7 +315,6 @@ const ShortAktForm = (() => {
         catalog.akts = [...(catalog.akts || []), akt];
       }
       syncEliminations(catalog, akt);
-      AktUtils.applyCurrentEditable(catalog, akt);
       await GazpromStore.set(catalog);
       if (typeof GazpromUI !== 'undefined') {
         GazpromUI.renderHome(catalog);
@@ -351,10 +350,6 @@ const ShortAktForm = (() => {
       GazpromToast.error('Сначала добавьте организации в Настройках');
       goTo('settings');
       return;
-    }
-
-    if (editingAkt) {
-      await CatalogService.rememberLastOpenedAkt(editingAkt);
     }
 
     openModal(

@@ -44,10 +44,10 @@ const GazpromBackup = (() => {
 
     let editableAkt = raw.editableAkt || null;
     if (editableAkt && editableAkt.akt) {
-      editableAkt = {
-        ...editableAkt,
-        akt: normalizeAkt(editableAkt.akt),
-      };
+      const akt = normalizeAkt(editableAkt.akt);
+      editableAkt = AktUtils.isShortFormat(akt)
+        ? null
+        : { ...editableAkt, akt };
     }
 
     const templateKey =
@@ -91,7 +91,7 @@ const GazpromBackup = (() => {
       backup.akts.find((a) => a.id === ref.aktId) ||
       backup.akts.find((a) => String(a.number) === String(ref.aktNumber));
 
-    if (akt) {
+    if (akt && !AktUtils.isShortFormat(akt)) {
       backup.editableAkt = {
         akt,
         isEditable: true,

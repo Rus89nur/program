@@ -37,7 +37,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=20" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=24" id="appCss">
 </head>
 <body>
 
@@ -58,7 +58,7 @@
         <span class="nav-icon">✈</span><span>Главная</span>
       </button>
       <button class="nav-item" data-screen="wizard" type="button">
-        <span class="nav-icon">📋</span><span>Новый акт</span>
+        <span class="nav-icon">📋</span><span>Редактируемый акт</span>
       </button>
       <button class="nav-item" data-screen="history" type="button">
         <span class="nav-icon">🕐</span><span>История</span>
@@ -82,7 +82,19 @@
       <h1 class="header-title" id="pageTitle">Главная</h1>
       <div class="header-actions">
         <input type="search" class="search-box" id="globalSearch" placeholder="🔍 Поиск актов, объектов…" autocomplete="off">
-        <button class="year-chip" type="button">📅 2026</button>
+        <button class="header-sync" type="button" id="headerSyncBtn" aria-label="Обновить данные" title="Обновить данные">
+          <span class="header-sync__icon" aria-hidden="true">
+            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M29 28H13.5a6.2 6.2 0 0 1-.15-12.4c.9-4.6 4.9-8 9.65-8 3.9 0 7.3 2.3 8.85 5.65A5.8 5.8 0 0 1 29 28z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M20 24.5a4.2 4.2 0 1 0 2.9-3.95" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M21.2 19.8v2.4h2.4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="header-sync__text">
+            <span class="header-sync__status" id="headerSyncStatus">Синхронизировано</span>
+            <span class="header-sync__time" id="headerSyncTime">—</span>
+          </span>
+        </button>
         <div class="avatar" title="Инспектор">ИП</div>
       </div>
     </header>
@@ -167,7 +179,7 @@
 
         <div id="wizardRoot">
           <div class="wizard-toolbar">
-            <button type="button" class="btn-ghost" id="wizardNewBtn">+ Новый акт</button>
+            <button type="button" class="btn-ghost" id="wizardNewBtn">+ Новый полный акт</button>
             <span id="wizardDirtyBadge" class="wizard-dirty-badge" hidden>● Не сохранено</span>
           </div>
           <div class="wizard-layout">
@@ -249,33 +261,51 @@
 
       <section class="screen" id="screen-elimination">
         <div class="elimination-screen">
-          <div class="elimination-stats-header" id="eliminationStatsHeader" aria-label="Статистика устранения">
-            <div class="elim-stat elim-stat--total">
-              <span class="elim-stat-value" id="elimStatTotal">0</span>
-              <span class="elim-stat-label">всего нарушений</span>
-            </div>
-            <div class="elim-stat elim-stat--done">
-              <span class="elim-stat-value" id="elimStatDone">0</span>
-              <span class="elim-stat-label">устранено</span>
-            </div>
-            <div class="elim-stat elim-stat--open">
-              <span class="elim-stat-value" id="elimStatOpen">0</span>
-              <span class="elim-stat-label">неустранено</span>
-            </div>
-            <div class="elim-stat elim-stat--side">
-              <div class="elim-stat-side-row">
-                <span class="elim-stat-value elim-stat-value--sm" id="elimStatOverdue">0</span>
-                <span class="elim-stat-label">просрочено</span>
+          <div class="card elim-dashboard" aria-label="Обзор устранения">
+            <div class="elim-dashboard__chart-wrap">
+              <div class="elim-donut" id="elimDonut" aria-hidden="true"></div>
+              <div class="elim-donut-center">
+                <span class="elim-donut-center__value" id="elimDonutTotal">0</span>
+                <span class="elim-donut-center__label">нарушений</span>
               </div>
-              <div class="elim-stat-divider" aria-hidden="true"></div>
-              <div class="elim-stat-side-row">
-                <span class="elim-stat-value elim-stat-value--sm elim-stat-value--ontime" id="elimStatOnTime">0</span>
-                <span class="elim-stat-label">срок не истек</span>
-              </div>
+            </div>
+            <div class="elim-dashboard__side">
+              <ul class="elim-donut-legend" id="elimDonutLegend" aria-label="Распределение нарушений"></ul>
+              <div class="elim-year-pills" id="elimYearPills" role="group" aria-label="Фильтр по году"></div>
             </div>
           </div>
+          <div class="elim-stat-grid">
+            <div class="card stat-card elim-stat-card elim-stat-card--total">
+              <span class="elim-stat-card__icon elim-stat-card__icon--total" aria-hidden="true">📋</span>
+              <div class="elim-stat-card__body">
+                <div class="stat-label">Всего актов</div>
+                <div class="stat-value" id="elimStatTotal">0</div>
+              </div>
+              <div class="elim-stat-card__pct" id="elimStatTotalPct">0%</div>
+            </div>
+            <div class="card stat-card elim-stat-card elim-stat-card--done">
+              <span class="elim-stat-card__icon elim-stat-card__icon--done" aria-hidden="true">✓</span>
+              <div class="elim-stat-card__body">
+                <div class="stat-label">Устранено</div>
+                <div class="stat-value" id="elimStatDone">0</div>
+              </div>
+              <div class="elim-stat-card__pct" id="elimStatDonePct">0%</div>
+            </div>
+            <div class="card stat-card elim-stat-card elim-stat-card--open">
+              <span class="elim-stat-card__icon elim-stat-card__icon--open" aria-hidden="true">!</span>
+              <div class="elim-stat-card__body">
+                <div class="stat-label">Не устранено</div>
+                <div class="stat-value" id="elimStatOpen">0</div>
+              </div>
+              <div class="elim-stat-card__pct" id="elimStatOpenPct">0%</div>
+            </div>
+          </div>
+          <div class="elim-filter-tabs" role="tablist" aria-label="Фильтр актов">
+            <button type="button" class="btn-org-filter btn-org-filter-active" data-elim-filter="all" role="tab" aria-selected="true">Все</button>
+            <button type="button" class="btn-org-filter" data-elim-filter="overdue" role="tab" aria-selected="false">Просрочено</button>
+            <button type="button" class="btn-org-filter" data-elim-filter="done" role="tab" aria-selected="false">Готово</button>
+          </div>
           <div class="elimination-card-list" id="eliminationCardList" role="list"></div>
-          <button type="button" class="elim-fab" id="elimYearFab" aria-label="Фильтр по году" title="Фильтр по году">📅</button>
         </div>
       </section>
 
@@ -359,7 +389,7 @@
 
   <nav class="bottom-nav" aria-label="Мобильная навигация">
     <button class="bottom-nav-item active" data-screen="home" type="button"><span class="nav-icon">✈</span><span>Главная</span></button>
-    <button class="bottom-nav-item" data-screen="wizard" type="button"><span class="nav-icon">📋</span><span>Акт</span></button>
+    <button class="bottom-nav-item" data-screen="wizard" type="button"><span class="nav-icon">📋</span><span>Редакт.</span></button>
     <button class="bottom-nav-item" data-screen="history" type="button"><span class="nav-icon">🕐</span><span>История</span></button>
     <button class="bottom-nav-item" data-screen="elimination" type="button"><span class="nav-icon">✓</span><span>Устран.</span></button>
     <button class="bottom-nav-item" data-screen="settings" type="button"><span class="nav-icon">⚙</span><span>Ещё</span></button>

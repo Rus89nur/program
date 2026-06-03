@@ -75,6 +75,35 @@ describe('AktUtils', () => {
     expect(AktUtils.nextAktNumberForYear(akts, 2023)).toBe('1');
   });
 
+  it('applyCurrentEditable ignores short acts', () => {
+    const catalog = { akts: [], editableAkt: null, editableAktReference: null };
+    const short = {
+      id: 's1',
+      number: '9',
+      violations: [{ title: 'Сокращенный: X', vid: 'X' }],
+    };
+    AktUtils.applyCurrentEditable(catalog, short);
+    expect(catalog.editableAkt).toBe(null);
+    const full = { id: 'f1', number: '10', violations: [{ title: 'Нарушение', vid: '' }] };
+    AktUtils.applyCurrentEditable(catalog, full);
+    expect(catalog.editableAkt?.akt?.id).toBe('f1');
+  });
+
+  it('getFullEditableAkt returns only full editable', () => {
+    const short = {
+      editableAkt: {
+        akt: { id: 's', violations: [{ title: 'Сокращенный: X' }] },
+      },
+    };
+    expect(AktUtils.getFullEditableAkt(short)).toBe(null);
+    const full = {
+      editableAkt: {
+        akt: { id: 'f', violations: [{ title: 'Полное' }] },
+      },
+    };
+    expect(AktUtils.getFullEditableAkt(full)?.id).toBe('f');
+  });
+
   it('isShortFormat detects prefixed violations', () => {
     const short = {
       violations: [{ title: 'Сокращенный: Работы на высоте', vid: 'Работы на высоте' }],

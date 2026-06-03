@@ -3,8 +3,13 @@
  */
 const EliminationEditor = (() => {
   let selectedYear = null;
+  let selectedFilter = 'all';
   let detailState = null;
   let persistTimer = null;
+
+  const RING_R = 28;
+  const RING_C = 2 * Math.PI * RING_R;
+  const RING_CX = 34;
 
   function schedulePersist(catalog) {
     GazpromStore.updateCache(catalog);
@@ -25,18 +30,95 @@ const EliminationEditor = (() => {
   function refreshEliminationLight(catalog, aktId = null) {
     const items = buildEliminationItems(catalog);
     renderStats(items);
+    renderDonut(computeStats(items));
     if (aktId) {
       patchActCard(aktId, items);
     } else {
-      renderCardList(items);
+      renderCardList(applyStatusFilter(items));
     }
   }
 
+  function applyStatusFilter(items) {
+    if (selectedFilter === 'overdue') {
+      return items.filter(
+        (i) => i.totalViolations > 0 && i.hasOverdue && !i.allEliminated
+      );
+    }
+    if (selectedFilter === 'done') {
+      return items.filter((i) => i.totalViolations > 0 && i.allEliminated);
+    }
+    return items;
+  }
+
+  function ringMetrics(eliminated, total) {
+    if (total <= 0) {
+      return { dash: `0 ${RING_C}`, label: '—', pct: 0 };
+    }
+    const pct = Math.min(100, Math.round((eliminated / total) * 100));
+    const filled = (RING_C * eliminated) / total;
+    return {
+      dash: `${filled} ${RING_C - filled}`,
+      label: `${pct}%`,
+      pct,
+    };
+  }
+
+  function formatActDate(akt) {
+    if (!akt?.date) return '';
+    const d = new Date(akt.date);
+    if (Number.isNaN(d.getTime())) return '';
+    return `от ${d.toLocaleDateString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })}`;
+  }
+
+  function buildStatusLineHtml(item, allDone, overdue, noViolations) {
+    if (noViolations) {
+      return '<p class="elimination-act-card__status-line elimination-act-card__status-line--muted">Нарушения отсутствуют</p>';
+    }
+    const dl = item.earliestDeadline
+      ? AktUtils.formatDateShort(item.earliestDeadline)
+      : null;
+    const prefix = dl
+      ? `Срок: ${AktUtils.escapeHtml(dl)}`
+      : 'Срок не установлен';
+    if (allDone) {
+      return `<p class="elimination-act-card__status-line">${prefix} · <span class="elimination-act-card__status-line--done">Выполнено</span></p>`;
+    }
+    if (overdue) {
+      return `<p class="elimination-act-card__status-line">${prefix} · <span class="elimination-act-card__status-line--overdue">Просрочено</span></p>`;
+    }
+    return `<p class="elimination-act-card__status-line">${prefix}</p>`;
+  }
+
+  function buildPillHtml(allDone, overdue, noViolations) {
+    if (noViolations) {
+      return '<span class="elimination-act-card__pill elimination-act-card__pill--muted">—</span>';
+    }
+    if (allDone) {
+      return '<span class="elimination-act-card__pill elimination-act-card__pill--done">Устранено</span>';
+    }
+    return `<span class="elimination-act-card__pill elimination-act-card__pill--open${overdue ? ' elimination-act-card__pill--overdue' : ''}">Не устранено</span>`;
+  }
+
   function patchActCard(aktId, items) {
+    const filtered = applyStatusFilter(items);
     const item = items.find((i) => aktIdMatch(i.aktId, aktId));
     const card = document.querySelector(`[data-elim-akt="${CSS.escape(String(aktId))}"]`);
-    if (!item || !card) {
-      renderCardList(items);
+    const inFilter = item && filtered.some((i) => aktIdMatch(i.aktId, aktId));
+
+    if (!item || !inFilter) {
+      if (card) card.remove();
+      const list = document.getElementById('eliminationCardList');
+      if (list && !list.querySelector('[data-elim-akt]')) {
+        list.innerHTML = renderCardListHtml([], filterEmptyMessage());
+      }
+      return;
+    }
+    if (!card) {
+      renderCardList(filtered);
       return;
     }
     const wrapper = document.createElement('div');
@@ -204,22 +286,119 @@ const EliminationEditor = (() => {
   }
 
   function renderStats(items) {
-    const stats = computeStats(items);
-    const notDone = stats.total - stats.done;
+    const total = items.length;
+    const done = items.filter(
+      (i) => i.totalViolations === 0 || i.allEliminated
+    ).length;
+    const open = total - done;
+    const pct = (n) => (total ? `${Math.round((n / total) * 100)}%` : '0%');
     const set = (id, val) => {
       const el = document.getElementById(id);
       if (el) el.textContent = String(val);
     };
-    set('elimStatTotal', stats.total);
-    set('elimStatDone', stats.done);
-    set('elimStatOpen', notDone);
-    set('elimStatOverdue', stats.overdue);
-    set('elimStatOnTime', stats.onTime);
+    set('elimStatTotal', total);
+    set('elimStatDone', done);
+    set('elimStatOpen', open);
+    set('elimStatTotalPct', total ? '100%' : '0%');
+    set('elimStatDonePct', pct(done));
+    set('elimStatOpenPct', pct(open));
   }
 
-  function renderCardListHtml(items) {
+  function renderDonut(stats) {
+    const donut = document.getElementById('elimDonut');
+    const totalEl = document.getElementById('elimDonutTotal');
+    const legend = document.getElementById('elimDonutLegend');
+    if (!donut) return;
+
+    const total = stats.total;
+    if (totalEl) totalEl.textContent = String(total);
+
+    if (total === 0) {
+      donut.className = 'elim-donut elim-donut--empty';
+      donut.style.background = '';
+      if (legend) {
+        legend.innerHTML =
+          '<li><span class="elim-donut-legend__dot elim-donut-legend__dot--muted"></span>Нет нарушений<span class="elim-donut-legend__val">0</span></li>';
+      }
+      return;
+    }
+
+    donut.classList.remove('elim-donut--empty');
+    const done = stats.done;
+    const overdue = stats.overdue;
+    const onTime = stats.onTime;
+    const other = Math.max(0, total - done - overdue - onTime);
+
+    const deg = (n) => (n / total) * 360;
+    let cursor = 0;
+    const segments = [];
+    const push = (size, color) => {
+      if (size <= 0) return;
+      const start = cursor;
+      cursor += deg(size);
+      segments.push(`${color} ${start}deg ${cursor}deg`);
+    };
+    push(done, 'var(--success)');
+    push(overdue, 'var(--danger)');
+    push(onTime, 'var(--primary)');
+    push(other, '#cbd5e1');
+    donut.style.background = `conic-gradient(${segments.join(', ')})`;
+
+    if (legend) {
+      const rows = [
+        { cls: 'done', label: 'Устранено', val: done },
+        { cls: 'overdue', label: 'Просрочено', val: overdue },
+        { cls: 'ontime', label: 'Срок не истёк', val: onTime },
+      ];
+      if (other > 0) {
+        rows.push({ cls: 'muted', label: 'Прочее', val: other });
+      }
+      legend.innerHTML = rows
+        .map(
+          (r) =>
+            `<li><span class="elim-donut-legend__dot elim-donut-legend__dot--${r.cls}"></span>${AktUtils.escapeHtml(r.label)}<span class="elim-donut-legend__val">${r.val}</span></li>`
+        )
+        .join('');
+    }
+  }
+
+  function renderYearPills(data) {
+    const wrap = document.getElementById('elimYearPills');
+    if (!wrap) return;
+    const years = getAvailableYears(data);
+    const pills = [
+      { label: 'Все годы', year: null },
+      ...years.map((y) => ({ label: String(y), year: y })),
+    ];
+    wrap.innerHTML = pills
+      .map(({ label, year }) => {
+        const active =
+          year === selectedYear || (year == null && selectedYear == null);
+        return `<button type="button" class="btn-org-filter${active ? ' btn-org-filter-active' : ''}" data-elim-year="${year == null ? '' : year}">${AktUtils.escapeHtml(label)}</button>`;
+      })
+      .join('');
+  }
+
+  function bindYearPills() {
+    const screen = document.getElementById('screen-elimination');
+    if (!screen || screen.dataset.elimYearBound) return;
+    screen.dataset.elimYearBound = '1';
+    screen.addEventListener('click', async (e) => {
+      const btn = e.target.closest('#elimYearPills [data-elim-year]');
+      if (!btn) return;
+      const raw = btn.dataset.elimYear;
+      selectedYear = raw === '' ? null : parseInt(raw, 10);
+      document.querySelectorAll('#elimYearPills [data-elim-year]').forEach((b) => {
+        b.classList.toggle('btn-org-filter-active', b === btn);
+      });
+      const catalog = await GazpromStore.get();
+      render(catalog);
+    });
+  }
+
+  function renderCardListHtml(items, emptyMessage) {
     if (!items.length) {
-      return '<p class="elimination-empty" role="status">Нет актов для отображения</p>';
+      return `<p class="elimination-empty" role="status">${AktUtils.escapeHtml(emptyMessage || 'Нет актов для отображения')}</p>`;
     }
     return items
       .map((item) => {
@@ -234,82 +413,62 @@ const EliminationEditor = (() => {
           .filter(Boolean)
           .join(' ');
 
-        let progressText;
-        let progressClass = 'elimination-act-card__progress';
-        if (noViolations) {
-          progressText = 'Нарушения отсутствуют';
-          progressClass += ' elimination-act-card__progress--muted';
-        } else {
-          progressText = `${item.eliminatedViolations}/${item.totalViolations} ${violationsLabel(item.totalViolations)} устранено`;
-        }
+        const ring = ringMetrics(item.eliminatedViolations, item.totalViolations);
+        const actDate = formatActDate(item.akt);
+        const dateHtml = actDate
+          ? `<p class="elimination-act-card__date">${AktUtils.escapeHtml(actDate)}</p>`
+          : '';
+        const statusLineHtml = buildStatusLineHtml(item, allDone, overdue, noViolations);
+        const pillHtml = buildPillHtml(allDone, overdue, noViolations);
+        const ringStateClass = allDone
+          ? 'elimination-act-card__ring--done'
+          : overdue
+            ? 'elimination-act-card__ring--overdue'
+            : noViolations
+              ? 'elimination-act-card__ring--empty'
+              : 'elimination-act-card__ring--open';
 
-        let deadlineHtml = '';
-        if (item.earliestDeadline) {
-          const dl = `Срок устранения ${AktUtils.formatDateShort(item.earliestDeadline)}`;
-          deadlineHtml = `<span class="elimination-act-card__deadline">${AktUtils.escapeHtml(dl)}</span>`;
-        } else if (!noViolations) {
-          deadlineHtml =
-            '<span class="elimination-act-card__deadline">Срок не установлен</span>';
-        }
-
-        const badge =
-          overdue && !noViolations
-            ? '<span class="elimination-act-card__badge">ПРОСРОЧЕНО</span>'
-            : '';
-
-        const actionClass = allDone
-          ? 'elimination-act-card__action elimination-act-card__action--undo'
-          : 'elimination-act-card__action';
-        const actionLabel = allDone ? 'Снять' : 'Устранено';
-        const actionIcon = allDone ? '✕' : '✓';
-        const actionTitle = allDone
-          ? 'Снять отметки устранения по акту'
-          : 'Отметить все нарушения акта устранёнными';
-
-        return `<article class="${cardClass}" data-elim-akt="${AktUtils.escapeHtml(item.aktId)}" role="listitem" tabindex="0" aria-label="Акт № ${AktUtils.escapeHtml(item.aktNumber)}">
-          <div class="elimination-act-card__main">
-            <div class="elimination-act-card__top">
-              <h4 class="elimination-act-card__title">Акт №${AktUtils.escapeHtml(item.aktNumber)}</h4>
-              ${deadlineHtml}
-            </div>
-            <p class="${progressClass}">${AktUtils.escapeHtml(progressText)}</p>
-            ${badge}
+        return `<article class="${cardClass} card" data-elim-akt="${AktUtils.escapeHtml(item.aktId)}" role="listitem" tabindex="0" aria-label="Акт № ${AktUtils.escapeHtml(item.aktNumber)}">
+          <div class="elimination-act-card__ring ${ringStateClass}" aria-hidden="true">
+            <svg class="elim-ring" viewBox="0 0 68 68">
+              <circle class="elim-ring__track" cx="${RING_CX}" cy="${RING_CX}" r="${RING_R}"></circle>
+              <circle class="elim-ring__fill" cx="${RING_CX}" cy="${RING_CX}" r="${RING_R}" stroke-dasharray="${ring.dash}"></circle>
+            </svg>
+            <span class="elim-ring__label">${AktUtils.escapeHtml(ring.label)}</span>
           </div>
-          <button type="button" class="${actionClass}" data-elim-toggle="${AktUtils.escapeHtml(item.aktId)}" title="${AktUtils.escapeHtml(actionTitle)}" aria-label="${AktUtils.escapeHtml(actionTitle)}">
-            <span class="elimination-act-card__action-icon" aria-hidden="true">${actionIcon}</span>
-            ${AktUtils.escapeHtml(actionLabel)}
-          </button>
+          <div class="elimination-act-card__body">
+            <h4 class="elimination-act-card__title">Акт №${AktUtils.escapeHtml(item.aktNumber)}</h4>
+            ${dateHtml}
+            ${statusLineHtml}
+          </div>
+          <div class="elimination-act-card__aside">
+            ${pillHtml}
+            <span class="elimination-act-card__chevron" aria-hidden="true">›</span>
+          </div>
         </article>`;
       })
       .join('');
   }
 
+  function filterEmptyMessage() {
+    if (selectedFilter === 'overdue') return 'Нет просроченных актов';
+    if (selectedFilter === 'done') return 'Нет полностью устранённых актов';
+    return 'Нет актов для отображения';
+  }
+
   function renderCardList(items) {
     const list = document.getElementById('eliminationCardList');
     if (!list) return;
-    list.innerHTML = renderCardListHtml(items);
+    list.innerHTML = renderCardListHtml(items, filterEmptyMessage());
   }
 
   function render(data) {
     const items = buildEliminationItems(data);
+    renderYearPills(data);
     renderStats(items);
-    renderCardList(items);
-    updateYearFabLabel();
+    renderDonut(computeStats(items));
+    renderCardList(applyStatusFilter(items));
     return items;
-  }
-
-  function updateYearFabLabel() {
-    const fab = document.getElementById('elimYearFab');
-    if (!fab) return;
-    if (selectedYear != null) {
-      fab.textContent = String(selectedYear);
-      fab.classList.add('elim-fab--year');
-      fab.setAttribute('aria-label', `Фильтр: ${selectedYear} год`);
-    } else {
-      fab.textContent = '📅';
-      fab.classList.remove('elim-fab--year');
-      fab.setAttribute('aria-label', 'Фильтр по году');
-    }
   }
 
   function ensureEliminationsForAkt(catalog, akt) {
@@ -823,61 +982,6 @@ const EliminationEditor = (() => {
     await toggleAllForAkt(detailState.akt.id, shouldEliminate);
   }
 
-  function showYearMenu(data) {
-    document.querySelector('.elim-year-menu')?.remove();
-    const years = getAvailableYears(data);
-    if (!years.length) {
-      GazpromToast.info('Нет актов для отображения');
-      return;
-    }
-
-    const fab = document.getElementById('elimYearFab');
-    const menu = document.createElement('ul');
-    menu.className = 'elim-year-menu';
-    menu.setAttribute('role', 'menu');
-
-    const addItem = (label, year) => {
-      const li = document.createElement('li');
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.textContent = label;
-      btn.setAttribute('role', 'menuitem');
-      btn.onclick = async () => {
-        selectedYear = year;
-        menu.remove();
-        updateYearFabLabel();
-        const catalog = await GazpromStore.get();
-        render(catalog);
-      };
-      li.appendChild(btn);
-      menu.appendChild(li);
-    };
-
-    addItem('Все годы', null);
-    years.forEach((y) => addItem(String(y), y));
-
-    document.body.appendChild(menu);
-    if (fab) {
-      const rect = fab.getBoundingClientRect();
-      menu.style.right = `${window.innerWidth - rect.right}px`;
-      menu.style.bottom = `${window.innerHeight - rect.top + 8}px`;
-    }
-
-    const close = (e) => {
-      if (!menu.contains(e.target) && e.target !== fab) {
-        menu.remove();
-        document.removeEventListener('click', close);
-      }
-    };
-    setTimeout(() => document.addEventListener('click', close), 0);
-  }
-
-  function bindYearFab() {
-    document.getElementById('elimYearFab')?.addEventListener('click', async () => {
-      const data = await GazpromStore.get();
-      showYearMenu(data);
-    });
-  }
 
   function bindCardList() {
     const list = document.getElementById('eliminationCardList');
@@ -885,19 +989,6 @@ const EliminationEditor = (() => {
     list.dataset.bound = '1';
 
     list.addEventListener('click', async (e) => {
-      const toggleBtn = e.target.closest('[data-elim-toggle]');
-      if (toggleBtn) {
-        e.stopPropagation();
-        const aktId = toggleBtn.dataset.elimToggle;
-        const data = await GazpromStore.get();
-        const items = buildEliminationItems(data);
-        const item = items.find((i) => aktIdMatch(i.aktId, aktId));
-        if (!item) return;
-        const shouldEliminate = !item.allEliminated;
-        await toggleAllForAkt(aktId, shouldEliminate);
-        return;
-      }
-
       const card = e.target.closest('[data-elim-akt]');
       if (!card) return;
       const aktId = card.dataset.elimAkt;
@@ -910,7 +1001,7 @@ const EliminationEditor = (() => {
     list.addEventListener('keydown', async (e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       const card = e.target.closest('[data-elim-akt]');
-      if (!card || e.target.closest('[data-elim-toggle]')) return;
+      if (!card) return;
       e.preventDefault();
       const data = await GazpromStore.get();
       const items = buildEliminationItems(data);
@@ -920,7 +1011,25 @@ const EliminationEditor = (() => {
   }
 
   function bindFilters() {
-    /* фильтры «устранено/не устранено» в iOS отсутствуют — используется фильтр по году */
+    const tabs = document.querySelectorAll('[data-elim-filter]');
+    if (!tabs.length || document.getElementById('screen-elimination')?.dataset.elimFiltersBound) {
+      return;
+    }
+    document.getElementById('screen-elimination').dataset.elimFiltersBound = '1';
+
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', async () => {
+        selectedFilter = tab.dataset.elimFilter || 'all';
+        tabs.forEach((t) => {
+          const active = t === tab;
+          t.classList.toggle('btn-org-filter-active', active);
+          t.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        const catalog = await GazpromStore.get();
+        const items = buildEliminationItems(catalog);
+        renderCardList(applyStatusFilter(items));
+      });
+    });
   }
 
   function bindBulkActions() {
@@ -929,7 +1038,7 @@ const EliminationEditor = (() => {
 
   function bindTableActions() {
     bindCardList();
-    bindYearFab();
+    bindYearPills();
   }
 
   return {

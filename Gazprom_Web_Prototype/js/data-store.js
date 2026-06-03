@@ -30,6 +30,7 @@ const GazpromStore = (() => {
   function mergeWizardDraft(catalog, draftRec) {
     if (!draftRec?.akt) return catalog;
     const akt = draftRec.akt;
+    if (typeof AktUtils !== 'undefined' && AktUtils.isShortFormat(akt)) return catalog;
     const out = { ...catalog, akts: [...(catalog.akts || [])] };
     out.editableAkt = {
       akt,
