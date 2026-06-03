@@ -44,9 +44,6 @@ const EliminationEditor = (() => {
         (i) => i.totalViolations > 0 && i.hasOverdue && !i.allEliminated
       );
     }
-    if (selectedFilter === 'done') {
-      return items.filter((i) => i.totalViolations > 0 && i.allEliminated);
-    }
     return items;
   }
 
@@ -63,44 +60,60 @@ const EliminationEditor = (() => {
     };
   }
 
-  function formatActDate(akt) {
-    if (!akt?.date) return '';
-    const d = new Date(akt.date);
-    if (Number.isNaN(d.getTime())) return '';
-    return `от ${d.toLocaleDateString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    })}`;
-  }
-
-  function buildStatusLineHtml(item, allDone, overdue, noViolations) {
+  function buildStatusLineHtml(akt, allDone, overdue, noViolations) {
     if (noViolations) {
       return '<p class="elimination-act-card__status-line elimination-act-card__status-line--muted">Нарушения отсутствуют</p>';
     }
-    const dl = item.earliestDeadline
-      ? AktUtils.formatDateShort(item.earliestDeadline)
-      : null;
-    const prefix = dl
-      ? `Срок: ${AktUtils.escapeHtml(dl)}`
-      : 'Срок не установлен';
+    const orgName = akt.organization?.shortTitle || akt.organization?.title || '—';
+    const orgPart = `<span class="elimination-act-card__org-line">${AktUtils.escapeHtml(orgName)}</span>`;
     if (allDone) {
-      return `<p class="elimination-act-card__status-line">${prefix} · <span class="elimination-act-card__status-line--done">Выполнено</span></p>`;
+      return `<p class="elimination-act-card__status-line">${orgPart} · <span class="elimination-act-card__status-line--done">Выполнено</span></p>`;
     }
     if (overdue) {
-      return `<p class="elimination-act-card__status-line">${prefix} · <span class="elimination-act-card__status-line--overdue">Просрочено</span></p>`;
+      return `<p class="elimination-act-card__status-line">${orgPart} · <span class="elimination-act-card__status-line--overdue">Просрочено</span></p>`;
     }
-    return `<p class="elimination-act-card__status-line">${prefix}</p>`;
+    return `<p class="elimination-act-card__status-line">${orgPart}</p>`;
   }
 
-  function buildPillHtml(allDone, overdue, noViolations) {
+  function buildActHeaderHtml(aktNumber, item, noViolations) {
+    let deadlineHtml = '';
+    if (!noViolations) {
+      if (item.earliestDeadline) {
+        const dl = AktUtils.formatDateShort(item.earliestDeadline);
+        deadlineHtml = `<span class="elimination-act-card__deadline">Срок: ${AktUtils.escapeHtml(dl)}</span>`;
+      } else {
+        deadlineHtml =
+          '<span class="elimination-act-card__deadline elimination-act-card__deadline--unset">Срок не установлен</span>';
+      }
+    }
+    return `<div class="elimination-act-card__head">
+      <h4 class="elimination-act-card__title">Акт №${AktUtils.escapeHtml(aktNumber)}</h4>
+      ${deadlineHtml}
+    </div>`;
+  }
+
+  function buildObjectHtml(akt) {
+    const objectTitle = (akt.objectsCheck || [])[0]?.title || '';
+    if (!objectTitle) return '';
+    return `<p class="elimination-act-card__object">${AktUtils.escapeHtml(objectTitle)}</p>`;
+  }
+
+  function buildToggleBtnHtml(item, allDone, overdue, noViolations) {
     if (noViolations) {
       return '<span class="elimination-act-card__pill elimination-act-card__pill--muted">—</span>';
     }
-    if (allDone) {
-      return '<span class="elimination-act-card__pill elimination-act-card__pill--done">Устранено</span>';
-    }
-    return `<span class="elimination-act-card__pill elimination-act-card__pill--open${overdue ? ' elimination-act-card__pill--overdue' : ''}">Не устранено</span>`;
+    const label = allDone ? 'Устранено' : 'Не устранено';
+    const title = allDone
+      ? 'Снять отметки устранения по акту'
+      : 'Отметить все нарушения акта устранёнными';
+    const cls = [
+      'elimination-act-card__toggle',
+      allDone ? 'elimination-act-card__toggle--done' : 'elimination-act-card__toggle--open',
+      !allDone && overdue ? 'elimination-act-card__toggle--overdue' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    return `<button type="button" class="${cls}" data-elim-toggle="${AktUtils.escapeHtml(item.aktId)}" title="${AktUtils.escapeHtml(title)}" aria-label="${AktUtils.escapeHtml(title)}">${AktUtils.escapeHtml(label)}</button>`;
   }
 
   function patchActCard(aktId, items) {
@@ -367,16 +380,20 @@ const EliminationEditor = (() => {
     if (!wrap) return;
     const years = getAvailableYears(data);
     const pills = [
-      { label: 'Все годы', year: null },
+      { label: 'Все', year: null },
       ...years.map((y) => ({ label: String(y), year: y })),
     ];
-    wrap.innerHTML = pills
+    const yearHtml = pills
       .map(({ label, year }) => {
         const active =
           year === selectedYear || (year == null && selectedYear == null);
         return `<button type="button" class="btn-org-filter${active ? ' btn-org-filter-active' : ''}" data-elim-year="${year == null ? '' : year}">${AktUtils.escapeHtml(label)}</button>`;
       })
       .join('');
+    const overdueActive = selectedFilter === 'overdue';
+    wrap.innerHTML =
+      yearHtml +
+      `<button type="button" class="btn-org-filter btn-org-filter--overdue${overdueActive ? ' btn-org-filter-active' : ''}" data-elim-filter="overdue">Просрочено</button>`;
   }
 
   function bindYearPills() {
@@ -384,13 +401,17 @@ const EliminationEditor = (() => {
     if (!screen || screen.dataset.elimYearBound) return;
     screen.dataset.elimYearBound = '1';
     screen.addEventListener('click', async (e) => {
+      const overdueBtn = e.target.closest('#elimYearPills [data-elim-filter="overdue"]');
+      if (overdueBtn) {
+        selectedFilter = selectedFilter === 'overdue' ? 'all' : 'overdue';
+        const catalog = await GazpromStore.get();
+        render(catalog);
+        return;
+      }
       const btn = e.target.closest('#elimYearPills [data-elim-year]');
       if (!btn) return;
       const raw = btn.dataset.elimYear;
       selectedYear = raw === '' ? null : parseInt(raw, 10);
-      document.querySelectorAll('#elimYearPills [data-elim-year]').forEach((b) => {
-        b.classList.toggle('btn-org-filter-active', b === btn);
-      });
       const catalog = await GazpromStore.get();
       render(catalog);
     });
@@ -414,12 +435,10 @@ const EliminationEditor = (() => {
           .join(' ');
 
         const ring = ringMetrics(item.eliminatedViolations, item.totalViolations);
-        const actDate = formatActDate(item.akt);
-        const dateHtml = actDate
-          ? `<p class="elimination-act-card__date">${AktUtils.escapeHtml(actDate)}</p>`
-          : '';
-        const statusLineHtml = buildStatusLineHtml(item, allDone, overdue, noViolations);
-        const pillHtml = buildPillHtml(allDone, overdue, noViolations);
+        const headerHtml = buildActHeaderHtml(item.aktNumber, item, noViolations);
+        const objectHtml = buildObjectHtml(item.akt);
+        const statusLineHtml = buildStatusLineHtml(item.akt, allDone, overdue, noViolations);
+        const toggleHtml = buildToggleBtnHtml(item, allDone, overdue, noViolations);
         const ringStateClass = allDone
           ? 'elimination-act-card__ring--done'
           : overdue
@@ -437,12 +456,12 @@ const EliminationEditor = (() => {
             <span class="elim-ring__label">${AktUtils.escapeHtml(ring.label)}</span>
           </div>
           <div class="elimination-act-card__body">
-            <h4 class="elimination-act-card__title">Акт №${AktUtils.escapeHtml(item.aktNumber)}</h4>
-            ${dateHtml}
+            ${headerHtml}
+            ${objectHtml}
             ${statusLineHtml}
           </div>
           <div class="elimination-act-card__aside">
-            ${pillHtml}
+            ${toggleHtml}
             <span class="elimination-act-card__chevron" aria-hidden="true">›</span>
           </div>
         </article>`;
@@ -452,7 +471,6 @@ const EliminationEditor = (() => {
 
   function filterEmptyMessage() {
     if (selectedFilter === 'overdue') return 'Нет просроченных актов';
-    if (selectedFilter === 'done') return 'Нет полностью устранённых актов';
     return 'Нет актов для отображения';
   }
 
@@ -989,6 +1007,18 @@ const EliminationEditor = (() => {
     list.dataset.bound = '1';
 
     list.addEventListener('click', async (e) => {
+      const toggleBtn = e.target.closest('[data-elim-toggle]');
+      if (toggleBtn) {
+        e.stopPropagation();
+        const aktId = toggleBtn.dataset.elimToggle;
+        const data = await GazpromStore.get();
+        const items = buildEliminationItems(data);
+        const item = items.find((i) => aktIdMatch(i.aktId, aktId));
+        if (!item || item.totalViolations === 0) return;
+        await toggleAllForAkt(aktId, !item.allEliminated);
+        return;
+      }
+
       const card = e.target.closest('[data-elim-akt]');
       if (!card) return;
       const aktId = card.dataset.elimAkt;
@@ -1000,6 +1030,7 @@ const EliminationEditor = (() => {
 
     list.addEventListener('keydown', async (e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
+      if (e.target.closest('[data-elim-toggle]')) return;
       const card = e.target.closest('[data-elim-akt]');
       if (!card) return;
       e.preventDefault();
@@ -1011,25 +1042,7 @@ const EliminationEditor = (() => {
   }
 
   function bindFilters() {
-    const tabs = document.querySelectorAll('[data-elim-filter]');
-    if (!tabs.length || document.getElementById('screen-elimination')?.dataset.elimFiltersBound) {
-      return;
-    }
-    document.getElementById('screen-elimination').dataset.elimFiltersBound = '1';
-
-    tabs.forEach((tab) => {
-      tab.addEventListener('click', async () => {
-        selectedFilter = tab.dataset.elimFilter || 'all';
-        tabs.forEach((t) => {
-          const active = t === tab;
-          t.classList.toggle('btn-org-filter-active', active);
-          t.setAttribute('aria-selected', active ? 'true' : 'false');
-        });
-        const catalog = await GazpromStore.get();
-        const items = buildEliminationItems(catalog);
-        renderCardList(applyStatusFilter(items));
-      });
-    });
+    /* фильтр «Просрочено» — в блоке elimYearPills (bindYearPills) */
   }
 
   function bindBulkActions() {

@@ -848,6 +848,12 @@
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
       gap: 16px;
     }
+    .app-build-id {
+      margin: 20px 4px 0;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+    }
     .settings-tile {
       padding: 24px 20px;
       text-align: center;
@@ -2820,10 +2826,24 @@
       flex-shrink: 0;
     }
 
-    .elim-filter-tabs {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+    .elim-year-pills .btn-org-filter--overdue:not(.btn-org-filter-active) {
+      border-color: rgba(198, 40, 40, 0.35);
+      color: var(--danger);
+    }
+
+    .elim-year-pills .btn-org-filter--overdue:not(.btn-org-filter-active):hover {
+      background: rgba(198, 40, 40, 0.06);
+      border-color: var(--danger);
+    }
+
+    .elim-year-pills .btn-org-filter--overdue.btn-org-filter-active {
+      background: var(--danger);
+      border-color: var(--danger);
+    }
+
+    .elim-year-pills .btn-org-filter--overdue.btn-org-filter-active:hover {
+      background: #b71c1c;
+      border-color: #b71c1c;
     }
 
     .elimination-card-list {
@@ -2834,7 +2854,7 @@
 
     .elimination-card-list .elimination-act-card.card {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 18px;
       padding: 16px 20px;
       margin-bottom: 0;
@@ -2902,21 +2922,53 @@
       min-width: 0;
     }
 
+    .elimination-act-card__head {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      margin-bottom: 6px;
+      min-width: 0;
+    }
+
     .elimination-act-card__title {
       font-family: 'Montserrat', sans-serif;
       font-size: 16px;
       font-weight: 700;
       color: var(--primary);
-      margin: 0 0 2px;
+      margin: 0;
+      line-height: 1.3;
+      flex-shrink: 0;
+    }
+
+    .elimination-act-card__deadline {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
       line-height: 1.3;
     }
 
-    .elimination-act-card__date {
-      font-size: 13px;
+    .elimination-act-card__deadline--unset {
       font-weight: 500;
-      color: var(--text-muted);
+    }
+
+    .elimination-act-card--overdue .elimination-act-card__deadline {
+      color: var(--danger);
+      font-weight: 700;
+    }
+
+    .elimination-act-card--done .elimination-act-card__deadline {
+      color: var(--success);
+    }
+
+    .elimination-act-card__object {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
       margin: 0 0 6px;
-      line-height: 1.3;
+      line-height: 1.45;
+      white-space: normal;
+      word-break: break-word;
     }
 
     .elimination-act-card__status-line {
@@ -2925,6 +2977,11 @@
       color: var(--text-muted);
       margin: 0;
       line-height: 1.45;
+    }
+
+    .elimination-act-card__org-line {
+      font-weight: 600;
+      color: var(--text);
     }
 
     .elimination-act-card__status-line--done {
@@ -2945,35 +3002,68 @@
       display: flex;
       flex-direction: row;
       align-items: center;
+      align-self: flex-start;
       justify-content: flex-end;
       gap: 12px;
       flex-shrink: 0;
       margin-left: 8px;
-    }
-
-    .elimination-act-card__pill {
-      display: inline-block;
-      padding: 5px 12px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
-    .elimination-act-card__pill--done {
-      background: rgba(46, 125, 50, 0.12);
-      color: var(--success);
-    }
-
-    .elimination-act-card__pill--open,
-    .elimination-act-card__pill--overdue {
-      background: rgba(198, 40, 40, 0.1);
-      color: var(--danger);
+      margin-top: 4px;
     }
 
     .elimination-act-card__pill--muted {
       background: var(--bg);
       color: var(--text-muted);
+    }
+
+    .elimination-act-card__toggle {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 999px;
+      border: none;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, box-shadow 0.15s, transform 0.1s;
+    }
+
+    .elimination-act-card__toggle--done {
+      background: rgba(46, 125, 50, 0.12);
+      color: var(--success);
+    }
+
+    .elimination-act-card__toggle--done:hover {
+      background: rgba(46, 125, 50, 0.2);
+    }
+
+    .elimination-act-card__toggle--open,
+    .elimination-act-card__toggle--overdue {
+      background: rgba(198, 40, 40, 0.1);
+      color: var(--danger);
+    }
+
+    .elimination-act-card__toggle--open:hover,
+    .elimination-act-card__toggle--overdue:hover {
+      background: rgba(198, 40, 40, 0.16);
+    }
+
+    .elimination-act-card__toggle:active {
+      transform: scale(0.97);
+    }
+
+    .elimination-act-card__toggle:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    .elimination-act-card__toggle--done:focus-visible {
+      outline-color: var(--success);
+    }
+
+    .elimination-act-card__toggle--open:focus-visible,
+    .elimination-act-card__toggle--overdue:focus-visible {
+      outline-color: var(--danger);
     }
 
     .elimination-act-card__chevron {
