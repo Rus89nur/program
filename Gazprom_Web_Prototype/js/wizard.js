@@ -1331,7 +1331,39 @@ const WizardController = (() => {
     return true;
   }
 
+  function setSummaryExpanded(expanded) {
+    const panel = document.getElementById('wizardSummaryPanel');
+    const toggle = document.getElementById('wizardSummaryToggle');
+    if (!panel || !toggle) return;
+    panel.classList.toggle('summary-panel--collapsed', !expanded);
+    toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  }
+
+  function handleSummaryToggle() {
+    const panel = document.getElementById('wizardSummaryPanel');
+    if (!panel) return;
+    setSummaryExpanded(panel.classList.contains('summary-panel--collapsed'));
+  }
+
+  function bindSummaryPanelToggle() {
+    const root = document.getElementById('wizardRoot');
+    if (!root || root.dataset.summaryToggleBound === '1') return;
+    root.dataset.summaryToggleBound = '1';
+    root.addEventListener('click', (e) => {
+      if (!e.target.closest('#wizardSummaryToggle')) return;
+      handleSummaryToggle();
+    });
+    root.addEventListener('keydown', (e) => {
+      const toggle = e.target.closest('#wizardSummaryToggle');
+      if (!toggle) return;
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      handleSummaryToggle();
+    });
+  }
+
   function bindGlobalControls() {
+    bindSummaryPanelToggle();
     document.getElementById('wizardNext')?.addEventListener('click', () => next());
     document.getElementById('wizardPrev')?.addEventListener('click', () => prev());
     document.querySelectorAll('#wizardStepper .wizard-step').forEach((btn) => {
