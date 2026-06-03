@@ -212,8 +212,11 @@ const GazpromUI = (() => {
           <div class="history-list-item__content">
             <div class="history-list-item__header">
               <div class="history-list-item__body">
-                <h4 class="history-list-item__title">Акт №${escapeHtml(akt.number)}</h4>
-                <span class="history-list-item__org">${escapeHtml(org)}</span>
+                <div class="history-list-item__head">
+                  <h4 class="history-list-item__title">Акт №${escapeHtml(akt.number)}</h4>
+                  <span class="history-list-item__org">${escapeHtml(org)}</span>
+                  <span class="history-list-item__date">Проверка: ${escapeHtml(inspectionDate)}</span>
+                </div>
               </div>
               <div class="history-list-item__aside">
                 <button type="button" class="history-list-item__delete" data-history-trash="${escapeHtml(akt.id)}" aria-label="Переместить акт № ${escapeHtml(akt.number)} в корзину" title="В корзину"><span aria-hidden="true">×</span></button>
@@ -222,7 +225,6 @@ const GazpromUI = (() => {
             </div>
             <div class="history-list-item__foot">
               ${objectHtml}
-              <span class="history-list-item__date">Проверка: ${escapeHtml(inspectionDate)}</span>
               <span class="history-list-item__type">${escapeHtml(actType)}</span>
               ${draftHint}
             </div>
