@@ -50,8 +50,10 @@ const GazpromToast = (() => {
         </div>
       `;
       document.body.appendChild(root);
+      GazpromMobileOverlay.lock();
       const close = (val) => {
         root.remove();
+        GazpromMobileOverlay.unlock();
         resolve(val);
       };
       root.querySelector('[data-cancel]').onclick = () => close(false);

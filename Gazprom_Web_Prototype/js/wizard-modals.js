@@ -35,7 +35,7 @@ const WizardModals = (() => {
     const root = ensureModalRoot();
     root.hidden = false;
     root.classList.add('show');
-    document.body.style.overflow = 'hidden';
+    GazpromMobileOverlay.lock();
     document.getElementById('modalTitle').textContent = title;
     document.getElementById('modalBody').innerHTML = bodyHtml;
     const footer = document.getElementById('modalFooter');
@@ -52,7 +52,7 @@ const WizardModals = (() => {
       root.classList.remove('show');
       root.hidden = true;
     }
-    document.body.style.overflow = '';
+    GazpromMobileOverlay.unlock();
     editingViolationId = null;
     modalPhotos = [];
   }

@@ -35,7 +35,7 @@ const ShortAktForm = (() => {
       root.classList.remove('show');
       root.hidden = true;
     }
-    document.body.style.overflow = '';
+    GazpromMobileOverlay.unlock();
     editingAkt = null;
   }
 
@@ -43,7 +43,7 @@ const ShortAktForm = (() => {
     const root = ensureModalRoot();
     root.hidden = false;
     root.classList.add('show');
-    document.body.style.overflow = 'hidden';
+    GazpromMobileOverlay.lock();
     document.getElementById('shortAktModalTitle').textContent = title;
     document.getElementById('shortAktModalBody').innerHTML = bodyHtml;
     const footer = document.getElementById('shortAktModalFooter');

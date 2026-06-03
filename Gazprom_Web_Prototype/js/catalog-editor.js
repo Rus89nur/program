@@ -70,6 +70,7 @@ const CatalogEditor = (() => {
   }
 
   function close() {
+    GazpromMobileOverlay.unlock();
     if (root) {
       root.hidden = true;
       root.innerHTML = '';
@@ -154,6 +155,7 @@ const CatalogEditor = (() => {
   function renderList(cfg, catalog, query) {
     const el = ensureRoot();
     el.hidden = false;
+    GazpromMobileOverlay.lock();
     addEscListener();
 
     const all = [...(catalog[cfg.listKey] || [])];
@@ -243,11 +245,15 @@ const CatalogEditor = (() => {
       </div>
     `;
     document.body.appendChild(form);
+    GazpromMobileOverlay.lock();
 
     const firstInput = form.querySelector('input');
     setTimeout(() => firstInput?.focus(), 50);
 
-    const remove = () => form.remove();
+    const remove = () => {
+      form.remove();
+      GazpromMobileOverlay.unlock();
+    };
     form.querySelector('[data-cancel]').onclick = remove;
 
     form.addEventListener('keydown', (e) => {

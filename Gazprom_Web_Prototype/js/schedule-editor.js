@@ -116,6 +116,7 @@ const ScheduleEditor = (() => {
     }).join('');
 
     root.hidden = false;
+    GazpromMobileOverlay.lock();
     root.innerHTML = `
       <div class="catalog-editor-backdrop" data-close></div>
       <div class="catalog-editor-panel catalog-editor-panel--schedule card">
@@ -140,6 +141,7 @@ const ScheduleEditor = (() => {
 
     const close = () => {
       root.hidden = true;
+      GazpromMobileOverlay.unlock();
     };
     bindClose(root, close);
 
@@ -222,6 +224,7 @@ const ScheduleEditor = (() => {
 
     const close = () => {
       root.hidden = true;
+      GazpromMobileOverlay.unlock();
     };
     const goBack = () => showYearGrid(catalog);
 
@@ -325,6 +328,7 @@ const ScheduleEditor = (() => {
     overlay.className = 'catalog-form-overlay schedule-form-overlay';
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
+    GazpromMobileOverlay.lock();
     return overlay;
   }
 
@@ -416,7 +420,10 @@ const ScheduleEditor = (() => {
       </div>
     `);
 
-    const remove = () => overlay.remove();
+    const remove = () => {
+      overlay.remove();
+      GazpromMobileOverlay.unlock();
+    };
     overlay.querySelector('[data-cancel]').onclick = remove;
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) remove();
@@ -510,7 +517,10 @@ const ScheduleEditor = (() => {
       </div>
     `);
 
-    const remove = () => form.remove();
+    const remove = () => {
+      form.remove();
+      GazpromMobileOverlay.unlock();
+    };
     form.querySelector('[data-cancel]').onclick = remove;
     form.addEventListener('click', (e) => {
       if (e.target === form) remove();

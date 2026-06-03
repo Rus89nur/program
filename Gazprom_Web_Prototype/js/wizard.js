@@ -1115,9 +1115,14 @@ const WizardController = (() => {
         </div>
       `;
       document.body.appendChild(box);
-      box.querySelector('.photo-lightbox-close').onclick = () => box.classList.remove('show');
+      const hideLightbox = () => {
+        if (!box.classList.contains('show')) return;
+        box.classList.remove('show');
+        GazpromMobileOverlay.unlock();
+      };
+      box.querySelector('.photo-lightbox-close').onclick = hideLightbox;
       box.onclick = (e) => {
-        if (e.target === box) box.classList.remove('show');
+        if (e.target === box) hideLightbox();
       };
     }
     const imgs = gallery?.length ? gallery : [src];
@@ -1144,6 +1149,9 @@ const WizardController = (() => {
       e.stopPropagation();
       show(idx + 1);
     };
+    if (!box.classList.contains('show')) {
+      GazpromMobileOverlay.lock();
+    }
     box.classList.add('show');
   }
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gazprom-web-v50';
+const CACHE_NAME = 'gazprom-web-v51';
 const IS_LOCALHOST = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
 const STATIC_ASSETS = [
   './',
@@ -10,6 +10,7 @@ const STATIC_ASSETS = [
   './js/photo-store.js',
   './js/akt-utils.js',
   './js/toast.js',
+  './js/mobile-overlay.js?v=1',
   './js/violation-templates.js',
   './js/violation-registry.js',
   './js/catalog-service.js',

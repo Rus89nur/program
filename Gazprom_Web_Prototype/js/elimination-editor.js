@@ -591,6 +591,9 @@ const EliminationEditor = (() => {
 
   function closeDetail() {
     void flushPersist();
+    if (document.querySelector('.elimination-detail-overlay')) {
+      GazpromMobileOverlay.unlock();
+    }
     document.querySelector('.elimination-detail-overlay')?.remove();
     detailState = null;
     void GazpromStore.get().then((catalog) => {
@@ -741,6 +744,7 @@ const EliminationEditor = (() => {
       </div>
     `;
     document.body.appendChild(overlay);
+    GazpromMobileOverlay.lock();
 
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) closeDetail();
@@ -838,7 +842,11 @@ const EliminationEditor = (() => {
       </div>
     `;
     document.body.appendChild(overlay);
-    const remove = () => overlay.remove();
+    GazpromMobileOverlay.lock();
+    const remove = () => {
+      overlay.remove();
+      GazpromMobileOverlay.unlock();
+    };
     overlay.querySelector('[data-cancel]').onclick = () => {
       remove();
       if (detailState) {
@@ -935,9 +943,14 @@ const EliminationEditor = (() => {
       </div>
     `;
     document.body.appendChild(overlay);
-    overlay.querySelector('[data-close]').onclick = () => overlay.remove();
+    GazpromMobileOverlay.lock();
+    const removeHistory = () => {
+      overlay.remove();
+      GazpromMobileOverlay.unlock();
+    };
+    overlay.querySelector('[data-close]').onclick = removeHistory;
     overlay.addEventListener('click', (ev) => {
-      if (ev.target === overlay) overlay.remove();
+      if (ev.target === overlay) removeHistory();
     });
   }
 

@@ -1,5 +1,5 @@
 /** Газпром — веб-приложение: навигация, PWA, импорт, экраны */
-window.GAZPROM_WEB_BUILD = 'web-50';
+window.GAZPROM_WEB_BUILD = 'web-51';
 const titles = {
   home: 'Главная',
   wizard: 'Редактируемый акт',
@@ -129,7 +129,16 @@ function openBackupFilePicker() {
 
 function openBackupModal() {
   const modal = document.getElementById('backupModal');
-  if (modal) modal.hidden = false;
+  if (!modal) return;
+  modal.hidden = false;
+  GazpromMobileOverlay.lock();
+}
+
+function closeBackupModal() {
+  const modal = document.getElementById('backupModal');
+  if (!modal || modal.hidden) return;
+  modal.hidden = true;
+  GazpromMobileOverlay.unlock();
 }
 
 async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
@@ -178,8 +187,7 @@ async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
         ? ` (${stats.photosStored ?? 0}/${stats.photosIngestTotal} фото)`
         : '';
     GazpromToast.success(`Резервная копия загружена${toastPhoto}`);
-    const backupModal = document.getElementById('backupModal');
-    if (backupModal) backupModal.hidden = true;
+    closeBackupModal();
     goTo('home');
   } catch (err) {
     console.error(err);
@@ -443,11 +451,9 @@ function init() {
       openBackupModal();
     }
   });
-  document.getElementById('backupModalClose')?.addEventListener('click', () => {
-    document.getElementById('backupModal').hidden = true;
-  });
+  document.getElementById('backupModalClose')?.addEventListener('click', closeBackupModal);
   document.getElementById('backupModal')?.addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) e.currentTarget.hidden = true;
+    if (e.target === e.currentTarget) closeBackupModal();
   });
   document.getElementById('backupExportBtn')?.addEventListener('click', async () => {
     try {

@@ -399,6 +399,7 @@ const ViolationRegistry = (() => {
       </div>
     `;
     document.body.appendChild(form);
+    GazpromMobileOverlay.lock();
 
     function vrAutoResize(el) {
       if (!el) return;
@@ -416,7 +417,10 @@ const ViolationRegistry = (() => {
       form.querySelector('textarea')?.focus();
     }, 50);
 
-    const remove = () => form.remove();
+    const remove = () => {
+      form.remove();
+      GazpromMobileOverlay.unlock();
+    };
     form.querySelector('[data-cancel]').onclick = remove;
     form.addEventListener('keydown', (e) => { if (e.key === 'Escape') remove(); });
 
