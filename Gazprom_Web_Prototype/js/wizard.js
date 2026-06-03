@@ -237,9 +237,14 @@ const WizardController = (() => {
   }
 
   function wizardPhotoImgTag(ref) {
-    const ph = PhotoStore.IMG_PLACEHOLDER || '';
-    const safe = AktUtils.escapeHtml(String(ref));
-    return `<img data-photo-ref="${safe}" src="${ph}" alt="" loading="lazy" decoding="async">`;
+    if (!ref) return '<img alt="" loading="lazy" decoding="async">';
+    if (typeof PhotoStore !== 'undefined' && PhotoStore.isPhotoId(ref)) {
+      const ph = PhotoStore.IMG_PLACEHOLDER || '';
+      const safe = AktUtils.escapeHtml(String(ref));
+      return `<img data-photo-ref="${safe}" src="${ph}" alt="" loading="lazy" decoding="async">`;
+    }
+    const src = AktUtils.photoSrc(ref);
+    return `<img src="${src}" alt="" loading="lazy" decoding="async">`;
   }
 
   function numberOptions() {

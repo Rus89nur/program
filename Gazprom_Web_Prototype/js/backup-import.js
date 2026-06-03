@@ -268,10 +268,14 @@ const GazpromBackup = (() => {
     const fileBytes = file?.size > 0 ? file.size : 0;
     const inlineBytes = approximateInlinePhotoBytes(merged);
     const sizeHint = fileBytes || inlineBytes;
+    // Десктоп: как раньше — фото в каталоге (base64), один save, мгновенный просмотр.
+    // Телефон + копия > 50 МБ: вынос фото в store photos (Safari не тянет 200+ МБ в одной записи).
+    const needsMobilePhotoExtract =
+      isCoarsePointerDevice() && (fileBytes > 50 * 1024 * 1024 || inlineBytes > 50 * 1024 * 1024);
     const usePhotoIngest =
       !importWithoutPhotos &&
-      typeof PhotoStore !== 'undefined' &&
-      (fileBytes > 12 * 1024 * 1024 || inlineBytes > 12 * 1024 * 1024);
+      needsMobilePhotoExtract &&
+      typeof PhotoStore !== 'undefined';
 
     // #region agent log
     if (typeof DebugAgent !== 'undefined') {
@@ -282,6 +286,8 @@ const GazpromBackup = (() => {
         inlineBytes,
         importWithoutPhotos,
         usePhotoIngest,
+        needsMobilePhotoExtract,
+        isMobile: isCoarsePointerDevice(),
         akts: merged.akts?.length,
         build: typeof window !== 'undefined' ? window.GAZPROM_WEB_BUILD : '',
       }, 'C');
@@ -353,7 +359,7 @@ const GazpromBackup = (() => {
     }
     // #endregion
 
-    if (ingest && ingest.total > 0 && storedIds === 0) {
+    if (usePhotoIngest && ingest && ingest.total > 0 && storedIds === 0) {
       throw new Error(
         'Акты сохранены, но Safari не записал ни одного фото в память. Освободите место на iPhone или импортируйте копию на компьютере в Chrome, затем откройте сайт с ПК.'
       );
