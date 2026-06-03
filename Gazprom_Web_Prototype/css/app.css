@@ -3589,6 +3589,8 @@
         /* +18px — панель Safari на реальном iPhone */
         --gazprom-nav-lift: calc(24px + env(safe-area-inset-bottom, 0px) + 18px);
         --gazprom-nav-block: calc(56px + var(--gazprom-nav-lift) + 8px);
+        --mobile-modal-gutter: 20px;
+        --mobile-modal-width: 90%;
         overflow: hidden;
         overflow-x: clip;
         width: 100%;
@@ -3601,6 +3603,12 @@
         overscroll-behavior: none;
         overscroll-behavior-x: none;
         position: relative;
+      }
+
+      body.gazprom-mobile-shell,
+      body.gazprom-mobile-shell .app,
+      body.gazprom-mobile-shell .main {
+        touch-action: pan-y;
       }
 
       body.gazprom-mobile-shell .data-status {
@@ -3769,12 +3777,12 @@
         overflow-x: clip;
         overscroll-behavior: none;
         overscroll-behavior-x: none;
-        touch-action: pan-y;
+        touch-action: none;
         padding:
           max(12px, env(safe-area-inset-top))
-          max(12px, env(safe-area-inset-right))
+          max(var(--mobile-modal-gutter), env(safe-area-inset-right))
           calc(max(12px, env(safe-area-inset-bottom, 0px)) + 18px)
-          max(12px, env(safe-area-inset-left));
+          max(var(--mobile-modal-gutter), env(safe-area-inset-left));
         box-sizing: border-box;
       }
 
@@ -3793,8 +3801,8 @@
       .photo-lightbox-inner {
         touch-action: pan-y;
         overflow-x: hidden;
-        width: 100%;
-        max-width: min(100%, 560px);
+        width: var(--mobile-modal-width);
+        max-width: var(--mobile-modal-width);
         margin-left: auto;
         margin-right: auto;
         flex: 0 1 auto;
@@ -3803,6 +3811,26 @@
         overscroll-behavior: contain;
         overscroll-behavior-x: none;
         -webkit-overflow-scrolling: touch;
+      }
+
+      .modal-body,
+      .catalog-editor-body,
+      .catalog-form-dialog,
+      .backup-modal-dialog,
+      .vr-form-dialog,
+      .confirm-dialog {
+        overflow-x: hidden;
+        max-width: 100%;
+      }
+
+      .modal-body .form-control,
+      .modal-body textarea,
+      .catalog-form-dialog .form-control,
+      .catalog-form-dialog textarea,
+      .vr-form-dialog .form-control,
+      .vr-form-dialog textarea {
+        max-width: 100%;
+        box-sizing: border-box;
       }
 
       .modal-dialog,
@@ -3834,15 +3862,15 @@
         justify-content: center;
         padding:
           0
-          max(0px, env(safe-area-inset-right))
+          max(var(--mobile-modal-gutter), env(safe-area-inset-right))
           calc(max(0px, env(safe-area-inset-bottom, 0px)) + 10px)
-          max(0px, env(safe-area-inset-left));
+          max(var(--mobile-modal-gutter), env(safe-area-inset-left));
       }
 
       .elimination-detail-overlay .elimination-detail-sheet {
         touch-action: pan-y;
-        width: 100%;
-        max-width: min(100%, 640px);
+        width: var(--mobile-modal-width);
+        max-width: var(--mobile-modal-width);
         margin-left: auto;
         margin-right: auto;
         flex: 0 1 auto;

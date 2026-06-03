@@ -51,23 +51,42 @@ const GazpromMobileOverlay = (() => {
   let touchStartX = 0;
   let touchStartY = 0;
 
+  const clampScrollX = () => {
+    if (!mq.matches) return;
+    if (window.scrollX !== 0) {
+      window.scrollTo(0, window.scrollY);
+    }
+    const main = mainEl();
+    if (main && main.scrollLeft !== 0) {
+      main.scrollLeft = 0;
+    }
+  };
+
   const handleTouchStart = (e) => {
     if (!mq.matches || e.touches.length !== 1) return;
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
+    clampScrollX();
   };
+
+  const allowHorizontalScroll = (target) =>
+    !!target?.closest('.list-table, .wizard-stepper, .toolbar-filters--pills');
 
   const handleTouchMove = (e) => {
     if (!mq.matches || e.touches.length !== 1) return;
-    const scrollable = e.target.closest(
-      '.main, .modal-body, .catalog-editor-body, .catalog-form-dialog, .backup-modal-dialog, .vr-form-dialog, .wizard-stepper, .list-table, .toolbar-filters--pills, .history-list'
-    );
-    if (scrollable) return;
-    const dx = Math.abs(e.touches[0].clientX - touchStartX);
-    const dy = Math.abs(e.touches[0].clientY - touchStartY);
-    if (dx > dy && dx > 6) {
-      e.preventDefault();
+    const dx = e.touches[0].clientX - touchStartX;
+    const dy = e.touches[0].clientY - touchStartY;
+    if (Math.abs(dx) > 4 && Math.abs(dx) >= Math.abs(dy) * 0.45) {
+      if (!allowHorizontalScroll(e.target)) {
+        e.preventDefault();
+      }
+      return;
     }
+    clampScrollX();
+  };
+
+  const handleTouchEnd = () => {
+    clampScrollX();
   };
 
   syncMobileShellClass();
@@ -84,6 +103,9 @@ const GazpromMobileOverlay = (() => {
   });
   document.addEventListener('touchstart', handleTouchStart, { passive: true });
   document.addEventListener('touchmove', handleTouchMove, { passive: false });
+  document.addEventListener('touchend', handleTouchEnd, { passive: true });
+  document.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+  window.addEventListener('scroll', clampScrollX, { passive: true });
 
   return { lock, unlock, syncVisualViewport };
 })();
