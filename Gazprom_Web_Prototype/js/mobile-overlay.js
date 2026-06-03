@@ -13,6 +13,20 @@ const GazpromMobileOverlay = (() => {
 
   const mainEl = () => document.querySelector('.main');
 
+  /** Полосы с overflow-x: auto — свайп не блокируем (см. MOBILE_PHONE_MODE §3.8, web-82). */
+  const HORIZONTAL_SCROLL_SELECTOR = [
+    '.list-table',
+    '.wizard-stepper',
+    '.pred-filter-row',
+    '.toolbar-filters--pills',
+    '.history-list-toolbar',
+    '#screen-history .toolbar-filters',
+    '#screen-history .toolbar-filters--pills',
+    '#screen-history .toolbar-history__body',
+    '#screen-history .toolbar--history',
+    '#screen-history .history-list-toolbar',
+  ].join(', ');
+
   const syncVisualViewport = () => {
     const root = document.documentElement;
     if (!mq.matches || !window.visualViewport) {
@@ -83,6 +97,8 @@ const GazpromMobileOverlay = (() => {
 
   let touchStartX = 0;
   let touchStartY = 0;
+  let lastTouchX = 0;
+  let activeHScrollEl = null;
 
   const clampScrollX = () => {
     if (!mq.matches) return;
@@ -95,32 +111,73 @@ const GazpromMobileOverlay = (() => {
     }
   };
 
+  const findHorizontalScrollContainer = (target) => {
+    const node = target?.closest?.(HORIZONTAL_SCROLL_SELECTOR);
+    if (!node) return null;
+    if (node.scrollWidth > node.clientWidth + 2) return node;
+    const inner = node.querySelector?.(
+      '.toolbar-filters--pills, .history-list-toolbar, .toolbar-filters'
+    );
+    if (inner && inner.scrollWidth > inner.clientWidth + 2) return inner;
+    return node;
+  };
+
+  const allowHorizontalScroll = (target) => !!findHorizontalScrollContainer(target);
+
+  const isHorizontalGesture = (dx, dy) =>
+    Math.abs(dx) > 4 && Math.abs(dx) >= Math.abs(dy) * 0.45;
+
+  const applyManualHScroll = (clientX) => {
+    if (!activeHScrollEl || activeHScrollEl.scrollWidth <= activeHScrollEl.clientWidth + 2) {
+      lastTouchX = clientX;
+      return;
+    }
+    const delta = lastTouchX - clientX;
+    if (delta !== 0) {
+      activeHScrollEl.scrollLeft += delta;
+    }
+    lastTouchX = clientX;
+  };
+
   const handleTouchStart = (e) => {
     if (!mq.matches || e.touches.length !== 1) return;
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
+    lastTouchX = touchStartX;
+    activeHScrollEl = findHorizontalScrollContainer(e.target);
     clampScrollX();
   };
 
-  const allowHorizontalScroll = (target) =>
-    !!target?.closest(
-      '.list-table, .wizard-stepper, .toolbar-filters--pills, .pred-filter-row, .history-list-toolbar'
-    );
+  /** Не даём document touchmove глушить свайп по полосам Истории (кнопки pills на iOS). */
+  const shieldHistoryHorizontalTouch = (e) => {
+    if (!mq.matches || e.touches.length !== 1) return;
+    if (!allowHorizontalScroll(e.target)) return;
+    const dx = e.touches[0].clientX - touchStartX;
+    const dy = e.touches[0].clientY - touchStartY;
+    if (!isHorizontalGesture(dx, dy)) return;
+    e.stopPropagation();
+    applyManualHScroll(e.touches[0].clientX);
+  };
 
   const handleTouchMove = (e) => {
     if (!mq.matches || e.touches.length !== 1) return;
     const dx = e.touches[0].clientX - touchStartX;
     const dy = e.touches[0].clientY - touchStartY;
-    if (Math.abs(dx) > 4 && Math.abs(dx) >= Math.abs(dy) * 0.45) {
+    if (isHorizontalGesture(dx, dy)) {
       if (!allowHorizontalScroll(e.target)) {
         e.preventDefault();
+      } else {
+        applyManualHScroll(e.touches[0].clientX);
       }
       return;
     }
-    clampScrollX();
+    if (!allowHorizontalScroll(e.target)) {
+      clampScrollX();
+    }
   };
 
   const handleTouchEnd = () => {
+    activeHScrollEl = null;
     clampScrollX();
   };
 
@@ -142,6 +199,10 @@ const GazpromMobileOverlay = (() => {
     });
   });
   document.addEventListener('touchstart', handleTouchStart, { passive: true });
+  document.addEventListener('touchmove', shieldHistoryHorizontalTouch, {
+    capture: true,
+    passive: true,
+  });
   document.addEventListener('touchmove', handleTouchMove, { passive: false });
   document.addEventListener('touchend', handleTouchEnd, { passive: true });
   document.addEventListener('touchcancel', handleTouchEnd, { passive: true });
