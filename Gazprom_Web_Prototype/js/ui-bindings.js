@@ -267,25 +267,34 @@ const GazpromUI = (() => {
     if (isFresh) {
       el.className = 'data-status data-status--ok';
       el.innerHTML =
-        '<span>✓ Новая база данных</span> — создавайте акты и заполняйте справочники в Настройках';
+        '<span class="data-status__line data-status__line--full"><span>✓ Новая база данных</span> — создавайте акты и заполняйте справочники в Настройках</span>' +
+        '<span class="data-status__line data-status__line--compact">✓ Новая база — создавайте акты в Настройках</span>';
       return;
     }
 
     if (!GazpromStore.hasData(data)) {
       el.className = 'data-status data-status--empty';
       el.innerHTML =
-        '<span>Данные не загружены</span> — импортируйте файл <code>.gazprombackup</code> или начните работу с нуля';
+        '<span class="data-status__line data-status__line--full"><span>Данные не загружены</span> — импортируйте файл <code>.gazprombackup</code> или начните работу с нуля</span>' +
+        '<span class="data-status__line data-status__line--compact">Данные не загружены — импорт <code>.gazprombackup</code></span>';
       return;
     }
 
+    const fileLabel = data.sourceFileName ? escapeHtml(data.sourceFileName) : 'резервная копия';
+    const dateLabel = GazpromBackup.formatDate(data.importedAt || data.timestamp);
     el.className = 'data-status data-status--ok';
     el.innerHTML = `
-      <span>✓ Данные загружены</span>
-      · актов: <strong>${s.akts}</strong>
-      · организаций: <strong>${s.organizations}</strong>
-      · фото: <strong>${s.photos}</strong>
-      · ${data.sourceFileName ? escapeHtml(data.sourceFileName) : 'резервная копия'}
-      · ${GazpromBackup.formatDate(data.importedAt || data.timestamp)}
+      <span class="data-status__line data-status__line--full">
+        <span>✓ Данные загружены</span>
+        · актов: <strong>${s.akts}</strong>
+        · организаций: <strong>${s.organizations}</strong>
+        · фото: <strong>${s.photos}</strong>
+        · ${fileLabel}
+        · ${dateLabel}
+      </span>
+      <span class="data-status__line data-status__line--compact">
+        ✓ актов: <strong>${s.akts}</strong> · орг: <strong>${s.organizations}</strong> · фото: <strong>${s.photos}</strong>
+      </span>
     `;
   }
 
