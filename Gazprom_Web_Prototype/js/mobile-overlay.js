@@ -97,8 +97,6 @@ const GazpromMobileOverlay = (() => {
 
   let touchStartX = 0;
   let touchStartY = 0;
-  let lastTouchX = 0;
-  let activeHScrollEl = null;
 
   const clampScrollX = () => {
     if (!mq.matches) return;
@@ -127,24 +125,10 @@ const GazpromMobileOverlay = (() => {
   const isHorizontalGesture = (dx, dy) =>
     Math.abs(dx) > 4 && Math.abs(dx) >= Math.abs(dy) * 0.45;
 
-  const applyManualHScroll = (clientX) => {
-    if (!activeHScrollEl || activeHScrollEl.scrollWidth <= activeHScrollEl.clientWidth + 2) {
-      lastTouchX = clientX;
-      return;
-    }
-    const delta = lastTouchX - clientX;
-    if (delta !== 0) {
-      activeHScrollEl.scrollLeft += delta;
-    }
-    lastTouchX = clientX;
-  };
-
   const handleTouchStart = (e) => {
     if (!mq.matches || e.touches.length !== 1) return;
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
-    lastTouchX = touchStartX;
-    activeHScrollEl = findHorizontalScrollContainer(e.target);
     clampScrollX();
   };
 
@@ -156,7 +140,6 @@ const GazpromMobileOverlay = (() => {
     const dy = e.touches[0].clientY - touchStartY;
     if (!isHorizontalGesture(dx, dy)) return;
     e.stopPropagation();
-    applyManualHScroll(e.touches[0].clientX);
   };
 
   const handleTouchMove = (e) => {
@@ -164,11 +147,8 @@ const GazpromMobileOverlay = (() => {
     const dx = e.touches[0].clientX - touchStartX;
     const dy = e.touches[0].clientY - touchStartY;
     if (isHorizontalGesture(dx, dy)) {
-      if (!allowHorizontalScroll(e.target)) {
-        e.preventDefault();
-      } else {
-        applyManualHScroll(e.touches[0].clientX);
-      }
+      if (allowHorizontalScroll(e.target)) return;
+      e.preventDefault();
       return;
     }
     if (!allowHorizontalScroll(e.target)) {
@@ -177,7 +157,6 @@ const GazpromMobileOverlay = (() => {
   };
 
   const handleTouchEnd = () => {
-    activeHScrollEl = null;
     clampScrollX();
   };
 
