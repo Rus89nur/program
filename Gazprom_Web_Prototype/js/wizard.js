@@ -1267,12 +1267,15 @@ const WizardController = (() => {
     if (!panel || !draft) return;
     const photos = AktUtils.countPhotos(draft);
     const rows = panel.querySelectorAll('.summary-row');
+    const orgLabel =
+      draft.organization?.shortTitle ||
+      draft.organization?.title ||
+      '—';
     const vals = [
       `№ ${draft.number}`,
       AktUtils.formatDateShort(draft.date),
       `${(draft.comission || []).length} чел.`,
-      draft.organization?.title ? '1' : '0',
-      (draft.objectsCheck || [])[0]?.title ? '1' : '0',
+      orgLabel,
       `${(draft.violations || []).length}`,
       `${photos}`,
     ];
