@@ -1517,61 +1517,59 @@
       transform: scale(1.05);
     }
     .photo-lightbox-controls {
+      --photo-lb-chip-size: 40px;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 20px;
+      gap: 10px;
       margin-top: 16px;
       width: 100%;
       flex-wrap: wrap;
     }
-    .photo-lightbox-counter {
-      font-size: 13px;
-      font-weight: 700;
-      font-family: inherit;
-      color: rgba(255,255,255,0.95);
-      min-width: 4.5em;
-      text-align: center;
-      padding: 8px 16px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.18);
-      letter-spacing: 0.02em;
-    }
-    .photo-lightbox-nav-btn {
+    .photo-lightbox-chip {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 52px;
-      height: 52px;
-      padding: 0;
-      border: none;
-      border-radius: 50%;
-      font-size: 30px;
-      line-height: 1;
+      height: var(--photo-lb-chip-size);
+      box-sizing: border-box;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.18);
+      color: rgba(255,255,255,0.95);
       font-weight: 700;
       font-family: inherit;
-      color: #fff;
+      line-height: 1;
+    }
+    .photo-lightbox-counter.photo-lightbox-chip {
+      font-size: 13px;
+      min-width: 4.5em;
+      padding: 0 16px;
+      letter-spacing: 0.02em;
+    }
+    .photo-lightbox-nav-btn.photo-lightbox-chip {
+      width: var(--photo-lb-chip-size);
+      min-width: var(--photo-lb-chip-size);
+      padding: 0;
+      border: 1px solid rgba(255,255,255,0.18);
+      font-size: 22px;
       cursor: pointer;
-      background: linear-gradient(135deg, var(--primary), var(--accent));
-      box-shadow: 0 4px 14px rgba(13, 71, 161, 0.45);
-      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
     }
-    .photo-lightbox-nav-btn:hover {
-      background: linear-gradient(135deg, var(--primary-hover), var(--accent));
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(13, 71, 161, 0.55);
+    .photo-lightbox-nav-btn.photo-lightbox-chip:hover {
+      background: rgba(255,255,255,0.18);
+      border-color: rgba(255,255,255,0.32);
+      transform: translateY(-1px);
     }
-    .photo-lightbox-nav-btn:active {
+    .photo-lightbox-nav-btn.photo-lightbox-chip:active {
       transform: translateY(0) scale(0.96);
-      box-shadow: 0 2px 8px rgba(13, 71, 161, 0.35);
+      background: rgba(255,255,255,0.14);
     }
-    .photo-lightbox-nav-btn:focus-visible {
-      outline: 2px solid #26c6da;
-      outline-offset: 3px;
+    .photo-lightbox-nav-btn.photo-lightbox-chip:focus-visible {
+      outline: 2px solid rgba(38, 198, 218, 0.85);
+      outline-offset: 2px;
     }
-    .photo-lightbox-prev { padding-right: 2px; }
-    .photo-lightbox-next { padding-left: 2px; }
+    .photo-lightbox-prev { padding-right: 1px; }
+    .photo-lightbox-next { padding-left: 1px; }
 
     /* Modals */
     .modal-root {

@@ -1095,7 +1095,7 @@ const WizardController = (() => {
 
   function openLightbox(src, gallery) {
     let box = document.getElementById('photoLightbox');
-    if (box && !box.querySelector('.photo-lightbox-nav-btn')) {
+    if (box && !box.querySelector('.photo-lightbox-chip')) {
       box.remove();
       box = null;
     }
@@ -1108,9 +1108,9 @@ const WizardController = (() => {
           <button type="button" class="photo-lightbox-close" aria-label="Закрыть">×</button>
           <img class="photo-lightbox-img" alt="">
           <div class="photo-lightbox-controls">
-            <button type="button" class="photo-lightbox-nav photo-lightbox-prev photo-lightbox-nav-btn" aria-label="Предыдущее фото">‹</button>
-            <span class="photo-lightbox-counter" aria-live="polite"></span>
-            <button type="button" class="photo-lightbox-nav photo-lightbox-next photo-lightbox-nav-btn" aria-label="Следующее фото">›</button>
+            <button type="button" class="photo-lightbox-nav photo-lightbox-prev photo-lightbox-chip photo-lightbox-nav-btn" aria-label="Предыдущее фото">‹</button>
+            <span class="photo-lightbox-counter photo-lightbox-chip" aria-live="polite"></span>
+            <button type="button" class="photo-lightbox-nav photo-lightbox-next photo-lightbox-chip photo-lightbox-nav-btn" aria-label="Следующее фото">›</button>
           </div>
         </div>
       `;
