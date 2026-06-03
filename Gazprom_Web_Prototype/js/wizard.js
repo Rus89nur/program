@@ -948,10 +948,18 @@ const WizardController = (() => {
       });
     });
     panelsHost()?.querySelectorAll('.wizard-photo-thumb').forEach((el) => {
-      el.addEventListener('click', () => {
+      el.addEventListener('click', async () => {
         const v = (draft.violations || []).find((x) => x.id === el.dataset.vid);
         const idx = parseInt(el.dataset.pidx, 10);
-        if (v?.photo?.[idx]) openLightbox(AktUtils.photoSrc(v.photo[idx]));
+        if (!v?.photo?.length) return;
+        const urls = await Promise.all(v.photo.map((p) => AktUtils.photoSrcAsync(p)));
+        const gallery = urls.filter(Boolean);
+        if (!gallery.length) {
+          GazpromToast.info('Не удалось открыть фото');
+          return;
+        }
+        const start = Number.isNaN(idx) ? 0 : Math.min(idx, gallery.length - 1);
+        openLightbox(gallery[start], gallery);
       });
     });
     document.getElementById('wSaveDraft')?.addEventListener('click', () => finish());
