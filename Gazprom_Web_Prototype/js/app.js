@@ -21,36 +21,7 @@ const titles = {
   violations: 'Реестр нарушений',
 };
 
-let persistPendingChain = Promise.resolve();
-
-async function persistPendingWrites() {
-  persistPendingChain = persistPendingChain.then(async () => {
-    try {
-      if (typeof WizardController?.flushSave === 'function') {
-        await WizardController.flushSave();
-      }
-      if (typeof EliminationEditor?.flushPersist === 'function') {
-        await EliminationEditor.flushPersist();
-      }
-      if (typeof GazpromStore?.flushToDisk === 'function') {
-        await GazpromStore.flushToDisk();
-      }
-    } catch (err) {
-      console.warn('persistPendingWrites', err);
-    }
-  });
-  return persistPendingChain;
-}
-
 function goTo(screenId, options = {}) {
-  const leavingWizard =
-    screenId !== 'wizard' &&
-    !options.skipWizardReload &&
-    document.getElementById('screen-wizard')?.classList.contains('active');
-  if (leavingWizard && typeof WizardController?.isDirty === 'function' && WizardController.isDirty()) {
-    void persistPendingWrites();
-  }
-
   document.querySelectorAll('.nav-item, .bottom-nav-item').forEach((n) => {
     n.classList.toggle('active', n.dataset.screen === screenId);
   });
@@ -588,17 +559,11 @@ function init() {
   EliminationEditor.bindBulkActions();
   EliminationEditor.bindTableActions();
 
-  const bindPersistOnLeave = () => {
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') void persistPendingWrites();
-    });
-    window.addEventListener('pagehide', () => {
-      void persistPendingWrites();
-    });
-  };
-
-  bindPersistOnLeave();
-  void GazpromStore.requestPersistence();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && typeof WizardController?.flushSave === 'function') {
+      void WizardController.flushSave();
+    }
+  });
 
   GazpromUI.refreshAll().catch(console.error);
 }
