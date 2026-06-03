@@ -63,30 +63,6 @@ const ReportExporter = (() => {
     downloadWorkbook(wb, `otchet_narusheniya_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
-  async function exportHistory() {
-    await ensureXlsx();
-    const data = await GazpromStore.get();
-    if (!GazpromStore.hasData(data)) throw new Error('Нет данных');
-
-    const rows = [['№', 'Дата', 'Тип', 'Организация', 'Объектов', 'Нарушений', 'Статус']];
-    for (const akt of data.akts || []) {
-      rows.push([
-        akt.number,
-        AktUtils.formatDateShort(akt.date),
-        AktUtils.formatKindLabel(akt),
-        akt.organization?.title || '',
-        (akt.objectsCheck || []).length,
-        (akt.violations || []).length,
-        AktUtils.isDraft(akt) ? 'Черновик' : 'Завершён',
-      ]);
-    }
-
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'История');
-    downloadWorkbook(wb, `akty_${new Date().toISOString().slice(0, 10)}.xlsx`);
-  }
-
   async function exportSchedule() {
     await ensureXlsx();
     const data = await GazpromStore.get();
@@ -107,5 +83,5 @@ const ReportExporter = (() => {
     downloadWorkbook(wb, `grafik_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
-  return { exportViolationsReport, exportHistory, exportSchedule };
+  return { exportViolationsReport, exportSchedule };
 })();

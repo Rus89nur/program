@@ -1,5 +1,5 @@
 /** Газпром — веб-приложение: навигация, PWA, импорт, экраны */
-window.GAZPROM_WEB_BUILD = 'web-74';
+window.GAZPROM_WEB_BUILD = 'web-75';
 
 const syncAppBuildLabel = () => {
   const build = window.GAZPROM_WEB_BUILD;
@@ -254,14 +254,6 @@ function bindHistory() {
     GazpromUI.setHistoryQuery(e.target.value);
     const data = await GazpromStore.get();
     GazpromUI.renderHistory(data);
-  });
-
-  document.getElementById('historyExportBtn')?.addEventListener('click', async () => {
-    try {
-      await ReportExporter.exportHistory();
-    } catch (e) {
-      GazpromToast.error(e.message);
-    }
   });
 
   const openHistoryAkt = async (row) => {

@@ -143,13 +143,6 @@ const GazpromUI = (() => {
   }
 
   function getHistorySubtitle(akt, viol, short, full) {
-    const objects = akt.objectsCheck || [];
-    const firstObj = objects[0];
-    if (firstObj?.title) {
-      return objects.length > 1
-        ? `${firstObj.title} · ещё ${objects.length - 1}`
-        : firstObj.title;
-    }
     const typePart = short ? 'Сокращённый акт' : full ? 'Полный акт' : 'Акт проверки';
     if (viol > 0) return `${typePart} · ${viol} наруш.`;
     return typePart;
