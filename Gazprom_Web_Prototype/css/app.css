@@ -934,19 +934,24 @@
     }
 
     .history-list-toolbar__label {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 600;
       color: var(--text-muted);
       margin-right: 4px;
     }
 
     .history-sort-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      min-height: 40px;
       border: 1px solid var(--border);
       background: var(--surface);
       color: var(--text-muted);
       border-radius: 999px;
-      padding: 4px 12px;
-      font-size: 12px;
+      padding: 10px 12px;
+      font-size: 13px;
       font-weight: 600;
       font-family: inherit;
       cursor: pointer;
@@ -969,7 +974,7 @@
     .history-sort-btn--active::after {
       display: inline-block;
       margin-left: 4px;
-      font-size: 10px;
+      font-size: 11px;
       opacity: 0.85;
     }
 
@@ -4095,8 +4100,9 @@
       }
 
       body.gazprom-mobile-shell #screen-history .history-sort-btn {
-        padding: 4px 8px;
-        font-size: 11px;
+        padding: 10px 12px;
+        font-size: 13px;
+        min-height: 44px;
       }
 
       /* История: карточки актов — сетка как на Устранении (web-80) */
