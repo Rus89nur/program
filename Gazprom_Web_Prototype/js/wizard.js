@@ -11,6 +11,8 @@ const WizardController = (() => {
   let descEditMode = false;
   let predOrgFilters = new Set();
 
+  const AUTOSAVE_MS = window.matchMedia('(pointer: coarse)').matches ? 600 : 2000;
+
   const panelsHost = () => document.getElementById('wizardPanels');
   const emptyEl = () => document.getElementById('wizardEmpty');
 
@@ -80,7 +82,7 @@ const WizardController = (() => {
       await saveDraft();
       dirty = false;
       updateDirtyIndicator();
-    }, 2000);
+    }, AUTOSAVE_MS);
   }
 
   function updateDirtyIndicator() {

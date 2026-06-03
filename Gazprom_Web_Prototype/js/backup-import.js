@@ -238,7 +238,7 @@ const GazpromBackup = (() => {
       }
     }
 
-    await requestStoragePersistence();
+    await GazpromStore.requestPersistence();
 
     const fileBytes = file?.size > 0 ? file.size : 0;
     const inlineBytes = approximateInlinePhotoBytes(merged);
@@ -329,15 +329,6 @@ const GazpromBackup = (() => {
     scan(backup.trash);
     if (backup.editableAkt?.akt) scan([backup.editableAkt.akt]);
     return bytes;
-  }
-
-  async function requestStoragePersistence() {
-    if (!navigator.storage?.persist) return;
-    try {
-      await navigator.storage.persist();
-    } catch {
-      /* ignore */
-    }
   }
 
   async function ensureStorageForPhotos(needBytes) {

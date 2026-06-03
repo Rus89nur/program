@@ -16,7 +16,7 @@ const EliminationEditor = (() => {
     clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
       void GazpromStore.set(catalog);
-    }, 400);
+    }, 250);
   }
 
   async function flushPersist() {
@@ -1073,6 +1073,7 @@ const EliminationEditor = (() => {
     bindFilters,
     bindBulkActions,
     bindTableActions,
+    flushPersist,
     getYearFilter: () => selectedYear,
   };
 })();

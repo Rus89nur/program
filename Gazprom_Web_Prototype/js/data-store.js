@@ -188,6 +188,22 @@ const GazpromStore = (() => {
     cache = null;
   }
 
+  /** Запросить у браузера постоянное хранилище (важно для iOS Safari). */
+  async function requestPersistence() {
+    if (!navigator.storage?.persist) return false;
+    try {
+      return await navigator.storage.persist();
+    } catch {
+      return false;
+    }
+  }
+
+  /** Сбросить кэш в IndexedDB перед закрытием вкладки. */
+  async function flushToDisk() {
+    if (!cache) return;
+    await set(cache, { skipPhotoIngest: true });
+  }
+
   function catalogFingerprint(data) {
     if (!data) return '';
     return [
@@ -219,5 +235,7 @@ const GazpromStore = (() => {
     updateCache,
     invalidateCache,
     getForExport,
+    requestPersistence,
+    flushToDisk,
   };
 })();

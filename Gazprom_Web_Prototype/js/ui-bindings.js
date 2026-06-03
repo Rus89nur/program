@@ -12,6 +12,76 @@ const GazpromUI = (() => {
   };
   let historySort = { key: 'date', direction: 'desc' };
   let lastSyncAt = null;
+  let dataStatusHideTimer = null;
+  const DATA_STATUS_PEEK_MS = 3500;
+  const DATA_STATUS_ANIM_MS = 750;
+
+  function clearDataStatusInlineHide(el) {
+    if (!el) return;
+    [
+      'display',
+      'max-height',
+      'padding-top',
+      'padding-bottom',
+      'margin',
+      'opacity',
+      'transform',
+      'overflow',
+      'border-bottom-width',
+      'transition',
+    ].forEach((prop) => el.style.removeProperty(prop));
+  }
+
+  function resetDataStatusPeek(el) {
+    if (!el) return;
+    clearTimeout(dataStatusHideTimer);
+    dataStatusHideTimer = null;
+    el.classList.remove('data-status--peek', 'data-status--hidden');
+    el.hidden = false;
+    clearDataStatusInlineHide(el);
+    el.removeAttribute('aria-hidden');
+  }
+
+  function finalizeDataStatusHide(el) {
+    if (!el || el.hidden) return;
+    el.classList.add('data-status--hidden');
+    el.setAttribute('aria-hidden', 'true');
+    let finalized = false;
+    const done = () => {
+      if (finalized) return;
+      finalized = true;
+      el.hidden = true;
+      el.style.display = 'none';
+    };
+    const onTransitionEnd = (e) => {
+      if (e.target !== el) return;
+      done();
+    };
+    el.addEventListener('transitionend', onTransitionEnd);
+    setTimeout(() => {
+      el.removeEventListener('transitionend', onTransitionEnd);
+      done();
+    }, DATA_STATUS_ANIM_MS + 120);
+  }
+
+  function peekDataStatusBar(el) {
+    if (!el) return;
+    clearTimeout(dataStatusHideTimer);
+    el.hidden = false;
+    clearDataStatusInlineHide(el);
+    el.classList.add('data-status--peek', 'data-status--hidden');
+    el.setAttribute('aria-hidden', 'true');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.classList.remove('data-status--hidden');
+        el.setAttribute('aria-hidden', 'false');
+      });
+    });
+    dataStatusHideTimer = setTimeout(() => {
+      finalizeDataStatusHide(el);
+      dataStatusHideTimer = null;
+    }, DATA_STATUS_PEEK_MS);
+  }
 
   function formatSyncTime(date = new Date()) {
     const d = date instanceof Date ? date : new Date(date);
@@ -276,6 +346,7 @@ const GazpromUI = (() => {
       !data.sourceFileName &&
       s.akts === 0;
     if (isFresh) {
+      resetDataStatusPeek(el);
       el.className = 'data-status data-status--ok';
       el.innerHTML =
         '<span class="data-status__line data-status__line--full"><span>✓ Новая база данных</span> — создавайте акты и заполняйте справочники в Настройках</span>' +
@@ -284,6 +355,7 @@ const GazpromUI = (() => {
     }
 
     if (!GazpromStore.hasData(data)) {
+      resetDataStatusPeek(el);
       el.className = 'data-status data-status--empty';
       el.innerHTML =
         '<span class="data-status__line data-status__line--full"><span>Данные не загружены</span> — импортируйте файл <code>.gazprombackup</code> или начните работу с нуля</span>' +
@@ -294,6 +366,8 @@ const GazpromUI = (() => {
     const fileLabel = data.sourceFileName ? escapeHtml(data.sourceFileName) : 'резервная копия';
     const dateLabel = GazpromBackup.formatDate(data.importedAt || data.timestamp);
     el.className = 'data-status data-status--ok';
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
     el.innerHTML = `
       <span class="data-status__line data-status__line--full">
         <span>✓ Данные загружены</span>
@@ -307,6 +381,7 @@ const GazpromUI = (() => {
         ✓ актов: <strong>${s.akts}</strong> · орг: <strong>${s.organizations}</strong> · фото: <strong>${s.photos}</strong>
       </span>
     `;
+    peekDataStatusBar(el);
   }
 
   function escapeHtml(s) {
