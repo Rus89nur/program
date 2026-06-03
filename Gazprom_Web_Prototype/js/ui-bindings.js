@@ -142,16 +142,8 @@ const GazpromUI = (() => {
     }
   }
 
-  function getHistorySubtitle(akt, viol, short, full) {
-    const typePart = short ? 'Сокращённый акт' : full ? 'Полный акт' : 'Акт проверки';
-    if (viol > 0) return `${typePart} · ${viol} наруш.`;
-    return typePart;
-  }
-
-  function getHistoryStatusBadge(draft) {
-    return draft
-      ? '<span class="badge badge-grey">Черновик</span>'
-      : '<span class="badge badge-green">Завершён</span>';
+  function getHistoryActType(short, full) {
+    return short ? 'Сокращённый акт' : full ? 'Полный акт' : 'Акт проверки';
   }
 
   const historyDocIcon = `<svg class="history-list-item__icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -189,28 +181,39 @@ const GazpromUI = (() => {
         const short = AktUtils.isShortFormat(akt);
         const full = AktUtils.isFullFormat(akt);
         const org = AktSearch.getOrgTitle(akt) || '—';
-        const viol = countViolations(akt);
-        const subtitle = getHistorySubtitle(akt, viol, short, full);
+        const actType = getHistoryActType(short, full);
+        const draftHint = draft
+          ? '<span class="history-list-item__draft">Черновик</span>'
+          : '';
         const openLabel = short
           ? 'Редактировать сокращённый акт'
           : draft
             ? 'Редактировать полный акт'
             : 'Открыть полный акт';
         const rowClass = short
-          ? 'history-list-item history-row history-row--short'
+          ? 'history-list-item history-row history-row--short card'
           : full
-            ? 'history-list-item history-row history-row--full'
-            : 'history-list-item history-row';
+            ? 'history-list-item history-row history-row--full card'
+            : 'history-list-item history-row card';
         return `<div class="${rowClass}" data-akt-id="${escapeHtml(akt.id)}" data-akt-short="${short ? '1' : '0'}" role="listitem" tabindex="0" title="${openLabel}" aria-label="${openLabel}: № ${escapeHtml(akt.number)}">
           <div class="history-list-item__icon">${historyDocIcon}</div>
-          <div class="history-list-item__main">
-            <div class="history-list-item__title">Акт №${escapeHtml(akt.number)}</div>
-            <div class="history-list-item__subtitle">${escapeHtml(subtitle)}</div>
+          <div class="history-list-item__content">
+            <div class="history-list-item__header">
+              <div class="history-list-item__body">
+                <h4 class="history-list-item__title">Акт №${escapeHtml(akt.number)}</h4>
+                <span class="history-list-item__org">${escapeHtml(org)}</span>
+              </div>
+              <div class="history-list-item__aside">
+                <button type="button" class="history-list-item__delete" data-history-trash="${escapeHtml(akt.id)}" aria-label="Переместить акт № ${escapeHtml(akt.number)} в корзину" title="В корзину">🗑</button>
+                <span class="history-list-item__chevron" aria-hidden="true">›</span>
+              </div>
+            </div>
+            <div class="history-list-item__foot">
+              <span class="history-list-item__date">${formatDateShort(akt.date)}</span>
+              <span class="history-list-item__type">${escapeHtml(actType)}</span>
+              ${draftHint}
+            </div>
           </div>
-          <div class="history-list-item__badge">${getHistoryStatusBadge(draft)}</div>
-          <div class="history-list-item__org">${escapeHtml(org)}</div>
-          <div class="history-list-item__date">${formatDateShort(akt.date)}</div>
-          <button type="button" class="history-list-item__delete" data-history-trash="${escapeHtml(akt.id)}" aria-label="Переместить акт № ${escapeHtml(akt.number)} в корзину" title="В корзину">🗑</button>
         </div>`;
       })
       .join('');
