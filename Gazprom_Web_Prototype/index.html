@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '95';</script>
+  <script>window.GAZPROM_ASSET_V = '96';</script>
   <script>
   (function () {
     var h = location.hostname;
@@ -30,13 +30,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=95" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=96" id="appCss">
   <script>
   (function () {
     var css = document.getElementById('appCss');
     if (!css) return;
     var base = String(css.getAttribute('href') || 'css/app.css').split('?')[0];
-    var v = window.GAZPROM_ASSET_V || '95';
+    var v = window.GAZPROM_ASSET_V || '96';
     var h = location.hostname;
     var dev = (h === 'localhost' || h === '127.0.0.1') ? ('&dev=' + Date.now()) : '';
     css.href = base + '?v=' + v + dev;
@@ -150,6 +150,7 @@
             <div class="stat-label">Черновиков</div>
           </div>
         </div>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-95</p>
       </section>
 
       <section class="screen" id="screen-wizard">
@@ -393,7 +394,6 @@
         </div>
       </section>
 
-      <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-95</p>
     </main>
   </div>
 
@@ -501,6 +501,6 @@
   <script src="js/wizard.js?v=38"></script>
   <script src="js/short-akt-form.js?v=2"></script>
   <script src="js/doc-generator.js?v=29"></script>
-  <script src="js/app.js?v=50"></script>
+  <script src="js/app.js?v=51"></script>
 </body>
 </html>
