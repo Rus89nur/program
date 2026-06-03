@@ -2699,11 +2699,6 @@
     }
 
     @media (max-width: 900px) {
-      .app {
-        grid-template-columns: 1fr;
-        grid-template-rows: var(--header-h) 1fr;
-        padding-bottom: 64px;
-      }
       .sidebar { display: none; }
       .bottom-nav { display: flex; }
       .header-actions .header-sync,
@@ -2742,7 +2737,11 @@
 
     @media (max-width: 600px) {
       .wizard-step-label { display: none; }
-      .wizard-stepper { overflow-x: auto; }
+      body.gazprom-mobile-shell .wizard-stepper {
+        overflow-x: auto;
+        max-width: 100%;
+        overscroll-behavior-x: contain;
+      }
     }
 
     /* ——— Backup Modal ——— */
@@ -3572,27 +3571,107 @@
       }
     }
 
-    /* ===== Mobile overlays: без горизонтального сдвига, адаптация к повороту (только ≤900px) ===== */
+    /* ===== Mobile shell: скролл только в .main, нижний бар не съезжает (≤900px) ===== */
     @media (max-width: 900px) {
-      html.gazprom-scroll-lock,
-      body.gazprom-scroll-lock {
+      html {
         overflow: hidden;
         width: 100%;
         max-width: 100%;
         overscroll-behavior: none;
       }
 
-      body.gazprom-scroll-lock {
-        position: fixed;
-        left: 0;
-        right: 0;
+      body.gazprom-mobile-shell {
+        overflow: hidden;
+        width: 100%;
+        max-width: 100%;
+        height: 100dvh;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        touch-action: pan-y;
+        overscroll-behavior: none;
+        position: relative;
       }
 
-      .app,
-      .main {
+      body.gazprom-mobile-shell .data-status {
+        flex-shrink: 0;
         max-width: 100%;
-        overflow-x: clip;
       }
+
+      body.gazprom-mobile-shell .app {
+        flex: 1 1 auto;
+        min-height: 0;
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-template-rows: var(--header-h) minmax(0, 1fr);
+        padding-bottom: 0;
+      }
+
+      body.gazprom-mobile-shell .header {
+        grid-column: 1;
+        grid-row: 1;
+        min-width: 0;
+        max-width: 100%;
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
+      }
+
+      body.gazprom-mobile-shell .header-actions {
+        min-width: 0;
+        flex: 1;
+        justify-content: flex-end;
+      }
+
+      body.gazprom-mobile-shell .header-actions .search-box {
+        min-width: 0;
+        flex: 1;
+        max-width: 100%;
+      }
+
+      body.gazprom-mobile-shell .main {
+        grid-column: 1;
+        grid-row: 2;
+        min-height: 0;
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+        overscroll-behavior-x: none;
+        -webkit-overflow-scrolling: touch;
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
+        padding-bottom: 16px;
+      }
+
+      body.gazprom-mobile-shell .main.gazprom-main-scroll-lock {
+        overflow: hidden;
+      }
+
+      body.gazprom-mobile-shell .bottom-nav {
+        display: flex;
+        flex-shrink: 0;
+        position: relative;
+        left: auto;
+        right: auto;
+        bottom: auto;
+        width: 100%;
+        max-width: 100%;
+        transform: translateZ(0);
+        padding-left: max(8px, env(safe-area-inset-left));
+        padding-right: max(8px, env(safe-area-inset-right));
+      }
+
+      html.gazprom-scroll-lock {
+        overflow: hidden;
+      }
+    }
+
+    /* ===== Mobile overlays: без горизонтального сдвига, адаптация к повороту (только ≤900px) ===== */
+    @media (max-width: 900px) {
 
       .modal-root,
       .modal-root.show,

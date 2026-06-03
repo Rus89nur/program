@@ -1,19 +1,18 @@
 /**
- * Фиксация фона и блокировка горизонтального сдвига при открытых окнах на телефоне (≤900px).
- * На широком экране (десктопный браузер) не активируется.
+ * Блокировка прокрутки .main при модалках на телефоне (≤900px).
+ * Скролл страницы на мобильных идёт только внутри .main (см. CSS mobile-shell).
  */
 const GazpromMobileOverlay = (() => {
   const mq = window.matchMedia('(max-width: 900px)');
   let depth = 0;
-  let scrollY = 0;
+
+  const mainEl = () => document.querySelector('.main');
 
   const lock = () => {
     if (!mq.matches) return;
     if (depth === 0) {
-      scrollY = window.scrollY;
       document.documentElement.classList.add('gazprom-scroll-lock');
-      document.body.classList.add('gazprom-scroll-lock');
-      document.body.style.top = `-${scrollY}px`;
+      mainEl()?.classList.add('gazprom-main-scroll-lock');
     }
     depth += 1;
   };
@@ -23,11 +22,16 @@ const GazpromMobileOverlay = (() => {
     depth = Math.max(0, depth - 1);
     if (depth === 0) {
       document.documentElement.classList.remove('gazprom-scroll-lock');
-      document.body.classList.remove('gazprom-scroll-lock');
-      document.body.style.top = '';
-      window.scrollTo(0, scrollY);
+      mainEl()?.classList.remove('gazprom-main-scroll-lock');
     }
   };
+
+  const syncMobileShellClass = () => {
+    document.body.classList.toggle('gazprom-mobile-shell', mq.matches);
+  };
+
+  syncMobileShellClass();
+  mq.addEventListener('change', syncMobileShellClass);
 
   return { lock, unlock };
 })();
