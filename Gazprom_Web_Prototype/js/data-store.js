@@ -83,17 +83,43 @@ const GazpromStore = (() => {
     if (!skipPhotoIngest && data && typeof PhotoStore !== 'undefined') {
       toSave = await PhotoStore.ingestCatalog(AktUtils.clone(data));
     }
-    await GazpromIdb.transaction(STORE, 'readwrite', (tx) => {
-      tx.objectStore(STORE).put(toSave, KEY);
-      tx.objectStore(STORE).delete(DRAFT_KEY);
-    });
+    try {
+      await GazpromIdb.transaction(STORE, 'readwrite', (tx) => {
+        tx.objectStore(STORE).put(toSave, KEY);
+        tx.objectStore(STORE).delete(DRAFT_KEY);
+      });
+    } catch (putErr) {
+      // #region agent log
+      if (typeof DebugAgent !== 'undefined') {
+        DebugAgent.log('data-store.js:set', 'idb put failed', {
+          name: putErr?.name,
+          msg: putErr?.message,
+        }, 'D');
+      }
+      // #endregion
+      throw putErr;
+    }
     cache = toSave;
 
     if (!verifyWrite) return;
 
     invalidateCache();
     const fromDb = await readCatalogFromDb();
-    if (!verifyCatalogWrite(toSave, fromDb)) {
+    const fpExpected = catalogFingerprint(toSave);
+    const fpActual = catalogFingerprint(fromDb);
+    const verified = verifyCatalogWrite(toSave, fromDb);
+    // #region agent log
+    if (typeof DebugAgent !== 'undefined') {
+      DebugAgent.log('data-store.js:set', 'verify write', {
+        verified,
+        fpExpected,
+        fpActual,
+        aktsExpected: (toSave.akts || []).length,
+        aktsActual: (fromDb.akts || []).length,
+      }, 'C');
+    }
+    // #endregion
+    if (!verified) {
       cache = null;
       throw new Error(
         'Данные не сохранились в браузере после импорта. На iPhone: выйдите из режима «частная сессия», освободите память или используйте «Вставить текст» для небольшой копии.'

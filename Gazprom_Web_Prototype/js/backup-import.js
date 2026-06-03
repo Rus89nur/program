@@ -129,6 +129,15 @@ const GazpromBackup = (() => {
 
   /** Чтение текста файла: iOS Safari теряет доступ к File после сброса input.value. */
   async function readFileText(file) {
+    // #region agent log
+    if (typeof DebugAgent !== 'undefined') {
+      DebugAgent.log('backup-import.js:readFileText', 'read start', {
+        name: file?.name,
+        size: file?.size,
+        type: file?.type,
+      }, 'A');
+    }
+    // #endregion
     const viaReader = () =>
       new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -152,6 +161,14 @@ const GazpromBackup = (() => {
     if (!text) {
       throw new Error('Файл пустой или не удалось прочитать содержимое');
     }
+    // #region agent log
+    if (typeof DebugAgent !== 'undefined') {
+      DebugAgent.log('backup-import.js:readFileText', 'read ok', {
+        textLen: text.length,
+        head: text.slice(0, 40),
+      }, 'A');
+    }
+    // #endregion
     return text;
   }
 
@@ -166,6 +183,14 @@ const GazpromBackup = (() => {
     const backup = normalizeBackup(raw);
     if (fileName) backup.sourceFileName = fileName;
     restoreEditableReference(backup);
+    // #region agent log
+    if (typeof DebugAgent !== 'undefined') {
+      DebugAgent.log('backup-import.js:parseJsonText', 'parse ok', {
+        akts: backup.akts.length,
+        version: backup.version,
+      }, 'B');
+    }
+    // #endregion
     return backup;
   }
 
@@ -187,7 +212,27 @@ const GazpromBackup = (() => {
     }
 
     await requestStoragePersistence();
-    const sizeHint = estimateBackupBytes(merged);
+    let sizeHint = 0;
+    try {
+      sizeHint = estimateBackupBytes(merged);
+    } catch (sizeErr) {
+      // #region agent log
+      if (typeof DebugAgent !== 'undefined') {
+        DebugAgent.log('backup-import.js:importFile', 'estimateBackupBytes failed', {
+          err: sizeErr?.message || String(sizeErr),
+        }, 'I');
+      }
+      // #endregion
+    }
+    // #region agent log
+    if (typeof DebugAgent !== 'undefined') {
+      DebugAgent.log('backup-import.js:importFile', 'before set', {
+        replace,
+        sizeHint,
+        akts: merged.akts?.length,
+      }, 'C');
+    }
+    // #endregion
     if (sizeHint > 40 * 1024 * 1024 && typeof GazpromToast !== 'undefined') {
       const ok = await GazpromToast.confirm(
         `Копия большая (≈${formatBytes(sizeHint)}). На телефоне сохранение может занять несколько минут или не поместиться в память. Продолжить?`
@@ -197,6 +242,13 @@ const GazpromBackup = (() => {
 
     // На iOS ingest всех фото в IDB может зависнуть/OOM — сохраняем base64 в каталоге.
     await GazpromStore.set(merged, { skipPhotoIngest: true, verifyWrite: true });
+    // #region agent log
+    if (typeof DebugAgent !== 'undefined') {
+      DebugAgent.log('backup-import.js:importFile', 'set ok', {
+        akts: merged.akts?.length,
+      }, 'C');
+    }
+    // #endregion
     return { backup: merged, stats: getStats(merged) };
   }
 

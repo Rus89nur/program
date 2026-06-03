@@ -168,6 +168,14 @@ async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
     goTo('home');
   } catch (err) {
     console.error(err);
+    // #region agent log
+    if (typeof DebugAgent !== 'undefined') {
+      DebugAgent.log('app.js:handleBackupFile', 'import error', {
+        name: err?.name,
+        msg: err?.message,
+      }, 'E');
+    }
+    // #endregion
     setBackupMessage(err.message || 'Ошибка импорта', 'error');
     GazpromToast.error(err.message || 'Ошибка импорта');
   } finally {
@@ -454,6 +462,16 @@ function init() {
     const file = input.files?.[0];
     if (!file) return;
     const fileName = file.name || 'backup.json';
+    // #region agent log
+    if (typeof DebugAgent !== 'undefined') {
+      DebugAgent.log('app.js:backupFileInput', 'file selected', {
+        name: fileName,
+        size: file.size,
+        type: file.type,
+        accept: input.accept,
+      }, 'F');
+    }
+    // #endregion
     void (async () => {
       try {
         const text = await GazpromBackup.readFileText(file);
@@ -461,6 +479,14 @@ function init() {
         await handleBackupFile(file, { parsed });
       } catch (err) {
         console.error(err);
+        // #region agent log
+        if (typeof DebugAgent !== 'undefined') {
+          DebugAgent.log('app.js:backupFileInput', 'read/parse error', {
+            name: err?.name,
+            msg: err?.message,
+          }, 'A');
+        }
+        // #endregion
         setBackupMessage(err.message || 'Ошибка чтения файла', 'error');
         GazpromToast.error(err.message || 'Ошибка чтения файла');
       } finally {
@@ -541,7 +567,30 @@ function init() {
     }
   });
 
-  GazpromUI.refreshAll().catch(console.error);
+  GazpromUI.refreshAll()
+    .then(async () => {
+      const data = await GazpromStore.get();
+      // #region agent log
+      if (typeof DebugAgent !== 'undefined') {
+        DebugAgent.log('app.js:init', 'startup catalog', {
+          akts: (data?.akts || []).length,
+          hasImportedAt: !!data?.importedAt,
+          sw: navigator.serviceWorker?.controller?.scriptURL?.slice(-24) || 'none',
+          href: location.href.slice(0, 80),
+        }, 'G');
+      }
+      // #endregion
+    })
+    .catch(console.error);
+
+  document.getElementById('backupDebugCopyBtn')?.addEventListener('click', async () => {
+    if (typeof DebugAgent === 'undefined') return;
+    const ok = await DebugAgent.copyLogsToClipboard();
+    GazpromToast.show(
+      ok ? 'Журнал отладки скопирован — вставьте в сообщение разработчику' : 'Скопируйте вручную из консоли: agentDebugLog_2c2db0',
+      ok ? 'success' : 'error'
+    );
+  });
 }
 
 init();
