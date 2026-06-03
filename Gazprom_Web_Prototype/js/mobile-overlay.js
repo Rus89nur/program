@@ -1,6 +1,5 @@
 /**
- * Мобильная оболочка (≤900px): блокировка .main при модалках, синхронизация visualViewport
- * (реальный Safari на iPhone смещает fixed-элементы иначе, чем симулятор).
+ * Мобильная оболочка (≤900px): блокировка .main при модалках, высота visualViewport для модалок.
  */
 const GazpromMobileOverlay = (() => {
   const mq = window.matchMedia('(max-width: 900px)');
@@ -11,22 +10,23 @@ const GazpromMobileOverlay = (() => {
   const syncVisualViewport = () => {
     const root = document.documentElement;
     if (!mq.matches || !window.visualViewport) {
-      root.style.removeProperty('--vv-width');
       root.style.removeProperty('--vv-height');
-      root.style.removeProperty('--vv-offset-left');
-      root.style.removeProperty('--vv-offset-top');
       return;
     }
-    const vv = window.visualViewport;
-    root.style.setProperty('--vv-width', `${vv.width}px`);
-    root.style.setProperty('--vv-height', `${vv.height}px`);
-    root.style.setProperty('--vv-offset-left', `${vv.offsetLeft}px`);
-    root.style.setProperty('--vv-offset-top', `${vv.offsetTop}px`);
+    root.style.setProperty('--vv-height', `${window.visualViewport.height}px`);
+    if (window.scrollX !== 0) {
+      window.scrollTo(0, window.scrollY);
+    }
   };
 
   const syncMobileShellClass = () => {
     document.body.classList.toggle('gazprom-mobile-shell', mq.matches);
     syncVisualViewport();
+    if (mq.matches) {
+      window.scrollTo(0, window.scrollY);
+      document.documentElement.scrollLeft = 0;
+      document.body.scrollLeft = 0;
+    }
   };
 
   const lock = () => {
@@ -60,12 +60,12 @@ const GazpromMobileOverlay = (() => {
   const handleTouchMove = (e) => {
     if (!mq.matches || e.touches.length !== 1) return;
     const scrollable = e.target.closest(
-      '.main, .modal-body, .catalog-editor-body, .catalog-form-dialog, .backup-modal-dialog, .vr-form-dialog, .wizard-stepper, .list-table, .toolbar-filters--pills'
+      '.main, .modal-body, .catalog-editor-body, .catalog-form-dialog, .backup-modal-dialog, .vr-form-dialog, .wizard-stepper, .list-table, .toolbar-filters--pills, .history-list'
     );
     if (scrollable) return;
     const dx = Math.abs(e.touches[0].clientX - touchStartX);
     const dy = Math.abs(e.touches[0].clientY - touchStartY);
-    if (dx > dy && dx > 8) {
+    if (dx > dy && dx > 6) {
       e.preventDefault();
     }
   };
