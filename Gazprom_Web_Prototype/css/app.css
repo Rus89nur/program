@@ -3676,19 +3676,11 @@
       }
 
       body.gazprom-mobile-shell .header-actions {
-        width: 100%;
-        min-width: 0;
-        max-width: 100%;
-        flex: none;
-        display: block;
+        display: none;
       }
 
-      body.gazprom-mobile-shell .header-actions .search-box,
-      body.gazprom-mobile-shell input.search-box {
-        width: 100%;
-        min-width: 0;
-        max-width: 100%;
-        box-sizing: border-box;
+      body.gazprom-mobile-shell .header {
+        gap: 0;
       }
 
       body.gazprom-mobile-shell .main {
@@ -4021,28 +4013,15 @@
       body.gazprom-mobile-shell .header {
         flex-direction: row;
         align-items: center;
-        gap: 8px;
         padding-top: 4px;
         padding-bottom: 4px;
       }
 
       body.gazprom-mobile-shell .header-title {
-        flex: 0 1 auto;
-        max-width: 38%;
-        font-size: 0.9rem;
-        margin: 0;
-      }
-
-      body.gazprom-mobile-shell .header-actions {
         flex: 1 1 auto;
-        min-width: 0;
-      }
-
-      body.gazprom-mobile-shell .header-actions .search-box,
-      body.gazprom-mobile-shell input.search-box {
-        padding: 8px 12px;
-        font-size: 14px;
-        min-height: 36px;
+        max-width: 100%;
+        font-size: 0.95rem;
+        margin: 0;
       }
 
       body.gazprom-mobile-shell .main {
@@ -4067,30 +4046,6 @@
 
       body.gazprom-mobile-shell .bottom-nav-item .nav-icon {
         font-size: 20px;
-      }
-
-      body.gazprom-mobile-shell #screen-settings .settings-grid {
-        grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
-        gap: 8px;
-      }
-
-      body.gazprom-mobile-shell .settings-tile {
-        padding: 10px 6px;
-      }
-
-      body.gazprom-mobile-shell .settings-tile .icon {
-        font-size: 22px;
-        margin-bottom: 4px;
-      }
-
-      body.gazprom-mobile-shell .settings-tile h4 {
-        font-size: 11px;
-        line-height: 1.2;
-        margin-bottom: 0;
-      }
-
-      body.gazprom-mobile-shell .settings-tile p {
-        display: none;
       }
 
       body.gazprom-mobile-shell .app-build-id {
