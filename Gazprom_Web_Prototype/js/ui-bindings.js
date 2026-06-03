@@ -146,6 +146,13 @@ const GazpromUI = (() => {
     return short ? 'Сокращённый акт' : full ? 'Полный акт' : 'Акт проверки';
   }
 
+  function getHistoryObjectHtml(akt) {
+    const obj = (akt.objectsCheck || [])[0];
+    const objectTitle = obj?.title || obj?.subTitle || '';
+    if (!objectTitle) return '';
+    return `<p class="history-list-item__object">${escapeHtml(objectTitle)}</p>`;
+  }
+
   const historyDocIcon = `<svg class="history-list-item__icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <path d="M8 3h7l4 4v14a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
     <path d="M15 3v4h4M9 12h6M9 16h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
@@ -181,6 +188,11 @@ const GazpromUI = (() => {
         const short = AktUtils.isShortFormat(akt);
         const full = AktUtils.isFullFormat(akt);
         const org = AktSearch.getOrgTitle(akt) || '—';
+        const objectHtml = getHistoryObjectHtml(akt);
+        const inspectionDate =
+          typeof AktUtils?.formatDateShort === 'function'
+            ? AktUtils.formatDateShort(akt.date)
+            : formatDateShort(akt.date);
         const actType = getHistoryActType(short, full);
         const draftHint = draft
           ? '<span class="history-list-item__draft">Черновик</span>'
@@ -204,12 +216,13 @@ const GazpromUI = (() => {
                 <span class="history-list-item__org">${escapeHtml(org)}</span>
               </div>
               <div class="history-list-item__aside">
-                <button type="button" class="history-list-item__delete" data-history-trash="${escapeHtml(akt.id)}" aria-label="Переместить акт № ${escapeHtml(akt.number)} в корзину" title="В корзину">🗑</button>
+                <button type="button" class="history-list-item__delete" data-history-trash="${escapeHtml(akt.id)}" aria-label="Переместить акт № ${escapeHtml(akt.number)} в корзину" title="В корзину"><span aria-hidden="true">×</span></button>
                 <span class="history-list-item__chevron" aria-hidden="true">›</span>
               </div>
             </div>
             <div class="history-list-item__foot">
-              <span class="history-list-item__date">${formatDateShort(akt.date)}</span>
+              ${objectHtml}
+              <span class="history-list-item__date">Проверка: ${escapeHtml(inspectionDate)}</span>
               <span class="history-list-item__type">${escapeHtml(actType)}</span>
               ${draftHint}
             </div>

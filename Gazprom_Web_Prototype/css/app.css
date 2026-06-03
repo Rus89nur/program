@@ -1098,20 +1098,39 @@
 
     .history-list-item__foot {
       display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 6px 12px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
       padding-top: 8px;
       border-top: 1px solid var(--border);
       font-size: 13px;
       color: var(--text-muted);
       line-height: 1.35;
+      min-width: 0;
+    }
+
+    .history-list-item__foot > :last-child {
+      margin-bottom: 0;
+    }
+
+    .history-list-item__object {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 0;
+      line-height: 1.45;
+      white-space: normal;
+      word-break: normal;
+      overflow-wrap: break-word;
+      hyphens: auto;
+      width: 100%;
     }
 
     .history-list-item__date {
       font-weight: 600;
-      color: var(--text);
-      white-space: nowrap;
+      color: var(--text-muted);
+      line-height: 1.3;
+      width: 100%;
     }
 
     .history-list-item__type {
@@ -1141,26 +1160,28 @@
 
     .history-list-item__delete {
       flex-shrink: 0;
-      width: 36px;
-      height: 36px;
+      min-width: 44px;
+      min-height: 44px;
+      width: 44px;
+      height: 44px;
       border: none;
       background: transparent;
       border-radius: 8px;
       cursor: pointer;
-      font-size: 17px;
+      font-size: 22px;
+      font-weight: 600;
       line-height: 1;
-      color: var(--text-muted);
-      opacity: 0.65;
-      transition: opacity 0.15s, background 0.15s;
+      color: var(--danger);
+      transition: background 0.15s;
       display: flex;
       align-items: center;
       justify-content: center;
+      padding: 0;
     }
 
     .history-list-item__delete:hover,
     .history-list-item__delete:focus-visible {
-      opacity: 1;
-      background: rgba(211, 47, 47, 0.08);
+      background: rgba(198, 40, 40, 0.1);
       outline: none;
     }
 
@@ -3975,7 +3996,7 @@
         background: var(--bg);
       }
 
-      /* История: карточки актов — сетка как на Устранении (web-77) */
+      /* История: карточки актов — сетка как на Устранении (web-79) */
       body.gazprom-mobile-shell .history-list-item {
         display: grid;
         grid-template-columns: 40px minmax(0, 1fr);
@@ -4013,6 +4034,15 @@
         padding-top: 8px;
       }
 
+      body.gazprom-mobile-shell .history-list-item__object {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+        word-break: normal;
+        overflow-wrap: break-word;
+        hyphens: auto;
+      }
+
       body.gazprom-mobile-shell .history-list-item__org {
         font-weight: 500;
         color: var(--text);
@@ -4028,8 +4058,11 @@
       }
 
       body.gazprom-mobile-shell .history-list-item__delete {
-        width: 36px;
-        height: 36px;
+        min-width: 44px;
+        min-height: 44px;
+        width: 44px;
+        height: 44px;
+        font-size: 24px;
       }
 
       body.gazprom-mobile-shell .history-list-item__chevron {
