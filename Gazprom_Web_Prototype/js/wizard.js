@@ -518,7 +518,7 @@ const WizardController = (() => {
       <h3>Выводы комиссии</h3>
       <div class="form-group vyvody-group">
         <label>Выводы комиссии</label>
-        <textarea class="form-control" id="wVyvody" rows="4" placeholder="Введите выводы комиссии…"${isEdit ? '' : ' readonly'}>${vyvody}</textarea>
+        <textarea class="form-control" id="wVyvody" rows="4" placeholder="Введите выводы комиссии…">${vyvody}</textarea>
         <div class="vyvody-actions">
           ${editBtn}
           <div class="vyvody-templates">${templateBtns}</div>
@@ -868,7 +868,7 @@ const WizardController = (() => {
         const templates = catalog.descriptionTemplates || ['', '', ''];
         const text = templates[idx] || '';
         if (!text.trim()) {
-          GazpromToast.info(`Шаблон ${idx + 1} пуст. Войдите в режим редактирования и нажмите «Сохранить в Шаблон ${idx + 1}»`);
+          GazpromToast.info(`Шаблон ${idx + 1} пуст. Введите текст и нажмите «Сохранить в Шаблон ${idx + 1}» в режиме редактирования`);
           return;
         }
         draft.komissijaVyvody = text;

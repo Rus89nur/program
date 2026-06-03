@@ -78,7 +78,7 @@ const GazpromStore = (() => {
     return cache;
   }
 
-  async function set(data, { skipPhotoIngest = true } = {}) {
+  async function set(data, { skipPhotoIngest = true, verifyWrite = false } = {}) {
     let toSave = data;
     if (!skipPhotoIngest && data && typeof PhotoStore !== 'undefined') {
       toSave = await PhotoStore.ingestCatalog(AktUtils.clone(data));
@@ -88,6 +88,18 @@ const GazpromStore = (() => {
       tx.objectStore(STORE).delete(DRAFT_KEY);
     });
     cache = toSave;
+
+    if (!verifyWrite) return;
+
+    invalidateCache();
+    const fromDb = await readCatalogFromDb();
+    if (!verifyCatalogWrite(toSave, fromDb)) {
+      cache = null;
+      throw new Error(
+        'Данные не сохранились в браузере после импорта. На iPhone: выйдите из режима «частная сессия», освободите память или используйте «Вставить текст» для небольшой копии.'
+      );
+    }
+    cache = fromDb;
   }
 
   /** Быстрое сохранение только текущего черновика акта (для мастера на телефоне). */
@@ -148,6 +160,23 @@ const GazpromStore = (() => {
 
   function invalidateCache() {
     cache = null;
+  }
+
+  function catalogFingerprint(data) {
+    if (!data) return '';
+    return [
+      (data.akts || []).length,
+      (data.organizations || []).length,
+      data.importedAt || '',
+      data.timestamp || '',
+      data.sourceFileName || '',
+    ].join('|');
+  }
+
+  function verifyCatalogWrite(expected, actual) {
+    if (!actual || !Array.isArray(actual.akts)) return false;
+    if (hasData(expected) && !hasData(actual)) return false;
+    return catalogFingerprint(expected) === catalogFingerprint(actual);
   }
 
   return {

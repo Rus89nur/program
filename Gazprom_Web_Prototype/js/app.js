@@ -54,7 +54,10 @@ function bindHeaderSync() {
   });
 }
 
+let backupImportInProgress = false;
+
 function shouldDeferAppReload() {
+  if (backupImportInProgress) return true;
   return typeof WizardController?.isDirty === 'function' && WizardController.isDirty();
 }
 
@@ -132,6 +135,7 @@ async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
   if (!file && !preParsed) return;
 
   const merge = document.getElementById('backupMergeCheckbox')?.checked ?? false;
+  backupImportInProgress = true;
   setBackupLoading(true, 'Чтение файла…');
   setBackupMessage('');
 
@@ -167,6 +171,7 @@ async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
     setBackupMessage(err.message || 'Ошибка импорта', 'error');
     GazpromToast.error(err.message || 'Ошибка импорта');
   } finally {
+    backupImportInProgress = false;
     setBackupLoading(false);
   }
 }
@@ -237,7 +242,7 @@ function bindHistory() {
     goTo('wizard', { aktId });
   };
 
-  document.getElementById('historyTableBody')?.addEventListener('click', async (e) => {
+  document.getElementById('historyList')?.addEventListener('click', async (e) => {
     const trashBtn = e.target.closest('[data-history-trash]');
     if (trashBtn) {
       e.stopPropagation();
@@ -263,14 +268,14 @@ function bindHistory() {
       GazpromToast.success(`Акт № ${akt.number} перемещён в корзину`);
       return;
     }
-    const row = e.target.closest('tr.history-row[data-akt-id]');
+    const row = e.target.closest('.history-row[data-akt-id]');
     if (!row) return;
     await openHistoryAkt(row);
   });
 
-  document.getElementById('historyTableBody')?.addEventListener('keydown', async (e) => {
+  document.getElementById('historyList')?.addEventListener('keydown', async (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    const row = e.target.closest('tr.history-row[data-akt-id]');
+    const row = e.target.closest('.history-row[data-akt-id]');
     if (!row) return;
     e.preventDefault();
     await openHistoryAkt(row);
@@ -285,24 +290,24 @@ function bindHistory() {
     ShortAktForm.open(btn.dataset.shortContinue);
   });
 
-  const historyThead = document.querySelector('#screen-history .list-table thead');
-  const handleHistorySort = async (th) => {
-    if (!th?.dataset.sortKey) return;
-    GazpromUI.toggleHistorySort(th.dataset.sortKey);
+  const historySortToolbar = document.querySelector('#screen-history .history-list-toolbar');
+  const handleHistorySort = async (btn) => {
+    if (!btn?.dataset.sortKey) return;
+    GazpromUI.toggleHistorySort(btn.dataset.sortKey);
     const data = await GazpromStore.get();
     GazpromUI.renderHistory(data);
   };
-  historyThead?.addEventListener('click', (e) => {
-    const th = e.target.closest('th[data-sort-key]');
-    if (!th) return;
-    handleHistorySort(th);
+  historySortToolbar?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.history-sort-btn[data-sort-key]');
+    if (!btn) return;
+    handleHistorySort(btn);
   });
-  historyThead?.addEventListener('keydown', (e) => {
+  historySortToolbar?.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    const th = e.target.closest('th[data-sort-key]');
-    if (!th) return;
+    const btn = e.target.closest('.history-sort-btn[data-sort-key]');
+    if (!btn) return;
     e.preventDefault();
-    handleHistorySort(th);
+    handleHistorySort(btn);
   });
 }
 
@@ -448,13 +453,12 @@ function init() {
     const input = e.target;
     const file = input.files?.[0];
     if (!file) return;
-    const fileName = file.name;
+    const fileName = file.name || 'backup.json';
     void (async () => {
       try {
         const text = await GazpromBackup.readFileText(file);
-        input.value = '';
         const parsed = GazpromBackup.parseJsonText(text, fileName);
-        await handleBackupFile(null, { parsed });
+        await handleBackupFile(file, { parsed });
       } catch (err) {
         console.error(err);
         setBackupMessage(err.message || 'Ошибка чтения файла', 'error');

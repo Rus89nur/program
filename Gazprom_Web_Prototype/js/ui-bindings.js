@@ -142,9 +142,33 @@ const GazpromUI = (() => {
     }
   }
 
+  function getHistorySubtitle(akt, viol, short, full) {
+    const objects = akt.objectsCheck || [];
+    const firstObj = objects[0];
+    if (firstObj?.title) {
+      return objects.length > 1
+        ? `${firstObj.title} · ещё ${objects.length - 1}`
+        : firstObj.title;
+    }
+    const typePart = short ? 'Сокращённый акт' : full ? 'Полный акт' : 'Акт проверки';
+    if (viol > 0) return `${typePart} · ${viol} наруш.`;
+    return typePart;
+  }
+
+  function getHistoryStatusBadge(draft) {
+    return draft
+      ? '<span class="badge badge-grey">Черновик</span>'
+      : '<span class="badge badge-green">Завершён</span>';
+  }
+
+  const historyDocIcon = `<svg class="history-list-item__icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M8 3h7l4 4v14a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M15 3v4h4M9 12h6M9 16h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`;
+
   function renderHistory(data, options = {}) {
-    const tbody = document.querySelector('#historyTableBody');
-    if (!tbody) return;
+    const list = document.querySelector('#historyList');
+    if (!list) return;
 
     const query = options.query ?? historyQuery;
     const filter = options.filter ?? historyFilter;
@@ -161,46 +185,40 @@ const GazpromUI = (() => {
     updateHistorySortHeaders();
 
     if (!akts.length) {
-      tbody.innerHTML =
-        '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:32px;">Нет актов по выбранным критериям.</td></tr>';
+      list.innerHTML =
+        '<div class="history-list-empty">Нет актов по выбранным критериям.</div>';
       return;
     }
 
-    tbody.innerHTML = akts
+    list.innerHTML = akts
       .map((akt) => {
         const draft = isDraft(akt);
         const short = AktUtils.isShortFormat(akt);
         const full = AktUtils.isFullFormat(akt);
         const org = AktSearch.getOrgTitle(akt) || '—';
         const viol = countViolations(akt);
+        const subtitle = getHistorySubtitle(akt, viol, short, full);
         const openLabel = short
           ? 'Редактировать сокращённый акт'
           : draft
             ? 'Редактировать полный акт'
             : 'Открыть полный акт';
         const rowClass = short
-          ? 'history-row history-row--short'
+          ? 'history-list-item history-row history-row--short'
           : full
-            ? 'history-row history-row--full'
-            : 'history-row';
-        const typeBadge = short
-          ? '<span class="akt-badge akt-badge--short">Сокращённый</span>'
-          : full
-            ? '<span class="akt-badge akt-badge--full">Полный</span>'
-            : '<span class="akt-badge akt-badge--muted">—</span>';
-        const draftBadge = draft
-          ? ' <span class="akt-badge akt-badge--draft">Черновик</span>'
-          : '';
-        return `<tr class="${rowClass}" data-akt-id="${escapeHtml(akt.id)}" data-akt-short="${short ? '1' : '0'}" role="button" tabindex="0" title="${openLabel}" aria-label="${openLabel}: № ${escapeHtml(akt.number)}">
-          <td><strong>${escapeHtml(akt.number)}</strong></td>
-          <td>${formatDateShort(akt.date)}</td>
-          <td>${escapeHtml(org)}</td>
-          <td>${viol}</td>
-          <td class="history-type-cell">${typeBadge}${draftBadge}</td>
-          <td class="history-actions-cell">
-            <button type="button" class="history-delete-btn" data-history-trash="${escapeHtml(akt.id)}" aria-label="Переместить акт № ${escapeHtml(akt.number)} в корзину" title="В корзину">🗑</button>
-          </td>
-        </tr>`;
+            ? 'history-list-item history-row history-row--full'
+            : 'history-list-item history-row';
+        return `<div class="${rowClass}" data-akt-id="${escapeHtml(akt.id)}" data-akt-short="${short ? '1' : '0'}" role="listitem" tabindex="0" title="${openLabel}" aria-label="${openLabel}: № ${escapeHtml(akt.number)}">
+          <div class="history-list-item__icon">${historyDocIcon}</div>
+          <div class="history-list-item__main">
+            <div class="history-list-item__title">Акт №${escapeHtml(akt.number)}</div>
+            <div class="history-list-item__subtitle">${escapeHtml(subtitle)}</div>
+          </div>
+          <div class="history-list-item__badge">${getHistoryStatusBadge(draft)}</div>
+          <div class="history-list-item__org">${escapeHtml(org)}</div>
+          <div class="history-list-item__date">${formatDateShort(akt.date)}</div>
+          <button type="button" class="history-list-item__delete" data-history-trash="${escapeHtml(akt.id)}" aria-label="Переместить акт № ${escapeHtml(akt.number)} в корзину" title="В корзину">🗑</button>
+        </div>`;
       })
       .join('');
   }
@@ -280,12 +298,12 @@ const GazpromUI = (() => {
   }
 
   function updateHistorySortHeaders() {
-    document.querySelectorAll('#screen-history .list-table thead th[data-sort-key]').forEach((th) => {
-      const active = th.dataset.sortKey === historySort.key;
-      th.classList.toggle('th--sorted', active);
-      th.classList.toggle('th--sorted-asc', active && historySort.direction === 'asc');
-      th.classList.toggle('th--sorted-desc', active && historySort.direction === 'desc');
-      th.setAttribute('aria-sort', active ? (historySort.direction === 'asc' ? 'ascending' : 'descending') : 'none');
+    document.querySelectorAll('#screen-history .history-sort-btn[data-sort-key]').forEach((btn) => {
+      const active = btn.dataset.sortKey === historySort.key;
+      btn.classList.toggle('history-sort-btn--active', active);
+      btn.classList.toggle('history-sort-btn--asc', active && historySort.direction === 'asc');
+      btn.classList.toggle('history-sort-btn--desc', active && historySort.direction === 'desc');
+      btn.setAttribute('aria-sort', active ? (historySort.direction === 'asc' ? 'ascending' : 'descending') : 'none');
     });
   }
 

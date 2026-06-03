@@ -37,12 +37,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=28" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=29" id="appCss">
 </head>
 <body>
 
   <!-- Вне модалок: iOS Safari не открывает picker у input внутри [hidden] -->
-  <input type="file" id="backupFileInput" class="backup-file-input" accept="application/json,.json,text/json,text/plain,application/octet-stream" tabindex="-1" aria-hidden="true">
+  <input type="file" id="backupFileInput" class="backup-file-input" accept=".gazprombackup,.json,application/json,text/json,text/plain,application/octet-stream" tabindex="-1" aria-hidden="true">
 
   <div id="dataStatusBar" class="data-status data-status--empty">
     <span>Данные не загружены</span> — импортируйте файл <code>.gazprombackup</code> или начните работу с нуля
@@ -207,34 +207,30 @@
       </section>
 
       <section class="screen" id="screen-history">
-        <div class="toolbar">
-          <div class="toolbar-filters">
+        <div class="toolbar toolbar--history">
+          <div class="toolbar-history__body">
             <input type="search" class="form-control history-search" id="historySearch" placeholder="Поиск по номеру, организации…">
-            <button class="filter-pill active" type="button" data-filter="all">Все</button>
-            <button class="filter-pill" type="button" data-filter="year" data-filter-value="2026">2026</button>
-            <button class="filter-pill" type="button" data-filter="year" data-filter-value="2025">2025</button>
-            <button class="filter-pill" type="button" data-filter="violations">С нарушениями</button>
-            <button class="filter-pill" type="button" data-filter="short">Сокращённые</button>
-            <button class="filter-pill" type="button" data-filter="full">Полные</button>
-            <button class="filter-pill" type="button" data-filter="drafts">Черновики</button>
+            <div class="toolbar-filters toolbar-filters--pills">
+              <button class="filter-pill active" type="button" data-filter="all">Все</button>
+              <button class="filter-pill" type="button" data-filter="year" data-filter-value="2026">2026</button>
+              <button class="filter-pill" type="button" data-filter="year" data-filter-value="2025">2025</button>
+              <button class="filter-pill" type="button" data-filter="violations">С нарушениями</button>
+              <button class="filter-pill" type="button" data-filter="short">Сокращённые</button>
+              <button class="filter-pill" type="button" data-filter="full">Полные</button>
+              <button class="filter-pill" type="button" data-filter="drafts">Черновики</button>
+            </div>
           </div>
           <button class="btn-secondary" type="button" id="historyExportBtn">Экспорт списка</button>
         </div>
-        <div class="card card--flush">
-          <table class="list-table">
-            <thead>
-              <tr>
-                <th class="th--sortable" data-sort-key="number" tabindex="0" role="columnheader" aria-sort="none">№</th>
-                <th class="th--sortable" data-sort-key="date" tabindex="0" role="columnheader" aria-sort="none">Дата</th>
-                <th class="th--sortable" data-sort-key="organization" tabindex="0" role="columnheader" aria-sort="none">Организация</th>
-                <th class="th--sortable" data-sort-key="violations" tabindex="0" role="columnheader" aria-sort="none">Наруш.</th>
-                <th>Тип</th>
-                <th class="th--actions" aria-label="Действия"></th>
-              </tr>
-            </thead>
-              <tbody id="historyTableBody">
-              </tbody>
-          </table>
+        <div class="card card--flush history-card">
+          <div class="history-list-toolbar" role="toolbar" aria-label="Сортировка списка">
+            <span class="history-list-toolbar__label">Сортировка:</span>
+            <button class="history-sort-btn" type="button" data-sort-key="number" tabindex="0" aria-sort="none">№</button>
+            <button class="history-sort-btn" type="button" data-sort-key="date" tabindex="0" aria-sort="none">Дата</button>
+            <button class="history-sort-btn" type="button" data-sort-key="organization" tabindex="0" aria-sort="none">Организация</button>
+            <button class="history-sort-btn" type="button" data-sort-key="violations" tabindex="0" aria-sort="none">Наруш.</button>
+          </div>
+          <div class="history-list" id="historyList" role="list"></div>
         </div>
       </section>
 
@@ -444,15 +440,15 @@
     });
   })();
   </script>
-  <script src="js/idb-connection.js?v=18"></script>
-  <script src="js/data-store.js?v=19"></script>
+  <script src="js/idb-connection.js?v=20"></script>
+  <script src="js/data-store.js?v=20"></script>
   <script src="js/photo-store.js?v=19"></script>
   <script src="js/toast.js"></script>
   <script src="js/akt-utils.js"></script>
   <script src="js/violation-templates.js?v=20"></script>
   <script src="js/violation-registry.js"></script>
   <script src="js/catalog-service.js"></script>
-  <script src="js/backup-import.js"></script>
+  <script src="js/backup-import.js?v=21"></script>
   <script src="js/akt-search.js"></script>
   <script src="js/ui-bindings.js?v=17"></script>
   <script src="js/catalog-editor.js?v=10"></script>
@@ -463,6 +459,6 @@
   <script src="js/wizard.js?v=20"></script>
   <script src="js/short-akt-form.js"></script>
   <script src="js/doc-generator.js?v=29"></script>
-  <script src="js/app.js?v=20"></script>
+  <script src="js/app.js?v=21"></script>
 </body>
 </html>

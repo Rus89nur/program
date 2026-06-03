@@ -8,7 +8,8 @@ const GazpromBackup = (() => {
    * Телефон (iOS Safari): без image/* и video/* — иначе меню «Медиатека / Снять фото / Файл».
    * .gazprombackup часто приходит как application/octet-stream; .json — application/json.
    */
-  const ACCEPT_MOBILE = 'application/json,.json,text/json,text/plain,application/octet-stream';
+  const ACCEPT_MOBILE =
+    '.gazprombackup,application/json,.json,text/json,text/plain,application/octet-stream';
 
   function normalizePhotoArray(photos) {
     if (!Array.isArray(photos)) return [];
@@ -185,9 +186,35 @@ const GazpromBackup = (() => {
       }
     }
 
+    await requestStoragePersistence();
+    const sizeHint = estimateBackupBytes(merged);
+    if (sizeHint > 40 * 1024 * 1024 && typeof GazpromToast !== 'undefined') {
+      const ok = await GazpromToast.confirm(
+        `Копия большая (≈${formatBytes(sizeHint)}). На телефоне сохранение может занять несколько минут или не поместиться в память. Продолжить?`
+      );
+      if (!ok) throw new Error('Импорт отменён');
+    }
+
     // На iOS ingest всех фото в IDB может зависнуть/OOM — сохраняем base64 в каталоге.
-    await GazpromStore.set(merged, { skipPhotoIngest: true });
+    await GazpromStore.set(merged, { skipPhotoIngest: true, verifyWrite: true });
     return { backup: merged, stats: getStats(merged) };
+  }
+
+  function estimateBackupBytes(backup) {
+    try {
+      return new Blob([JSON.stringify(backup)]).size;
+    } catch {
+      return 0;
+    }
+  }
+
+  async function requestStoragePersistence() {
+    if (!navigator.storage?.persist) return;
+    try {
+      await navigator.storage.persist();
+    } catch {
+      /* ignore */
+    }
   }
 
   function mergeBackups(current, incoming) {

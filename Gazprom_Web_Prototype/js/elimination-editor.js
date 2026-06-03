@@ -325,7 +325,7 @@ const EliminationEditor = (() => {
       donut.style.background = '';
       if (legend) {
         legend.innerHTML =
-          '<li><span class="elim-donut-legend__dot elim-donut-legend__dot--muted"></span>Нет нарушений<span class="elim-donut-legend__val">0</span></li>';
+          '<li><span class="elim-donut-legend__dot elim-donut-legend__dot--muted"></span><span class="elim-donut-legend__label">Нет нарушений</span><span class="elim-donut-legend__val">0</span></li>';
       }
       return;
     }
@@ -363,7 +363,7 @@ const EliminationEditor = (() => {
       legend.innerHTML = rows
         .map(
           (r) =>
-            `<li><span class="elim-donut-legend__dot elim-donut-legend__dot--${r.cls}"></span>${AktUtils.escapeHtml(r.label)}<span class="elim-donut-legend__val">${r.val}</span></li>`
+            `<li><span class="elim-donut-legend__dot elim-donut-legend__dot--${r.cls}"></span><span class="elim-donut-legend__label">${AktUtils.escapeHtml(r.label)}</span><span class="elim-donut-legend__val">${r.val}</span></li>`
         )
         .join('');
     }

@@ -173,6 +173,10 @@ describe('GazpromBackup', () => {
     expect(out.sourceFileName).toBe('test.json');
   });
 
+  it('ACCEPT_MOBILE includes .gazprombackup for iOS file picker', () => {
+    expect(GazpromBackup.ACCEPT_MOBILE).toContain('.gazprombackup');
+  });
+
   it('round-trip demo file parses', () => {
     const demo = JSON.parse(
       readFileSync(join(root, 'assets/sample-demo.gazprombackup'), 'utf8')

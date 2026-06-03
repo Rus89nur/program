@@ -18,6 +18,22 @@ const GazpromIdb = (() => {
     return /closing|abort|terminated|invalid state/i.test(msg);
   }
 
+  function mapStorageError(err) {
+    if (!err) return new Error('Ошибка хранилища браузера');
+    const name = err.name || '';
+    if (name === 'QuotaExceededError') {
+      return new Error(
+        'Недостаточно места в хранилище браузера. Освободите память на телефоне или импортируйте копию без фото (меньший файл).'
+      );
+    }
+    if (name === 'UnknownError' || /database/i.test(String(err.message))) {
+      return new Error(
+        'Safari не смог сохранить данные. Отключите «Частный доступ», не используйте режим инкогнито и повторите импорт.'
+      );
+    }
+    return err instanceof Error ? err : new Error(String(err));
+  }
+
   function attachDb(db) {
     db.onversionchange = () => {
       db.close();
@@ -82,11 +98,15 @@ const GazpromIdb = (() => {
           try {
             const tx = db.transaction(stores, mode);
             const txResult = callback(tx);
-            tx.oncomplete = () => resolve(txResult);
-            tx.onerror = () => reject(tx.error);
-            tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
+            tx.oncomplete = () => {
+              Promise.resolve(txResult)
+                .then(resolve)
+                .catch((e) => reject(mapStorageError(e)));
+            };
+            tx.onerror = () => reject(mapStorageError(tx.error));
+            tx.onabort = () => reject(mapStorageError(tx.error || new Error('Transaction aborted')));
           } catch (err) {
-            reject(err);
+            reject(mapStorageError(err));
           }
         })
     );
