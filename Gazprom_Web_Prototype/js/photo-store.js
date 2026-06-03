@@ -5,6 +5,8 @@ const PhotoStore = (() => {
   const STORE_PHOTOS = 'photos';
   const ID_PREFIX = 'photo:';
   const MAX_BLOB_BYTES = 900_000;
+  const B64_FAST_PATH_MAX_RAW = 480_000;
+  const YIELD_EVERY_N_PHOTOS = 12;
 
   const dataUrlCache = new Map();
   let lastIngestStats = null;
@@ -38,11 +40,20 @@ const PhotoStore = (() => {
         if (typeof GazpromIdb.resetConnection === 'function') {
           GazpromIdb.resetConnection();
         }
-        await new Promise((r) => setTimeout(r, 100 * (attempt + 1)));
+        await new Promise((r) => setTimeout(r, 40 * (attempt + 1)));
       }
     }
     throw lastErr;
   }
+
+  const canvasToJpeg = (canvas, quality) =>
+    new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error('toBlob failed'))),
+        'image/jpeg',
+        quality
+      );
+    });
 
   async function compressBlob(blob, maxBytes = MAX_BLOB_BYTES) {
     if (!blob || blob.size <= maxBytes) return blob;
@@ -52,7 +63,8 @@ const PhotoStore = (() => {
     let bitmap;
     try {
       bitmap = await createImageBitmap(blob);
-      const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height, 1));
+      const maxEdge = blob.size > 2_500_000 ? 1280 : 1600;
+      const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height, 1));
       const w = Math.max(1, Math.round(bitmap.width * scale));
       const h = Math.max(1, Math.round(bitmap.height * scale));
       const canvas = document.createElement('canvas');
@@ -62,29 +74,15 @@ const PhotoStore = (() => {
       if (!ctx) return blob;
       ctx.drawImage(bitmap, 0, 0, w, h);
       if (typeof bitmap.close === 'function') bitmap.close();
-      const qualities = [0.85, 0.72, 0.58, 0.45];
-      for (const q of qualities) {
-        const out = await new Promise((resolve, reject) => {
-          canvas.toBlob(
-            (b) => (b ? resolve(b) : reject(new Error('toBlob failed'))),
-            'image/jpeg',
-            q
-          );
-        });
-        if (out.size <= maxBytes) return out;
-      }
-      return await new Promise((resolve, reject) => {
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', 0.4);
-      });
+
+      let out = await canvasToJpeg(canvas, 0.78);
+      if (out.size <= maxBytes) return out;
+      out = await canvasToJpeg(canvas, 0.55);
+      return out.size <= maxBytes ? out : await canvasToJpeg(canvas, 0.42);
     } catch {
       if (bitmap && typeof bitmap.close === 'function') bitmap.close();
       return blob;
     }
-  }
-
-  async function putBlob(id, blob) {
-    const compressed = await compressBlob(blob);
-    await putRecordWithRetry(id, { blob: compressed, mime: compressed.type || 'image/jpeg' });
   }
 
   async function putB64Record(id, b64) {
@@ -151,40 +149,46 @@ const PhotoStore = (() => {
     });
   }
 
-  async function ingestPhotoRef(ref) {
-    if (!ref || isPhotoId(ref)) return { id: ref, mode: 'existing' };
-
+  async function preparePhotoRecord(ref) {
     const id = ID_PREFIX + AktUtils.uuid();
     const b64 = typeof ref === 'string' ? ref : null;
+    const raw = b64 ? (b64.includes(',') ? b64.split(',')[1] : b64) : '';
+    const estBytes = Math.floor(raw.length * 0.75);
 
+    if (b64 && estBytes <= MAX_BLOB_BYTES && raw.length <= B64_FAST_PATH_MAX_RAW) {
+      return { id, record: { b64: raw, mime: 'image/jpeg' }, mode: 'b64', fallbackB64: b64 };
+    }
+
+    const blob =
+      ref instanceof Blob ? ref : b64 ? await base64ToBlob(b64) : await base64ToBlob(String(ref));
+    const compressed = await compressBlob(blob);
+    return {
+      id,
+      record: { blob: compressed, mime: compressed.type || 'image/jpeg' },
+      mode: 'blob',
+      fallbackB64: b64,
+    };
+  }
+
+  async function commitPrepared(prepared) {
+    if (!prepared) return { id: null, mode: 'failed' };
     try {
-      const blob =
-        ref instanceof Blob ? ref : b64 ? await base64ToBlob(b64) : await base64ToBlob(String(ref));
-      await putBlob(id, blob);
-      return { id, mode: 'blob' };
+      await putRecordWithRetry(prepared.id, prepared.record);
+      return { id: prepared.id, mode: prepared.mode };
     } catch (blobErr) {
-      if (!b64) {
-        // #region agent log
-        if (typeof DebugAgent !== 'undefined') {
-          DebugAgent.log('photo-store.js:ingestPhotoRef', 'failed no b64', {
-            msg: blobErr?.message,
-          }, 'D');
-        }
-        // #endregion
+      if (!prepared.fallbackB64) {
         return { id: null, mode: 'failed' };
       }
+      if (typeof GazpromIdb.resetConnection === 'function') GazpromIdb.resetConnection();
       try {
-        if (typeof GazpromIdb.resetConnection === 'function') GazpromIdb.resetConnection();
-        await yieldToMain();
-        await putB64Record(id, b64);
-        return { id, mode: 'b64' };
+        await putB64Record(prepared.id, prepared.fallbackB64);
+        return { id: prepared.id, mode: 'b64' };
       } catch (b64Err) {
         // #region agent log
         if (typeof DebugAgent !== 'undefined') {
-          DebugAgent.log('photo-store.js:ingestPhotoRef', 'blob and b64 failed', {
+          DebugAgent.log('photo-store.js:commitPrepared', 'blob and b64 failed', {
             blobMsg: blobErr?.message,
             b64Msg: b64Err?.message,
-            len: b64.length,
           }, 'D');
         }
         // #endregion
@@ -192,6 +196,34 @@ const PhotoStore = (() => {
       }
     }
   }
+
+  async function ingestPhotoRef(ref) {
+    if (!ref || isPhotoId(ref)) return { id: ref, mode: 'existing' };
+    const prepared = await preparePhotoRecord(ref);
+    return commitPrepared(prepared);
+  }
+
+  function collectPhotoTasks(catalog) {
+    const tasks = [];
+    const scan = (list) => {
+      for (const a of list || []) {
+        for (const v of a.violations || []) {
+          if (!v?.photo?.length) continue;
+          for (let i = 0; i < v.photo.length; i += 1) {
+            const p = v.photo[i];
+            if (p && !isPhotoId(p)) tasks.push({ violation: v, index: i, ref: p });
+          }
+        }
+      }
+    };
+    scan(catalog.akts);
+    scan(catalog.trash);
+    if (catalog.editableAkt?.akt) scan([catalog.editableAkt.akt]);
+    return tasks;
+  }
+
+  const IMG_PLACEHOLDER =
+    'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
   async function resolveDataUrl(ref) {
     if (!ref) return '';
@@ -267,48 +299,40 @@ const PhotoStore = (() => {
   async function ingestCatalogInPlace(catalog, { onProgress } = {}) {
     if (!catalog) return catalog;
 
-    const photoTotal = countInlinePhotos(catalog);
-    const stats = { total: photoTotal, blob: 0, b64: 0, failed: 0 };
-    let photoDone = 0;
-    const isMobile = window.matchMedia('(pointer: coarse)').matches;
+    const tasks = collectPhotoTasks(catalog);
+    const stats = { total: tasks.length, blob: 0, b64: 0, failed: 0 };
+    const t0 = Date.now();
 
-    const processViolationPhotos = async (violation) => {
-      if (!violation?.photo?.length) return;
-      for (let i = 0; i < violation.photo.length; i += 1) {
-        const p = violation.photo[i];
-        if (!p || isPhotoId(p)) continue;
+    if (tasks.length === 0) {
+      catalog.photoIngestStats = stats;
+      lastIngestStats = stats;
+      return catalog;
+    }
 
-        const result = await ingestPhotoRef(p);
-        if (result.id) {
-          violation.photo[i] = result.id;
-          if (result.mode === 'blob') stats.blob += 1;
-          else if (result.mode === 'b64') stats.b64 += 1;
-        } else {
-          stats.failed += 1;
-        }
-
-        photoDone += 1;
-        onProgress?.(photoDone, photoTotal);
-        if (isMobile) await new Promise((r) => setTimeout(r, 50));
-        await yieldToMain();
+    let upcoming = preparePhotoRecord(tasks[0].ref);
+    for (let t = 0; t < tasks.length; t += 1) {
+      const task = tasks[t];
+      const prepared = await upcoming;
+      if (t + 1 < tasks.length) {
+        upcoming = preparePhotoRecord(tasks[t + 1].ref);
       }
-    };
 
-    const processAkt = async (akt) => {
-      if (!akt) return;
-      for (const v of akt.violations || []) {
-        await processViolationPhotos(v);
+      const result = await commitPrepared(prepared);
+      if (result.id) {
+        task.violation.photo[task.index] = result.id;
+        if (result.mode === 'blob') stats.blob += 1;
+        else if (result.mode === 'b64') stats.b64 += 1;
+      } else {
+        stats.failed += 1;
       }
-      await yieldToMain();
-    };
 
-    for (const a of catalog.akts || []) await processAkt(a);
-    for (const a of catalog.trash || []) await processAkt(a);
-    if (catalog.editableAkt?.akt) await processAkt(catalog.editableAkt.akt);
+      onProgress?.(t + 1, tasks.length);
+      if ((t + 1) % YIELD_EVERY_N_PHOTOS === 0) await yieldToMain();
+    }
 
+    stats.ms = Date.now() - t0;
     catalog.photoIngestStats = stats;
     lastIngestStats = stats;
-    onProgress?.(photoTotal, photoTotal);
 
     // #region agent log
     if (typeof DebugAgent !== 'undefined') {
@@ -382,8 +406,35 @@ const PhotoStore = (() => {
     return lastIngestStats;
   }
 
+  const HYDRATE_CONCURRENCY = 8;
+
+  async function hydrateImages(root) {
+    if (!root) return;
+    const imgs = [...root.querySelectorAll('img[data-photo-ref]')];
+    if (!imgs.length) return;
+
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < imgs.length) {
+        const img = imgs[cursor];
+        cursor += 1;
+        const ref = img.dataset.photoRef;
+        if (!ref || img.dataset.photoHydrated === '1') continue;
+        const url = (await resolveDataUrl(ref)) || AktUtils.photoSrc(ref);
+        if (!url || !img.isConnected) continue;
+        img.src = url;
+        img.dataset.photoHydrated = '1';
+      }
+    };
+
+    await Promise.all(
+      Array.from({ length: Math.min(HYDRATE_CONCURRENCY, imgs.length) }, () => worker())
+    );
+  }
+
   return {
     isPhotoId,
+    IMG_PLACEHOLDER,
     ingestCatalog,
     ingestCatalogInPlace,
     ingestCatalogChunked,
@@ -393,6 +444,7 @@ const PhotoStore = (() => {
     expandCatalog,
     ingestPhotoRef,
     resolveDataUrl,
+    hydrateImages,
     clearAll,
     deleteBlob,
   };

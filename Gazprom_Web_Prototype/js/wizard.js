@@ -226,10 +226,20 @@ const WizardController = (() => {
   }
 
   async function hydrateViolationThumbs() {
+    if (typeof PhotoStore?.hydrateImages === 'function') {
+      await PhotoStore.hydrateImages(panelsHost());
+      return;
+    }
     panelsHost()?.querySelectorAll('img[data-photo-ref]').forEach(async (img) => {
       const ref = img.dataset.photoRef;
       img.src = (await PhotoStore.resolveDataUrl(ref)) || AktUtils.photoSrc(ref);
     });
+  }
+
+  function wizardPhotoImgTag(ref) {
+    const ph = PhotoStore.IMG_PLACEHOLDER || '';
+    const safe = AktUtils.escapeHtml(String(ref));
+    return `<img data-photo-ref="${safe}" src="${ph}" alt="" loading="lazy" decoding="async">`;
   }
 
   function numberOptions() {
@@ -397,7 +407,7 @@ const WizardController = (() => {
               ? `<div class="viol-card-thumbs">
                   ${(v.photo || []).slice(0, maxThumbs).map((p, idx) =>
                     `<div class="viol-card-thumb wizard-photo-thumb photo-slot filled" data-vid="${v.id}" data-pidx="${idx}">
-                      <img src="${AktUtils.photoSrc(p)}" alt="">
+                      ${wizardPhotoImgTag(p)}
                     </div>`
                   ).join('')}
                   ${photos > maxThumbs ? `<div class="viol-card-thumb viol-card-thumb-more">+${photos - maxThumbs}</div>` : ''}
@@ -428,7 +438,7 @@ const WizardController = (() => {
         </div>`;
 
     const allPhotos = allViolations.flatMap((v) =>
-      (v.photo || []).map((p, idx) => ({ v, idx, src: AktUtils.photoSrc(p) }))
+      (v.photo || []).map((p, idx) => ({ v, idx, ref: p }))
     );
     const photoSection = allPhotos.length
       ? `<h3 style="margin-top:4px;font-size:14px;margin-bottom:12px">Все фото акта</h3>
@@ -436,9 +446,9 @@ const WizardController = (() => {
            allPhotos
              .slice(0, 16)
              .map(
-               ({ src, v, idx }) =>
+               ({ ref, v, idx }) =>
                  `<div class="photo-slot filled wizard-photo-thumb" data-vid="${v.id}" data-pidx="${idx}" title="${AktUtils.escapeHtml(v.title)}">
-                   <img src="${src}" alt="">
+                   ${wizardPhotoImgTag(ref)}
                  </div>`
              )
              .join('') + (allPhotos.length > 16 ? `<div class="photo-slot">+${allPhotos.length - 16}</div>` : '')
