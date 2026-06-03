@@ -949,16 +949,50 @@ const WizardController = (() => {
     });
     panelsHost()?.querySelectorAll('.wizard-photo-thumb').forEach((el) => {
       el.addEventListener('click', async () => {
-        const v = (draft.violations || []).find((x) => x.id === el.dataset.vid);
-        const idx = parseInt(el.dataset.pidx, 10);
+        const vid = el.dataset.vid;
+        const pidx = parseInt(el.dataset.pidx, 10);
+        const fromActGrid = !!el.closest('#wPhotoGrid');
+
+        const buildGallery = async (refs, matchIdx) => {
+          const urls = await Promise.all(refs.map((p) => AktUtils.photoSrcAsync(p)));
+          const gallery = [];
+          let start = 0;
+          urls.forEach((url, i) => {
+            if (!url) return;
+            if (i === matchIdx) start = gallery.length;
+            gallery.push(url);
+          });
+          return { gallery, start };
+        };
+
+        if (fromActGrid) {
+          const items = (draft.violations || []).flatMap((vi) =>
+            (vi.photo || []).map((ref, i) => ({ vid: vi.id, pidx: i, ref }))
+          );
+          if (!items.length) return;
+          const urls = await Promise.all(items.map((x) => AktUtils.photoSrcAsync(x.ref)));
+          const gallery = [];
+          let start = 0;
+          urls.forEach((url, i) => {
+            if (!url) return;
+            if (items[i].vid === vid && items[i].pidx === pidx) start = gallery.length;
+            gallery.push(url);
+          });
+          if (!gallery.length) {
+            GazpromToast.info('Не удалось открыть фото');
+            return;
+          }
+          openLightbox(gallery[start], gallery);
+          return;
+        }
+
+        const v = (draft.violations || []).find((x) => x.id === vid);
         if (!v?.photo?.length) return;
-        const urls = await Promise.all(v.photo.map((p) => AktUtils.photoSrcAsync(p)));
-        const gallery = urls.filter(Boolean);
+        const { gallery, start } = await buildGallery(v.photo, Number.isNaN(pidx) ? 0 : pidx);
         if (!gallery.length) {
           GazpromToast.info('Не удалось открыть фото');
           return;
         }
-        const start = Number.isNaN(idx) ? 0 : Math.min(idx, gallery.length - 1);
         openLightbox(gallery[start], gallery);
       });
     });
@@ -1061,15 +1095,24 @@ const WizardController = (() => {
 
   function openLightbox(src, gallery) {
     let box = document.getElementById('photoLightbox');
+    if (box && !box.querySelector('.photo-lightbox-controls')) {
+      box.remove();
+      box = null;
+    }
     if (!box) {
       box = document.createElement('div');
       box.id = 'photoLightbox';
       box.className = 'photo-lightbox';
       box.innerHTML = `
-        <button type="button" class="photo-lightbox-close">×</button>
-        <button type="button" class="photo-lightbox-nav photo-lightbox-prev">‹</button>
-        <img class="photo-lightbox-img" alt="">
-        <button type="button" class="photo-lightbox-nav photo-lightbox-next">›</button>
+        <div class="photo-lightbox-inner">
+          <button type="button" class="photo-lightbox-close" aria-label="Закрыть">×</button>
+          <img class="photo-lightbox-img" alt="">
+          <div class="photo-lightbox-controls">
+            <button type="button" class="photo-lightbox-nav photo-lightbox-prev" aria-label="Предыдущее фото">‹ Назад</button>
+            <span class="photo-lightbox-counter" aria-live="polite"></span>
+            <button type="button" class="photo-lightbox-nav photo-lightbox-next" aria-label="Следующее фото">Вперёд ›</button>
+          </div>
+        </div>
       `;
       document.body.appendChild(box);
       box.querySelector('.photo-lightbox-close').onclick = () => box.classList.remove('show');
@@ -1078,18 +1121,26 @@ const WizardController = (() => {
       };
     }
     const imgs = gallery?.length ? gallery : [src];
-    let idx = 0;
+    let idx = src ? imgs.indexOf(src) : 0;
+    if (idx < 0) idx = 0;
     const imgEl = box.querySelector('.photo-lightbox-img');
+    const counterEl = box.querySelector('.photo-lightbox-counter');
+    const prevBtn = box.querySelector('.photo-lightbox-prev');
+    const nextBtn = box.querySelector('.photo-lightbox-next');
     const show = (i) => {
       idx = (i + imgs.length) % imgs.length;
       imgEl.src = imgs[idx];
+      const multi = imgs.length > 1;
+      if (counterEl) counterEl.textContent = multi ? `${idx + 1} / ${imgs.length}` : '';
+      if (prevBtn) prevBtn.style.visibility = multi ? 'visible' : 'hidden';
+      if (nextBtn) nextBtn.style.visibility = multi ? 'visible' : 'hidden';
     };
-    show(0);
-    box.querySelector('.photo-lightbox-prev').onclick = (e) => {
+    show(idx);
+    prevBtn.onclick = (e) => {
       e.stopPropagation();
       show(idx - 1);
     };
-    box.querySelector('.photo-lightbox-next').onclick = (e) => {
+    nextBtn.onclick = (e) => {
       e.stopPropagation();
       show(idx + 1);
     };
