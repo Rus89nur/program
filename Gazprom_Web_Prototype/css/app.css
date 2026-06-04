@@ -4511,11 +4511,11 @@
         position: fixed;
         left: 0;
         right: 0;
-        bottom: var(--gazprom-nav-lift);
+        bottom: var(--gazprom-safari-bottom-inset, 0px);
         width: 100%;
         max-width: 100%;
         z-index: 200;
-        transform: translate3d(0, var(--gazprom-nav-shift-down), 0);
+        transform: none;
         padding: 4px 8px env(safe-area-inset-bottom, 0px);
         padding-left: max(8px, env(safe-area-inset-left));
         padding-right: max(8px, env(safe-area-inset-right));

@@ -14,12 +14,61 @@ const GazpromMobileOverlay = (() => {
   const mainEl = () => document.querySelector('.main');
 
   // #region agent log
-  const agentLog = (hypothesisId, location, message, data) => {
+  const isDebugScrollMode = () => {
+    const q = window.location.search || '';
+    return q.includes('debug=1') || q.includes('debug=scroll') || q.includes('debug=2c2db0');
+  };
+
+  const refreshDebugPanel = () => {
+    if (!isDebugScrollMode()) return;
+    const panel = document.getElementById('gazpromScrollDebug');
+    const pre = document.getElementById('gazpromScrollDebugPre');
+    if (!panel || !pre) return;
+    try {
+      const logs = JSON.parse(sessionStorage.getItem('gazpromDebugLogs') || '[]');
+      const last = logs.slice(-6);
+      pre.textContent = last.length
+        ? last.map((e) => `${e.message} ${JSON.stringify(e.data)}`).join('\n\n')
+        : 'Логов пока нет — откройте вкладку и прокрутите вниз.';
+    } catch (_) {
+      pre.textContent = 'Ошибка чтения логов';
+    }
+  };
+
+  const initDebugPanel = () => {
+    if (!isDebugScrollMode() || document.getElementById('gazpromScrollDebug')) return;
+    const wrap = document.createElement('div');
+    wrap.id = 'gazpromScrollDebug';
+    wrap.style.cssText =
+      'position:fixed;left:6px;right:6px;bottom:88px;z-index:99999;font:11px/1.35 -apple-system,sans-serif;' +
+      'background:rgba(0,0,0,.88);color:#9f9;border-radius:8px;padding:8px;max-height:32vh;overflow:auto;';
+    wrap.innerHTML =
+      '<div style="color:#fff;font-weight:600;margin-bottom:6px">Отладка прокрутки</div>' +
+      '<pre id="gazpromScrollDebugPre" style="margin:0 0 8px;white-space:pre-wrap;word-break:break-word;font:inherit"></pre>' +
+      '<button type="button" id="gazpromScrollDebugCopy" style="width:100%;padding:10px;font-size:14px;border-radius:6px;border:none;background:#26c6da;color:#003">Скопировать все логи</button>';
+    document.body.appendChild(wrap);
+    document.getElementById('gazpromScrollDebugCopy')?.addEventListener('click', async () => {
+      try {
+        const text = sessionStorage.getItem('gazpromDebugLogs') || '[]';
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+          alert('Логи скопированы. Вставьте в чат Cursor.');
+        } else {
+          prompt('Скопируйте логи:', text);
+        }
+      } catch (err) {
+        alert('Не удалось скопировать: ' + (err?.message || err));
+      }
+    });
+    refreshDebugPanel();
+  };
+
+  const agentLog = (hypothesisId, logAt, message, data) => {
     const payload = {
       sessionId: '2c2db0',
-      runId: 'pre-fix',
+      runId: 'post-fix-v3',
       hypothesisId,
-      location,
+      location: logAt,
       message,
       data,
       timestamp: Date.now(),
@@ -33,23 +82,26 @@ const GazpromMobileOverlay = (() => {
       const key = 'gazpromDebugLogs';
       const prev = JSON.parse(sessionStorage.getItem(key) || '[]');
       prev.push(payload);
-      if (prev.length > 40) prev.shift();
+      if (prev.length > 50) prev.shift();
       sessionStorage.setItem(key, JSON.stringify(prev));
     } catch (_) {}
-    if (typeof location !== 'undefined' && String(location.search || '').includes('debug=2c2db0')) {
-      let el = document.getElementById('gazpromScrollDebug');
-      if (!el) {
-        el = document.createElement('div');
-        el.id = 'gazpromScrollDebug';
-        el.style.cssText =
-          'position:fixed;left:4px;right:4px;bottom:72px;z-index:99999;font:10px/1.3 monospace;' +
-          'background:rgba(0,0,0,.82);color:#0f0;padding:6px;max-height:28vh;overflow:auto;pointer-events:none;';
-        document.body.appendChild(el);
-      }
-      el.textContent = `${message} ${JSON.stringify(data)}`;
-    }
+    refreshDebugPanel();
   };
   // #endregion
+
+  const positionBottomNav = () => {
+    const nav = document.querySelector('.bottom-nav');
+    if (!nav || !mq.matches) {
+      nav?.style.removeProperty('bottom');
+      document.body.style.removeProperty('--gazprom-safari-bottom-inset');
+      return 0;
+    }
+    const vv = window.visualViewport;
+    const inset = vv ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0;
+    document.body.style.setProperty('--gazprom-safari-bottom-inset', `${inset}px`);
+    nav.style.bottom = `${inset}px`;
+    return inset;
+  };
 
   /** Полосы с overflow-x: auto — свайп не блокируем (см. MOBILE_PHONE_MODE §3.8, web-82). */
   const HORIZONTAL_SCROLL_SELECTOR = [
@@ -110,6 +162,8 @@ const GazpromMobileOverlay = (() => {
 
   const clearMainScrollPadding = () => {
     document.body.style.removeProperty('--gazprom-nav-block');
+    document.body.style.removeProperty('--gazprom-safari-bottom-inset');
+    document.querySelector('.bottom-nav')?.style.removeProperty('bottom');
     document.querySelector('.gazprom-scroll-bottom-spacer')?.style.removeProperty('height');
     const main = mainEl();
     if (!main) return;
@@ -151,6 +205,7 @@ const GazpromMobileOverlay = (() => {
     const main = mainEl();
     if (!main) return;
     const savedTop = main.scrollTop;
+    positionBottomNav();
     syncNavScrollInset();
     const overlapPx = measureOverlapAtScrollEnd(trigger);
     if (overlapPx > 0) {
@@ -170,38 +225,32 @@ const GazpromMobileOverlay = (() => {
     // #endregion
   };
 
-  /** Нижний отступ прокрутки .main: bottom-nav + панель Safari (visualViewport). */
+  /** Нижний отступ прокрутки .main: высота bottom-nav (над Safari) + запас. */
   const syncNavScrollInset = () => {
     if (!mq.matches) {
       clearMainScrollPadding();
       return;
     }
     const nav = document.querySelector('.bottom-nav');
-    const gap = 16;
+    const gap = 20;
     if (!nav) return;
+    const safariInset = positionBottomNav();
     const rect = nav.getBoundingClientRect();
     const vv = window.visualViewport;
     const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
-    const browserChromeBelow = Math.max(0, window.innerHeight - visibleBottom);
-    const fromNavTop = window.innerHeight - rect.top + gap;
-    const fromNavInView = Math.max(0, visibleBottom - rect.top) + gap;
-    const fromChrome = rect.height + browserChromeBelow + gap;
-    const blockPx = Math.max(72, Math.ceil(Math.max(fromNavTop, fromNavInView, fromChrome)));
+    const blockPx = Math.max(80, Math.ceil(rect.height + gap + Math.max(0, rect.bottom - visibleBottom)));
     applyMainScrollPadding(blockPx);
     // #region agent log
-    agentLog('A,D', 'mobile-overlay.js:syncNavScrollInset', 'nav inset computed', {
-      runId: 'post-fix',
+    agentLog('A,F', 'mobile-overlay.js:syncNavScrollInset', 'nav inset computed', {
       blockPx,
-      fromNavTop: Math.ceil(fromNavTop),
-      fromNavInView: Math.ceil(fromNavInView),
-      fromChrome: Math.ceil(fromChrome),
-      browserChromeBelow: Math.round(browserChromeBelow),
+      safariInset,
       innerHeight: window.innerHeight,
       vvHeight: vv?.height ?? null,
       visibleBottom: Math.round(visibleBottom),
       navTop: Math.round(rect.top),
       navBottom: Math.round(rect.bottom),
       navHeight: Math.round(rect.height),
+      navStyleBottom: nav.style.bottom,
     });
     // #endregion
   };
@@ -389,6 +438,7 @@ const GazpromMobileOverlay = (() => {
   };
 
   syncMobileShellClass();
+  initDebugPanel();
   requestAnimationFrame(() => ensureScrollClearance('boot'));
   mq.addEventListener('change', recoverViewportLayout);
 
