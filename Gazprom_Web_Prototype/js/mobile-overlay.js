@@ -185,29 +185,53 @@ const GazpromMobileOverlay = (() => {
     );
   };
 
-  const applyMainScrollPadding = (blockPx) => {
+  /** Кэш нижнего отступа по экрану — логи: сброс до 80px на каждом scroll ломал накопленный blockPx. */
+  const navBlockByScreen = new Map();
+
+  const computeNavBlockPx = () => {
+    const nav = document.querySelector('.bottom-nav');
+    if (!nav) return 80;
+    const gap = 20;
+    const rect = nav.getBoundingClientRect();
+    return Math.max(80, Math.ceil(Math.max(rect.height, window.innerHeight - rect.top) + gap));
+  };
+
+  const flushMainLayout = () => {
     const main = mainEl();
-    const body = document.body;
+    if (!main) return;
+    void main.offsetHeight;
+    void main.scrollHeight;
+  };
+
+  /** Отступ на активном .screen (двигает контент в потоке); .main — только CSS var, без inline-дубля. */
+  const applyScrollClearance = (blockPx) => {
     const px = `${blockPx}px`;
-    body.style.setProperty('--gazprom-nav-block', px);
+    document.body.style.setProperty('--gazprom-nav-block', px);
     const spacer = document.querySelector('.gazprom-scroll-bottom-spacer');
     if (spacer) spacer.style.height = px;
-    if (!main) return;
-    const basePad =
-      window.matchMedia(
-        '(max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none) and (orientation: landscape)'
-      ).matches
-        ? 6
-        : 12;
-    main.style.paddingBottom = `calc(${basePad}px + ${blockPx}px)`;
-    main.style.scrollPaddingBottom = `calc(${basePad}px + ${blockPx}px)`;
+    const main = mainEl();
+    if (main) {
+      main.style.removeProperty('padding-bottom');
+      main.style.removeProperty('scroll-padding-bottom');
+    }
+    document.querySelectorAll('.main > .screen').forEach((screen) => {
+      if (screen.classList.contains('active')) {
+        screen.style.paddingBottom = px;
+      } else {
+        screen.style.removeProperty('padding-bottom');
+      }
+    });
   };
 
   const clearMainScrollPadding = () => {
+    navBlockByScreen.clear();
     document.body.style.removeProperty('--gazprom-nav-block');
     document.body.style.removeProperty('--gazprom-safari-bottom-inset');
     document.querySelector('.bottom-nav')?.style.removeProperty('bottom');
     document.querySelector('.gazprom-scroll-bottom-spacer')?.style.removeProperty('height');
+    document.querySelectorAll('.main > .screen').forEach((screen) => {
+      screen.style.removeProperty('padding-bottom');
+    });
     const main = mainEl();
     if (!main) return;
     main.style.removeProperty('padding-bottom');
@@ -219,25 +243,28 @@ const GazpromMobileOverlay = (() => {
     const nav = document.querySelector('.bottom-nav');
     const active = document.querySelector('.screen.active');
     if (!main || !nav || !active) return { overlapPx: 0, maxTop: 0 };
+    flushMainLayout();
     const maxTop = Math.max(0, main.scrollHeight - main.clientHeight);
     main.scrollTop = maxTop;
-    void main.offsetHeight;
+    flushMainLayout();
     const navR = nav.getBoundingClientRect();
     const bottomEl = findScreenBottomElement(active);
     const contentBottom = bottomEl?.getBoundingClientRect?.()?.bottom ?? 0;
     const overlapPx = Math.round(contentBottom - navR.top);
     return {
       overlapPx,
-      maxTop,
+      maxTop: Math.round(maxTop),
+      scrollHeight: main.scrollHeight,
       screenId: active.id,
       contentBottom: Math.round(contentBottom),
       navTop: Math.round(navR.top),
       bottomClass: bottomEl?.className?.slice?.(0, 80) ?? null,
+      screenPaddingBottom: getComputedStyle(active).paddingBottom,
       mainPaddingBottom: getComputedStyle(main).paddingBottom,
     };
   };
 
-  /** Цикл: padding → прокрутка в конец → замер, пока overlap ≤ 0 (логи: без повторного scrollTop после bump). */
+  /** Цикл: padding на .screen.active → scroll end → замер (логи: padding .main не двигал contentBottom). */
   const resolveScrollClearance = (trigger, options = {}) => {
     if (!mq.matches) return 0;
     const main = mainEl();
@@ -245,32 +272,35 @@ const GazpromMobileOverlay = (() => {
     const savedTop = main.scrollTop;
     const gap = 20;
     positionBottomNav();
-    const nav = document.querySelector('.bottom-nav');
-    if (!nav) return 0;
-    const rect = nav.getBoundingClientRect();
-    let blockPx = Math.max(80, Math.ceil(Math.max(rect.height, window.innerHeight - rect.top) + gap));
-    applyMainScrollPadding(blockPx);
+    const active = document.querySelector('.screen.active');
+    const sid = active?.id || '';
+    const baseMin = computeNavBlockPx();
+    let blockPx = Math.max(navBlockByScreen.get(sid) || 0, baseMin);
+    applyScrollClearance(blockPx);
 
     let overlapPx = 0;
     let last = null;
     for (let attempt = 0; attempt < 8; attempt++) {
+      flushMainLayout();
       last = readOverlapAtScrollEnd();
       overlapPx = last.overlapPx;
       // #region agent log
       agentLog('E', 'mobile-overlay.js:resolveScrollClearance', 'attempt', {
-        runId: 'post-fix-v4',
+        runId: 'post-fix-v5',
         trigger,
         attempt,
         overlapPx,
         blockPx,
+        cachedBlockPx: navBlockByScreen.get(sid) || 0,
         ...last,
       });
       // #endregion
       if (overlapPx <= 0) break;
       blockPx = Math.ceil(blockPx + overlapPx + gap);
-      applyMainScrollPadding(blockPx);
+      applyScrollClearance(blockPx);
     }
 
+    navBlockByScreen.set(sid, blockPx);
     const maxTop = Math.max(0, main.scrollHeight - main.clientHeight);
     if (options.scrollToBottom) main.scrollTop = maxTop;
     else if (trigger.startsWith('goTo-')) main.scrollTop = 0;
@@ -278,10 +308,11 @@ const GazpromMobileOverlay = (() => {
 
     // #region agent log
     agentLog('E', 'mobile-overlay.js:resolveScrollClearance', 'done', {
-      runId: 'post-fix-v4',
+      runId: 'post-fix-v5',
       trigger,
       finalOverlapPx: overlapPx,
       blockPx,
+      screenId: sid,
       restoredScrollTop: main.scrollTop,
     });
     // #endregion
@@ -302,13 +333,15 @@ const GazpromMobileOverlay = (() => {
     if (!nav) return;
     positionBottomNav();
     const rect = nav.getBoundingClientRect();
-    const gap = 20;
-    const blockPx = Math.max(80, Math.ceil(Math.max(rect.height, window.innerHeight - rect.top) + gap));
-    applyMainScrollPadding(blockPx);
+    const active = document.querySelector('.screen.active');
+    const sid = active?.id || '';
+    const blockPx = Math.max(navBlockByScreen.get(sid) || 0, computeNavBlockPx());
+    applyScrollClearance(blockPx);
     // #region agent log
     agentLog('A,F', 'mobile-overlay.js:syncNavScrollInset', 'nav inset computed', {
-      runId: 'post-fix-v4',
+      runId: 'post-fix-v5',
       blockPx,
+      screenId: sid,
       innerHeight: window.innerHeight,
       navTop: Math.round(rect.top),
       navBottom: Math.round(rect.bottom),
@@ -332,7 +365,7 @@ const GazpromMobileOverlay = (() => {
     const overlapPx = Math.round(contentBottom - navR.top);
     // #region agent log
     agentLog('E', 'mobile-overlay.js:measureScrollOverlap', 'scroll clearance', {
-      runId: 'post-fix',
+      runId: 'post-fix-v5',
       trigger,
       screenId: active.id,
       atBottom,
@@ -340,6 +373,7 @@ const GazpromMobileOverlay = (() => {
       scrollTop: Math.round(main.scrollTop),
       scrollMax: Math.round(scrollMax),
       mainPaddingBottom: mainStyle.paddingBottom,
+      screenPaddingBottom: getComputedStyle(active).paddingBottom,
       contentBottom: Math.round(contentBottom),
       navTop: Math.round(navR.top),
     });

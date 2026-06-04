@@ -225,6 +225,9 @@ const WizardController = (() => {
     bindPanelEvents();
     bindAutosaveOnPanel();
     hydrateViolationThumbs();
+    requestAnimationFrame(() => {
+      GazpromMobileOverlay?.ensureScrollClearance?.('wizard-render');
+    });
   }
 
   function bindAutosaveOnPanel() {
