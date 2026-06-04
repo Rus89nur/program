@@ -23,6 +23,7 @@ const titles = {
 };
 
 function goTo(screenId, options = {}) {
+  document.documentElement.classList.add('gazprom-navigated');
   document.querySelectorAll('.nav-item, .bottom-nav-item').forEach((n) => {
     n.classList.toggle('active', n.dataset.screen === screenId);
   });

@@ -315,8 +315,9 @@
       #screen-home .app-build-id { display: none; }
     }
 
-    .screen { display: none; animation: fadeIn 0.2s ease; }
+    .screen { display: none; }
     .screen.active { display: block; }
+    html.gazprom-navigated .screen.active { animation: fadeIn 0.2s ease; }
     /* Без transform: иначе position:fixed у .app-build-id «прыгает» внутри экрана при загрузке */
     @keyframes fadeIn {
       from { opacity: 0; }

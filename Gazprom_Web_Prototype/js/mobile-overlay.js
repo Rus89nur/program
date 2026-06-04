@@ -195,6 +195,14 @@ const GazpromMobileOverlay = (() => {
     };
   };
 
+  const applyBaselineScrollClearance = (sid) => {
+    const baseMin = computeNavBlockPx();
+    const blockPx = capScreenBlockPx(Math.max(navBlockByScreen.get(sid) || 0, baseMin));
+    applyScrollClearance(blockPx);
+    navBlockByScreen.set(sid, blockPx);
+    return blockPx;
+  };
+
   /** Цикл: padding на scroll-host → scroll end → замер (логи v6: 80px оставляли overlap 20/9 на списках). */
   const resolveScrollClearance = (trigger, options = {}) => {
     if (!mq.matches) return 0;
@@ -206,9 +214,15 @@ const GazpromMobileOverlay = (() => {
     const active = document.querySelector('.screen.active');
     const sid = active?.id || '';
     const baseMin = computeNavBlockPx();
+    const isBootLayout = trigger === 'boot' || trigger === 'recoverViewportLayout';
 
     if (trigger.startsWith('goTo-')) {
       navBlockByScreen.delete(sid);
+    }
+
+    if (isBootLayout) {
+      applyBaselineScrollClearance(sid);
+      return 0;
     }
 
     let blockPx = capScreenBlockPx(Math.max(navBlockByScreen.get(sid) || 0, baseMin));
@@ -330,7 +344,6 @@ const GazpromMobileOverlay = (() => {
     syncVisualViewport();
     syncNavScrollInset();
     if (mq.matches) {
-      window.scrollTo(0, window.scrollY);
       document.documentElement.scrollLeft = 0;
       document.body.scrollLeft = 0;
     } else {
@@ -341,7 +354,6 @@ const GazpromMobileOverlay = (() => {
 
   const recoverViewportLayout = () => {
     syncMobileShellClass();
-    syncNavScrollInset();
     clampScrollX();
     clearStaleScrollLock();
     const main = mainEl();
@@ -349,7 +361,9 @@ const GazpromMobileOverlay = (() => {
       main.scrollLeft = 0;
       void main.offsetHeight;
     }
-    requestAnimationFrame(() => ensureScrollClearance('recoverViewportLayout'));
+    applyBaselineScrollClearance(
+      document.querySelector('.screen.active')?.id || ''
+    );
   };
 
   const lock = () => {
@@ -461,7 +475,9 @@ const GazpromMobileOverlay = (() => {
   };
 
   syncMobileShellClass();
-  requestAnimationFrame(() => ensureScrollClearance('boot'));
+  applyBaselineScrollClearance(
+    document.querySelector('.screen.active')?.id || 'screen-home'
+  );
   mq.addEventListener('change', recoverViewportLayout);
 
   if (window.visualViewport) {
