@@ -197,12 +197,6 @@ const GazpromMobileOverlay = (() => {
     return screen;
   };
 
-  const applyPaddingToHost = (screen, px) => {
-    const host = getScreenScrollHost(screen);
-    if (!host) return;
-    host.style.paddingBottom = px;
-  };
-
   const computeNavBlockPx = () => {
     const nav = document.querySelector('.bottom-nav');
     if (!nav) return 80;
@@ -252,10 +246,13 @@ const GazpromMobileOverlay = (() => {
     }
     document.querySelectorAll('.main > .screen').forEach((screen) => {
       screen.style.removeProperty('padding-bottom');
-      getScreenScrollHost(screen)?.style.removeProperty('padding-bottom');
+      const host = getScreenScrollHost(screen);
+      if (!host || host === screen) return;
+      host.style.removeProperty('padding-bottom');
     });
     const active = document.querySelector('.screen.active');
-    if (active) applyPaddingToHost(active, px);
+    const host = getScreenScrollHost(active);
+    if (host) host.style.paddingBottom = px;
   };
 
   const clearMainScrollPadding = () => {
@@ -388,7 +385,7 @@ const GazpromMobileOverlay = (() => {
     applyScrollClearance(blockPx);
     // #region agent log
     agentLog('A,F', 'mobile-overlay.js:syncNavScrollInset', 'nav inset computed', {
-      runId: 'post-fix-v7',
+      runId: 'post-fix-v6',
       blockPx,
       screenId: sid,
       innerHeight: window.innerHeight,
@@ -432,10 +429,54 @@ const GazpromMobileOverlay = (() => {
     return atBottom ? overlapPx : 0;
   };
 
-  const adjustNavScrollInsetIfOverlap = (trigger) => {
+  /** Тихая подстройка padding после остановки скролла — без readOverlapAtScrollEnd (логи: рывок при main-scroll). */
+  const bumpScrollClearanceAtRest = (trigger) => {
     const overlapPx = measureScrollOverlap(trigger);
-    if (overlapPx <= 0) return;
-    resolveScrollClearance(trigger, { scrollToBottom: true });
+    if (overlapPx <= 0) return 0;
+    const main = mainEl();
+    if (!main) return 0;
+    const active = document.querySelector('.screen.active');
+    const sid = active?.id || '';
+    const gap = 20;
+    const baseMin = computeNavBlockPx();
+    const cached = navBlockByScreen.get(sid) || baseMin;
+    const nextBlock = capScreenBlockPx(cached + overlapPx + gap);
+    if (nextBlock <= cached) return 0;
+
+    const prevTop = main.scrollTop;
+    const prevMax = Math.max(0, main.scrollHeight - main.clientHeight);
+    const wasAtBottom = prevMax <= 0 || prevTop >= prevMax - 5;
+
+    positionBottomNav();
+    navBlockByScreen.set(sid, nextBlock);
+    applyScrollClearance(nextBlock);
+    flushMainLayout();
+
+    const newMax = Math.max(0, main.scrollHeight - main.clientHeight);
+    if (wasAtBottom) {
+      requestAnimationFrame(() => {
+        main.scrollTop = newMax;
+        clampMainScrollTop(main);
+      });
+    } else {
+      main.scrollTop = Math.min(prevTop, newMax);
+    }
+
+    // #region agent log
+    agentLog('E', 'mobile-overlay.js:bumpScrollClearanceAtRest', 'padding bump', {
+      runId: 'post-fix-v8',
+      trigger,
+      overlapPx,
+      blockPx: nextBlock,
+      wasAtBottom,
+      screenId: sid,
+    });
+    // #endregion
+    return overlapPx;
+  };
+
+  const adjustNavScrollInsetIfOverlap = (trigger) => {
+    bumpScrollClearanceAtRest(trigger);
   };
 
   const hasOpenOverlay = () =>
@@ -528,33 +569,6 @@ const GazpromMobileOverlay = (() => {
   const isHorizontalGesture = (dx, dy) =>
     Math.abs(dx) > 4 && Math.abs(dx) >= Math.abs(dy) * 0.45;
 
-  const NON_TEXT_INPUT_TYPES = new Set([
-    'button',
-    'checkbox',
-    'radio',
-    'file',
-    'submit',
-    'reset',
-    'hidden',
-    'image',
-    'range',
-    'color',
-  ]);
-
-  const isTextEditingTarget = (target) => {
-    const el = target?.closest?.('textarea, select, [contenteditable="true"]');
-    if (el) return true;
-    const input = target?.closest?.('input');
-    if (!input) return false;
-    const type = (input.getAttribute('type') || 'text').toLowerCase();
-    return !NON_TEXT_INPUT_TYPES.has(type);
-  };
-
-  const isFocusedTextField = () => isTextEditingTarget(document.activeElement);
-
-  const shouldAllowNativeTextGesture = (target) =>
-    hasOpenOverlay() || isTextEditingTarget(target) || isFocusedTextField();
-
   const handleTouchStart = (e) => {
     if (!mq.matches || e.touches.length !== 1) return;
     touchStartX = e.touches[0].clientX;
@@ -574,7 +588,7 @@ const GazpromMobileOverlay = (() => {
 
   const handleTouchMove = (e) => {
     if (!mq.matches || e.touches.length !== 1) return;
-    if (shouldAllowNativeTextGesture(e.target)) return;
+    if (hasOpenOverlay()) return;
     const dx = e.touches[0].clientX - touchStartX;
     const dy = e.touches[0].clientY - touchStartY;
     if (isHorizontalGesture(dx, dy)) {
@@ -591,14 +605,27 @@ const GazpromMobileOverlay = (() => {
     clampScrollX();
   };
 
-  let scrollLogTimer = 0;
+  let scrollSettleTimer = 0;
+  let navInsetSyncTimer = 0;
+  const SCROLL_SETTLE_MS = 450;
+
+  const scheduleNavInsetSync = () => {
+    if (!mq.matches) return;
+    positionBottomNav();
+    if (navInsetSyncTimer) clearTimeout(navInsetSyncTimer);
+    navInsetSyncTimer = window.setTimeout(() => {
+      navInsetSyncTimer = 0;
+      syncNavScrollInset();
+    }, 150);
+  };
+
   const handleMainScroll = () => {
     if (!mq.matches) return;
-    if (scrollLogTimer) return;
-    scrollLogTimer = window.setTimeout(() => {
-      scrollLogTimer = 0;
-      adjustNavScrollInsetIfOverlap('main-scroll');
-    }, 200);
+    if (scrollSettleTimer) clearTimeout(scrollSettleTimer);
+    scrollSettleTimer = window.setTimeout(() => {
+      scrollSettleTimer = 0;
+      bumpScrollClearanceAtRest('main-scroll-end');
+    }, SCROLL_SETTLE_MS);
   };
 
   syncMobileShellClass();
@@ -609,13 +636,22 @@ const GazpromMobileOverlay = (() => {
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', () => {
       syncVisualViewport();
-      syncNavScrollInset();
+      scheduleNavInsetSync();
       clampScrollX();
     });
     window.visualViewport.addEventListener('scroll', () => {
       syncVisualViewport();
-      syncNavScrollInset();
+      positionBottomNav();
     });
+  }
+
+  const mainScrollEl = mainEl();
+  if (mainScrollEl && 'onscrollend' in mainScrollEl) {
+    mainScrollEl.addEventListener(
+      'scrollend',
+      () => bumpScrollClearanceAtRest('main-scrollend'),
+      { passive: true }
+    );
   }
   window.addEventListener('resize', recoverViewportLayout);
   window.addEventListener('orientationchange', () => {
