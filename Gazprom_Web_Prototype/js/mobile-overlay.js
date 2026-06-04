@@ -13,6 +13,44 @@ const GazpromMobileOverlay = (() => {
 
   const mainEl = () => document.querySelector('.main');
 
+  // #region agent log
+  const agentLog = (hypothesisId, location, message, data) => {
+    const payload = {
+      sessionId: '2c2db0',
+      runId: 'pre-fix',
+      hypothesisId,
+      location,
+      message,
+      data,
+      timestamp: Date.now(),
+    };
+    fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '2c2db0' },
+      body: JSON.stringify(payload),
+    }).catch(() => {});
+    try {
+      const key = 'gazpromDebugLogs';
+      const prev = JSON.parse(sessionStorage.getItem(key) || '[]');
+      prev.push(payload);
+      if (prev.length > 40) prev.shift();
+      sessionStorage.setItem(key, JSON.stringify(prev));
+    } catch (_) {}
+    if (typeof location !== 'undefined' && String(location.search || '').includes('debug=2c2db0')) {
+      let el = document.getElementById('gazpromScrollDebug');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'gazpromScrollDebug';
+        el.style.cssText =
+          'position:fixed;left:4px;right:4px;bottom:72px;z-index:99999;font:10px/1.3 monospace;' +
+          'background:rgba(0,0,0,.82);color:#0f0;padding:6px;max-height:28vh;overflow:auto;pointer-events:none;';
+        document.body.appendChild(el);
+      }
+      el.textContent = `${message} ${JSON.stringify(data)}`;
+    }
+  };
+  // #endregion
+
   /** Полосы с overflow-x: auto — свайп не блокируем (см. MOBILE_PHONE_MODE §3.8, web-82). */
   const HORIZONTAL_SCROLL_SELECTOR = [
     '.list-table',
@@ -39,19 +77,122 @@ const GazpromMobileOverlay = (() => {
     }
   };
 
-  /** Нижний отступ прокрутки .main: высота fixed bottom-nav + панель Safari под ним. */
-  const syncNavScrollInset = () => {
+  const findScreenBottomElement = (screen) => {
+    if (!screen) return null;
+    return (
+      screen.querySelector('.wizard-footer') ||
+      screen.querySelector('#historyList .history-card:last-child') ||
+      screen.querySelector('#eliminationCardList .elimination-act-card:last-child') ||
+      screen.querySelector('.settings-grid .settings-tile:last-child') ||
+      screen.querySelector('#wizardPanels .card:last-child') ||
+      screen.lastElementChild
+    );
+  };
+
+  const applyMainScrollPadding = (blockPx) => {
+    const main = mainEl();
     const body = document.body;
+    body.style.setProperty('--gazprom-nav-block', `${blockPx}px`);
+    if (!main) return;
+    const basePad =
+      window.matchMedia(
+        '(max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none) and (orientation: landscape)'
+      ).matches
+        ? 6
+        : 12;
+    main.style.paddingBottom = `calc(${basePad}px + ${blockPx}px)`;
+    main.style.scrollPaddingBottom = `calc(${basePad}px + ${blockPx}px)`;
+  };
+
+  const clearMainScrollPadding = () => {
+    document.body.style.removeProperty('--gazprom-nav-block');
+    const main = mainEl();
+    if (!main) return;
+    main.style.removeProperty('padding-bottom');
+    main.style.removeProperty('scroll-padding-bottom');
+  };
+
+  /** Нижний отступ прокрутки .main: bottom-nav + панель Safari (visualViewport). */
+  const syncNavScrollInset = () => {
     if (!mq.matches) {
-      body.style.removeProperty('--gazprom-nav-block');
+      clearMainScrollPadding();
       return;
     }
     const nav = document.querySelector('.bottom-nav');
-    const gap = 12;
+    const gap = 16;
     if (!nav) return;
     const rect = nav.getBoundingClientRect();
-    const blockPx = Math.max(64, Math.ceil(window.innerHeight - rect.top + gap));
-    body.style.setProperty('--gazprom-nav-block', `${blockPx}px`);
+    const vv = window.visualViewport;
+    const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+    const browserChromeBelow = Math.max(0, window.innerHeight - visibleBottom);
+    const fromNavTop = window.innerHeight - rect.top + gap;
+    const fromNavInView = Math.max(0, visibleBottom - rect.top) + gap;
+    const fromChrome = rect.height + browserChromeBelow + gap;
+    const blockPx = Math.max(72, Math.ceil(Math.max(fromNavTop, fromNavInView, fromChrome)));
+    applyMainScrollPadding(blockPx);
+    // #region agent log
+    agentLog('A,D', 'mobile-overlay.js:syncNavScrollInset', 'nav inset computed', {
+      runId: 'post-fix',
+      blockPx,
+      fromNavTop: Math.ceil(fromNavTop),
+      fromNavInView: Math.ceil(fromNavInView),
+      fromChrome: Math.ceil(fromChrome),
+      browserChromeBelow: Math.round(browserChromeBelow),
+      innerHeight: window.innerHeight,
+      vvHeight: vv?.height ?? null,
+      visibleBottom: Math.round(visibleBottom),
+      navTop: Math.round(rect.top),
+      navBottom: Math.round(rect.bottom),
+      navHeight: Math.round(rect.height),
+    });
+    // #endregion
+  };
+
+  const measureScrollOverlap = (trigger) => {
+    if (!mq.matches) return 0;
+    const main = mainEl();
+    const nav = document.querySelector('.bottom-nav');
+    const active = document.querySelector('.screen.active');
+    if (!main || !nav || !active) return 0;
+    const navR = nav.getBoundingClientRect();
+    const mainStyle = getComputedStyle(main);
+    const scrollMax = main.scrollHeight - main.clientHeight;
+    const atBottom = scrollMax <= 0 || main.scrollTop >= scrollMax - 3;
+    const bottomEl = findScreenBottomElement(active);
+    const contentBottom = bottomEl?.getBoundingClientRect?.()?.bottom ?? 0;
+    const overlapPx = Math.round(contentBottom - navR.top);
+    // #region agent log
+    agentLog('E', 'mobile-overlay.js:measureScrollOverlap', 'scroll clearance', {
+      runId: 'post-fix',
+      trigger,
+      screenId: active.id,
+      atBottom,
+      overlapPx,
+      scrollTop: Math.round(main.scrollTop),
+      scrollMax: Math.round(scrollMax),
+      mainPaddingBottom: mainStyle.paddingBottom,
+      contentBottom: Math.round(contentBottom),
+      navTop: Math.round(navR.top),
+    });
+    // #endregion
+    return atBottom ? overlapPx : 0;
+  };
+
+  const adjustNavScrollInsetIfOverlap = (trigger) => {
+    const overlapPx = measureScrollOverlap(trigger);
+    if (overlapPx <= 0) return;
+    const body = document.body;
+    const current = parseFloat(getComputedStyle(body).getPropertyValue('--gazprom-nav-block')) || 72;
+    const blockPx = Math.ceil(current + overlapPx + 12);
+    applyMainScrollPadding(blockPx);
+    // #region agent log
+    agentLog('E', 'mobile-overlay.js:adjustNavScrollInsetIfOverlap', 'auto bump nav block', {
+      runId: 'post-fix',
+      trigger,
+      overlapPx,
+      blockPx,
+    });
+    // #endregion
   };
 
   const hasOpenOverlay = () =>
@@ -78,7 +219,7 @@ const GazpromMobileOverlay = (() => {
       document.body.scrollLeft = 0;
     } else {
       document.documentElement.style.removeProperty('--vv-height');
-      document.body.style.removeProperty('--gazprom-nav-block');
+      clearMainScrollPadding();
     }
   };
 
@@ -92,6 +233,9 @@ const GazpromMobileOverlay = (() => {
       main.scrollLeft = 0;
       void main.offsetHeight;
     }
+    requestAnimationFrame(() => {
+      adjustNavScrollInsetIfOverlap('recoverViewportLayout');
+    });
   };
 
   const lock = () => {
@@ -178,6 +322,16 @@ const GazpromMobileOverlay = (() => {
     clampScrollX();
   };
 
+  let scrollLogTimer = 0;
+  const handleMainScroll = () => {
+    if (!mq.matches) return;
+    if (scrollLogTimer) return;
+    scrollLogTimer = window.setTimeout(() => {
+      scrollLogTimer = 0;
+      adjustNavScrollInsetIfOverlap('main-scroll');
+    }, 200);
+  };
+
   syncMobileShellClass();
   mq.addEventListener('change', recoverViewportLayout);
 
@@ -208,6 +362,15 @@ const GazpromMobileOverlay = (() => {
   document.addEventListener('touchend', handleTouchEnd, { passive: true });
   document.addEventListener('touchcancel', handleTouchEnd, { passive: true });
   window.addEventListener('scroll', clampScrollX, { passive: true });
+  mainEl()?.addEventListener('scroll', handleMainScroll, { passive: true });
 
-  return { lock, unlock, syncVisualViewport, syncNavScrollInset, recoverViewportLayout };
+  return {
+    lock,
+    unlock,
+    syncVisualViewport,
+    syncNavScrollInset,
+    measureScrollOverlap,
+    adjustNavScrollInsetIfOverlap,
+    recoverViewportLayout,
+  };
 })();

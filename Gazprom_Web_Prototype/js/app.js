@@ -1,5 +1,5 @@
 /** Газпром — веб-приложение: навигация, PWA, импорт, экраны */
-window.GAZPROM_WEB_BUILD = 'web-98';
+window.GAZPROM_WEB_BUILD = 'web-99';
 
 const syncAppBuildLabel = () => {
   const build = window.GAZPROM_WEB_BUILD;
@@ -42,6 +42,9 @@ function goTo(screenId, options = {}) {
   }
   requestAnimationFrame(() => {
     GazpromMobileOverlay?.syncNavScrollInset?.();
+    requestAnimationFrame(() => {
+      GazpromMobileOverlay?.adjustNavScrollInsetIfOverlap?.('goTo-' + screenId);
+    });
   });
 }
 
