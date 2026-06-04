@@ -226,8 +226,8 @@ const WizardModals = (() => {
 
     const footer = `
       ${violationId ? '<button type="button" class="btn-ghost modal-btn-danger" id="mvDelete">Удалить</button>' : ''}
-      <button type="button" class="btn-ghost" data-close>Отмена</button>
       <button type="button" class="btn-primary" id="mvSave">Сохранить</button>
+      <button type="button" class="btn-ghost" data-close>Отмена</button>
     `;
 
     open(violationId ? 'Редактирование нарушения' : 'Новое нарушение', body, footer);
