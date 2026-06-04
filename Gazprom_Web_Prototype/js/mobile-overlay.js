@@ -81,10 +81,11 @@ const GazpromMobileOverlay = (() => {
     if (!screen) return null;
     return (
       screen.querySelector('.wizard-footer') ||
-      screen.querySelector('#historyList .history-card:last-child') ||
+      screen.querySelector('#historyList .history-list-item:last-child') ||
       screen.querySelector('#eliminationCardList .elimination-act-card:last-child') ||
       screen.querySelector('.settings-grid .settings-tile:last-child') ||
-      screen.querySelector('#wizardPanels .card:last-child') ||
+      screen.querySelector('#wizardPanels .wizard-panel-active') ||
+      screen.querySelector('.screen.active .card:last-child') ||
       screen.lastElementChild
     );
   };
@@ -92,7 +93,10 @@ const GazpromMobileOverlay = (() => {
   const applyMainScrollPadding = (blockPx) => {
     const main = mainEl();
     const body = document.body;
-    body.style.setProperty('--gazprom-nav-block', `${blockPx}px`);
+    const px = `${blockPx}px`;
+    body.style.setProperty('--gazprom-nav-block', px);
+    const spacer = document.querySelector('.gazprom-scroll-bottom-spacer');
+    if (spacer) spacer.style.height = px;
     if (!main) return;
     const basePad =
       window.matchMedia(
@@ -106,10 +110,64 @@ const GazpromMobileOverlay = (() => {
 
   const clearMainScrollPadding = () => {
     document.body.style.removeProperty('--gazprom-nav-block');
+    document.querySelector('.gazprom-scroll-bottom-spacer')?.style.removeProperty('height');
     const main = mainEl();
     if (!main) return;
     main.style.removeProperty('padding-bottom');
     main.style.removeProperty('scroll-padding-bottom');
+  };
+
+  /** Прокрутка в конец, замер overlap (для автокоррекции). */
+  const measureOverlapAtScrollEnd = (trigger) => {
+    const main = mainEl();
+    const nav = document.querySelector('.bottom-nav');
+    const active = document.querySelector('.screen.active');
+    if (!main || !nav || !active) return 0;
+    const maxTop = Math.max(0, main.scrollHeight - main.clientHeight);
+    main.scrollTop = maxTop;
+    void main.offsetHeight;
+    const navR = nav.getBoundingClientRect();
+    const bottomEl = findScreenBottomElement(active);
+    const contentBottom = bottomEl?.getBoundingClientRect?.()?.bottom ?? 0;
+    const overlapPx = Math.round(contentBottom - navR.top);
+    // #region agent log
+    agentLog('E', 'mobile-overlay.js:measureOverlapAtScrollEnd', 'forced end measure', {
+      runId: 'post-fix-v2',
+      trigger,
+      overlapPx,
+      maxTop: Math.round(maxTop),
+      screenId: active.id,
+      bottomSelector: bottomEl?.className?.slice?.(0, 80) ?? null,
+      contentBottom: Math.round(contentBottom),
+      navTop: Math.round(navR.top),
+      mainPaddingBottom: getComputedStyle(main).paddingBottom,
+    });
+    // #endregion
+    return overlapPx;
+  };
+
+  const ensureScrollClearance = (trigger) => {
+    if (!mq.matches) return;
+    const main = mainEl();
+    if (!main) return;
+    const savedTop = main.scrollTop;
+    syncNavScrollInset();
+    const overlapPx = measureOverlapAtScrollEnd(trigger);
+    if (overlapPx > 0) {
+      const current = parseFloat(getComputedStyle(document.body).getPropertyValue('--gazprom-nav-block')) || 72;
+      applyMainScrollPadding(Math.ceil(current + overlapPx + 16));
+    }
+    const maxTop = Math.max(0, main.scrollHeight - main.clientHeight);
+    main.scrollTop = trigger.startsWith('goTo-') ? 0 : Math.min(savedTop, maxTop);
+    // #region agent log
+    agentLog('E', 'mobile-overlay.js:ensureScrollClearance', 'done', {
+      runId: 'post-fix-v2',
+      trigger,
+      overlapPx,
+      restoredScrollTop: main.scrollTop,
+      navBlock: getComputedStyle(document.body).getPropertyValue('--gazprom-nav-block').trim(),
+    });
+    // #endregion
   };
 
   /** Нижний отступ прокрутки .main: bottom-nav + панель Safari (visualViewport). */
@@ -233,9 +291,7 @@ const GazpromMobileOverlay = (() => {
       main.scrollLeft = 0;
       void main.offsetHeight;
     }
-    requestAnimationFrame(() => {
-      adjustNavScrollInsetIfOverlap('recoverViewportLayout');
-    });
+    requestAnimationFrame(() => ensureScrollClearance('recoverViewportLayout'));
   };
 
   const lock = () => {
@@ -333,6 +389,7 @@ const GazpromMobileOverlay = (() => {
   };
 
   syncMobileShellClass();
+  requestAnimationFrame(() => ensureScrollClearance('boot'));
   mq.addEventListener('change', recoverViewportLayout);
 
   if (window.visualViewport) {
@@ -371,6 +428,7 @@ const GazpromMobileOverlay = (() => {
     syncNavScrollInset,
     measureScrollOverlap,
     adjustNavScrollInsetIfOverlap,
+    ensureScrollClearance,
     recoverViewportLayout,
   };
 })();

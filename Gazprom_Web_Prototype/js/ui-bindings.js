@@ -318,6 +318,9 @@ const GazpromUI = (() => {
         </div>`;
       })
       .join('');
+    requestAnimationFrame(() => {
+      window.GazpromMobileOverlay?.ensureScrollClearance?.('history-render');
+    });
   }
 
   function renderElimination(data) {

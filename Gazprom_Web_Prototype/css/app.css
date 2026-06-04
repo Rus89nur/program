@@ -4017,6 +4017,14 @@
         gap: 0;
       }
 
+      body.gazprom-mobile-shell .gazprom-scroll-bottom-spacer {
+        flex-shrink: 0;
+        width: 100%;
+        height: var(--gazprom-nav-block, 72px);
+        min-height: 72px;
+        pointer-events: none;
+      }
+
       body.gazprom-mobile-shell .main {
         grid-column: 1;
         grid-row: 2;
@@ -4836,7 +4844,6 @@
     @media (max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none) and (orientation: landscape) {
       body.gazprom-mobile-shell {
         --gazprom-nav-shift-down: 4px;
-        --gazprom-nav-block: calc(38px + env(safe-area-inset-bottom, 0px) + var(--gazprom-nav-shift-down));
       }
 
       body.gazprom-mobile-shell #dataStatusBar.data-status {

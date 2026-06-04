@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Макет sidebar — варианты 1 и 4 (десктоп)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0d47a1;
+      --primary-hover: #1565c0;
+      --primary-soft: #e3f2fd;
+      --accent: #00838f;
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --sidebar: #0a1929;
+      --sidebar-hover: rgba(255,255,255,0.08);
+      --sidebar-active: rgba(21, 101, 192, 0.45);
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --cyan: #26c6da;
+      --shadow: 0 1px 3px rgba(15,23,42,0.08), 0 8px 24px rgba(13,71,161,0.06);
+      --radius: 12px;
+      --radius-lg: 16px;
+      --sidebar-w: 240px;
+      --header-h: 56px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #dde3ea;
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+    }
+
+    .page-head {
+      max-width: 1480px;
+      margin: 0 auto 20px;
+    }
+
+    .page-head h1 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+
+    .page-head p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.55;
+      max-width: 920px;
+    }
+
+    .preview-tabs {
+      max-width: 1480px;
+      margin: 0 auto 16px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .preview-tab {
+      border: 2px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+    }
+
+    .preview-tab:hover { border-color: var(--primary); color: var(--primary); }
+    .preview-tab.active {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .preview-grid {
+      max-width: 1480px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 28px;
+    }
+
+    .preview-grid.show-both { grid-template-columns: 1fr 1fr; }
+
+    @media (max-width: 1200px) {
+      .preview-grid.show-both { grid-template-columns: 1fr; }
+    }
+
+    .mockup-panel { display: none; }
+    .mockup-panel.visible { display: block; }
+
+    .browser-frame {
+      background: #fff;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(15,23,42,0.14);
+      border: 1px solid #c5cdd8;
+    }
+
+    .browser-chrome {
+      background: #e8eaed;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #dadce0;
+    }
+
+    .browser-dots { display: flex; gap: 6px; }
+    .browser-dots span { width: 12px; height: 12px; border-radius: 50%; }
+    .browser-dots span:nth-child(1) { background: #ff5f57; }
+    .browser-dots span:nth-child(2) { background: #febc2e; }
+    .browser-dots span:nth-child(3) { background: #28c840; }
+
+    .browser-url {
+      flex: 1;
+      margin: 0 10px;
+      background: #fff;
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 12px;
+      color: var(--text-muted);
+      border: 1px solid #dadce0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .browser-url strong { color: var(--primary); }
+
+    .variant-label {
+      padding: 10px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(90deg, var(--primary-soft), #fff);
+      color: var(--primary);
+    }
+
+    .variant-label--fab {
+      background: linear-gradient(90deg, #e0f7fa, #fff);
+      color: #006064;
+    }
+
+    .app-viewport {
+      height: 720px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+    }
+
+    .data-status {
+      padding: 8px 16px;
+      font-size: 12px;
+      background: #fff8e1;
+      border-bottom: 1px solid #ffe082;
+      color: #5d4037;
+      flex-shrink: 0;
+    }
+
+    .data-status code {
+      background: rgba(0,0,0,0.06);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    .app {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr;
+      grid-template-rows: var(--header-h) 1fr;
+    }
+
+    .sidebar {
+      grid-row: 1 / -1;
+      background: var(--sidebar);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 0;
+    }
+
+    .sidebar-brand {
+      padding: 8px 20px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 8px;
+    }
+
+    .sidebar-brand .logo {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 800;
+      font-size: 1.1rem;
+    }
+
+    .sidebar-brand .logo span { color: var(--cyan); }
+
+    .sidebar-brand small {
+      display: block;
+      font-size: 11px;
+      opacity: 0.55;
+      margin-top: 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      margin: 2px 8px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.75);
+      border: none;
+      background: none;
+      width: calc(100% - 16px);
+      text-align: left;
+      font-family: inherit;
+      cursor: default;
+      position: relative;
+    }
+
+    .nav-item .nav-icon {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .nav-item .nav-icon svg {
+      width: 20px;
+      height: 20px;
+      display: block;
+    }
+
+    /* Variant 1 — outline + cyan stripe */
+    .sidebar--v1 .nav-item.active {
+      background: var(--sidebar-active);
+      color: #fff;
+    }
+
+    .sidebar--v1 .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 8px;
+      bottom: 8px;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: var(--cyan);
+    }
+
+    .sidebar--v1 .nav-item:not(.active) .nav-icon { opacity: 0.65; }
+
+    /* Variant 4 — FAB CTA in sidebar */
+    .sidebar-fab-wrap {
+      padding: 4px 16px 12px;
+    }
+
+    .sidebar-fab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 14px 16px;
+      border: none;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--cyan), #00838f);
+      color: #fff;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: default;
+      box-shadow: 0 6px 20px rgba(38, 198, 218, 0.45), 0 0 0 3px rgba(38, 198, 218, 0.15);
+    }
+
+    .sidebar-fab__icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.22);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .sidebar-fab__icon svg { width: 18px; height: 18px; }
+
+    .sidebar--v4 .nav-item.active {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+    }
+
+    .sidebar--v4 .nav-item--muted { opacity: 0.55; font-size: 13px; }
+
+    .sidebar-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.08);
+      margin: 4px 16px 8px;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 16px 20px;
+      font-size: 11px;
+      opacity: 0.45;
+      line-height: 1.5;
+    }
+
+    .header {
+      grid-column: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .header-title {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+
+    .search-box {
+      padding: 8px 14px;
+      background: var(--bg);
+      border-radius: 10px;
+      font-size: 13px;
+      color: var(--text-muted);
+      min-width: 220px;
+      border: 1px solid var(--border);
+    }
+
+    .header-sync {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px 4px 4px;
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      cursor: default;
+    }
+
+    .header-sync__icon {
+      width: 36px;
+      height: 36px;
+      color: #2e7d32;
+    }
+
+    .header-sync__icon svg { width: 100%; height: 100%; }
+
+    .header-sync__status {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #2e7d32;
+    }
+
+    .header-sync__time {
+      display: block;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .main {
+      grid-column: 2;
+      overflow-y: auto;
+      padding: 24px;
+      background: var(--bg);
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .home-hero { text-align: center; padding: 28px 24px; }
+
+    .home-datetime {
+      font-size: 2rem;
+      font-weight: 300;
+      font-variant-numeric: tabular-nums;
+      margin-bottom: 8px;
+    }
+
+    .home-greeting {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .progress-block { max-width: 520px; margin: 0 auto 24px; }
+
+    .progress-bar-wrap {
+      height: 10px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 68%;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      border-radius: 999px;
+    }
+
+    .progress-label { font-size: 14px; font-weight: 600; }
+
+    .progress-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .home-akt-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .btn-primary {
+      padding: 16px 40px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 18px;
+      font-weight: 700;
+      font-family: inherit;
+      box-shadow: 0 4px 14px rgba(13,71,161,0.35);
+      cursor: default;
+    }
+
+    .btn-secondary {
+      padding: 10px 18px;
+      background: var(--surface);
+      color: var(--primary);
+      border: 2px solid var(--primary);
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: default;
+    }
+
+    .home-akt-actions__secondary {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .home-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .stat-card { padding: 20px; text-align: center; margin-bottom: 0; }
+
+    .stat-value {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--primary);
+    }
+
+    .stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+    .legend {
+      max-width: 1480px;
+      margin: 24px auto 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) { .legend { grid-template-columns: 1fr; } }
+
+    .legend-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+
+    .legend-card strong {
+      display: block;
+      color: var(--text);
+      margin-bottom: 6px;
+      font-family: 'Montserrat', sans-serif;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="page-head">
+    <h1>Десктоп · полная версия в браузере</h1>
+    <p>
+      Макет sidebar при ширине окна <strong>≥ 901 px</strong> (как на компьютере).
+      Слева — боковая панель 240 px, справа — header и экран «Главная».
+      Переключайте вкладки или смотрите оба варианта рядом.
+    </p>
+  </header>
+
+  <div class="preview-tabs" role="tablist" aria-label="Варианты навигации">
+    <button class="preview-tab active" type="button" data-view="both">Оба рядом</button>
+    <button class="preview-tab" type="button" data-view="v1">Вариант 1 — outline</button>
+    <button class="preview-tab" type="button" data-view="v4">Вариант 4 — FAB</button>
+  </div>
+
+  <div class="preview-grid show-both" id="previewGrid">
+
+    <!-- ===== VARIANT 1 ===== -->
+    <section class="mockup-panel visible" id="panel-v1" aria-label="Вариант 1">
+      <div class="browser-frame">
+        <div class="browser-chrome">
+          <div class="browser-dots"><span></span><span></span><span></span></div>
+          <div class="browser-url"><strong>localhost</strong> / Gazprom_Web_Prototype / index.html · 1440×900</div>
+        </div>
+        <div class="variant-label">Вариант 1 — корпоративный outline SVG</div>
+        <div class="app-viewport">
+          <div class="data-status">
+            <span>Данные загружены</span> — резервная копия от 02.06.2026
+          </div>
+          <div class="app">
+            <aside class="sidebar sidebar--v1">
+              <div class="sidebar-brand">
+                <div class="logo">Р.И. <span>Шелудько</span></div>
+                <small>Акты проверок · веб</small>
+              </div>
+              <button class="nav-item active" type="button">
+                <span class="nav-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                </span>
+                <span>Главная</span>
+              </button>
+              <button class="nav-item" type="button">
+                <span class="nav-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </span>
+                <span>Редактируемый акт</span>
+              </button>
+              <button class="nav-item" type="button">
+                <span class="nav-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>
+                </span>
+                <span>История</span>
+              </button>
+              <button class="nav-item" type="button">
+                <span class="nav-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-8"/></svg>
+                </span>
+                <span>Отчёты</span>
+              </button>
+              <button class="nav-item" type="button">
+                <span class="nav-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+                </span>
+                <span>Устранение</span>
+              </button>
+              <button class="nav-item" type="button">
+                <span class="nav-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg>
+                </span>
+                <span>Настройки</span>
+              </button>
+              <div class="sidebar-footer">программа НЕТ<br>v1.0 · PWA</div>
+            </aside>
+
+            <header class="header">
+              <h1 class="header-title">Главная</h1>
+              <div class="header-actions">
+                <div class="search-box">🔍 Поиск актов, объектов…</div>
+                <button class="header-sync" type="button">
+                  <span class="header-sync__icon" aria-hidden="true">
+                    <svg viewBox="0 0 40 40" fill="none"><path d="M29 28H13.5a6.2 6.2 0 0 1-.15-12.4c.9-4.6 4.9-8 9.65-8 3.9 0 7.3 2.3 8.85 5.65A5.8 5.8 0 0 1 29 28z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M20 24.5a4.2 4.2 0 1 0 2.9-3.95" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M21.2 19.8v2.4h2.4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </span>
+                  <span><span class="header-sync__status">Синхронизировано</span><span class="header-sync__time">02.06.2026, 14:32</span></span>
+                </button>
+                <div class="avatar">ИП</div>
+              </div>
+            </header>
+
+            <main class="main">
+              <div class="card home-hero">
+                <div class="home-datetime">14:32 · среда, 3 июня</div>
+                <div class="home-greeting">Добрый день! Готовы к проверке?</div>
+                <div class="progress-block">
+                  <div class="progress-bar-wrap"><div class="progress-bar-fill"></div></div>
+                  <div class="progress-label">График проверок · 68% за месяц</div>
+                  <div class="progress-hint">Нажмите на полосу — переключить «за месяц» / «за период»</div>
+                </div>
+                <div class="home-akt-actions">
+                  <button class="btn-primary" type="button">Создать полный акт</button>
+                  <div class="home-akt-actions__secondary">
+                    <button class="btn-secondary" type="button">Начать новый сокращённый Акт</button>
+                  </div>
+                </div>
+              </div>
+              <div class="home-grid">
+                <div class="card stat-card"><div class="stat-value">047</div><div class="stat-label">Текущий номер акта</div></div>
+                <div class="card stat-card"><div class="stat-value">12</div><div class="stat-label">Актов в работе</div></div>
+                <div class="card stat-card"><div class="stat-value">3</div><div class="stat-label">Черновиков</div></div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== VARIANT 4 ===== -->
+    <section class="mockup-panel visible" id="panel-v4" aria-label="Вариант 4">
+      <div class="browser-frame">
+        <div class="browser-chrome">
+          <div class="browser-dots"><span></span><span></span><span></span></div>
+          <div class="browser-url"><strong>localhost</strong> / Gazprom_Web_Prototype / index.html · 1440×900</div>
+        </div>
+        <div class="variant-label variant-label--fab">Вариант 4 — FAB «Новый акт» в sidebar</div>
+        <div class="app-viewport">
+          <div class="data-status">
+            <span>Данные загружены</span> — резервная копия от 02.06.2026
+          </div>
+          <div class="app">
+            <aside class="sidebar sidebar--v4">
+              <div class="sidebar-brand">
+                <div class="logo">Р.И. <span>Шелудько</span></div>
+                <small>Акты проверок · веб</small>
+              </div>
+              <div class="sidebar-fab-wrap">
+                <button class="sidebar-fab" type="button">
+                  <span class="sidebar-fab__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                  </span>
+                  <span>Новый акт</span>
+                </button>
+              </div>
+              <div class="sidebar-divider"></div>
+              <button class="nav-item active" type="button">
+                <span class="nav-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                </span>
+                <span>Главная</span>
+              </button>
+              <button class="nav-item nav-item--muted" type="button">
+                <span class="nav-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M10 13h4"/><path d="M10 17h4"/></svg>
+                </span>
+                <span>Текущий черновик</span>
+              </button>
+              <button class="nav-item" type="button">
+                <span class="nav-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                </span>
+                <span>История</span>
+              </button>
+              <button class="nav-item" type="button">
+                <span class="nav-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-8"/></svg>
+                </span>
+                <span>Отчёты</span>
+              </button>
+              <button class="nav-item" type="button">
+                <span class="nav-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m22 4-10 10.01-3-3"/></svg>
+                </span>
+                <span>Устранение</span>
+              </button>
+              <button class="nav-item" type="button">
+                <span class="nav-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                </span>
+                <span>Ещё</span>
+              </button>
+              <div class="sidebar-footer">программа НЕТ<br>v1.0 · PWA</div>
+            </aside>
+
+            <header class="header">
+              <h1 class="header-title">Главная</h1>
+              <div class="header-actions">
+                <div class="search-box">🔍 Поиск актов, объектов…</div>
+                <button class="header-sync" type="button">
+                  <span class="header-sync__icon" aria-hidden="true">
+                    <svg viewBox="0 0 40 40" fill="none"><path d="M29 28H13.5a6.2 6.2 0 0 1-.15-12.4c.9-4.6 4.9-8 9.65-8 3.9 0 7.3 2.3 8.85 5.65A5.8 5.8 0 0 1 29 28z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M20 24.5a4.2 4.2 0 1 0 2.9-3.95" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M21.2 19.8v2.4h2.4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </span>
+                  <span><span class="header-sync__status">Синхронизировано</span><span class="header-sync__time">02.06.2026, 14:32</span></span>
+                </button>
+                <div class="avatar">ИП</div>
+              </div>
+            </header>
+
+            <main class="main">
+              <div class="card home-hero">
+                <div class="home-datetime">14:32 · среда, 3 июня</div>
+                <div class="home-greeting">Добрый день! Готовы к проверке?</div>
+                <div class="progress-block">
+                  <div class="progress-bar-wrap"><div class="progress-bar-fill"></div></div>
+                  <div class="progress-label">График проверок · 68% за месяц</div>
+                  <div class="progress-hint">Нажмите на полосу — переключить «за месяц» / «за период»</div>
+                </div>
+                <div class="home-akt-actions">
+                  <button class="btn-primary" type="button">Создать полный акт</button>
+                  <div class="home-akt-actions__secondary">
+                    <button class="btn-secondary" type="button">Начать новый сокращённый Акт</button>
+                  </div>
+                </div>
+              </div>
+              <div class="home-grid">
+                <div class="card stat-card"><div class="stat-value">047</div><div class="stat-label">Текущий номер акта</div></div>
+                <div class="card stat-card"><div class="stat-value">12</div><div class="stat-label">Актов в работе</div></div>
+                <div class="card stat-card"><div class="stat-value">3</div><div class="stat-label">Черновиков</div></div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="legend">
+    <div class="legend-card">
+      <strong>Вариант 1 — для десктопа</strong>
+      Все 6 разделов в sidebar с единым набором outline-SVG (как в header).
+      Активный пункт — cyan-полоска слева + синяя подсветка. На телефоне тот же стиль в bottom bar.
+    </div>
+    <div class="legend-card">
+      <strong>Вариант 4 — для десктопа</strong>
+      FAB «Новый акт» под логотипом (главное действие). Ниже — навигация; «Текущий черновик» вторичным пунктом.
+      «Ещё» объединяет Настройки и справочники. На телефоне FAB — по центру bottom bar.
+    </div>
+  </div>
+
+  <script>
+    const grid = document.getElementById('previewGrid');
+    const panelV1 = document.getElementById('panel-v1');
+    const panelV4 = document.getElementById('panel-v4');
+    const tabs = document.querySelectorAll('.preview-tab');
+
+    const handleTabClick = (tab) => {
+      tabs.forEach((t) => t.classList.toggle('active', t === tab));
+      const view = tab.dataset.view;
+      panelV1.classList.toggle('visible', view === 'both' || view === 'v1');
+      panelV4.classList.toggle('visible', view === 'both' || view === 'v4');
+      grid.classList.toggle('show-both', view === 'both');
+    };
+
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => handleTabClick(tab));
+    });
+  </script>
+</body>
+</html>
