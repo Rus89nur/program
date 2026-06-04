@@ -15,8 +15,17 @@ const GazpromMobileOverlay = (() => {
 
   // #region agent log
   const isDebugScrollMode = () => {
+    try {
+      if (localStorage.getItem('gazpromDebugScroll') === '1') return true;
+    } catch (_) {}
     const q = window.location.search || '';
-    return q.includes('debug=1') || q.includes('debug=scroll') || q.includes('debug=2c2db0');
+    const h = window.location.hash || '';
+    return (
+      q.includes('debug=1') ||
+      q.includes('debug=scroll') ||
+      q.includes('debug=2c2db0') ||
+      h.includes('debug')
+    );
   };
 
   const refreshDebugPanel = () => {
@@ -36,17 +45,41 @@ const GazpromMobileOverlay = (() => {
   };
 
   const initDebugPanel = () => {
-    if (!isDebugScrollMode() || document.getElementById('gazpromScrollDebug')) return;
+    if (!isDebugScrollMode()) return;
+    if (!document.body) return;
+    if (document.getElementById('gazpromScrollDebug')) return;
     const wrap = document.createElement('div');
     wrap.id = 'gazpromScrollDebug';
+    wrap.setAttribute('role', 'region');
+    wrap.setAttribute('aria-label', 'Отладка прокрутки');
     wrap.style.cssText =
-      'position:fixed;left:6px;right:6px;bottom:88px;z-index:99999;font:11px/1.35 -apple-system,sans-serif;' +
-      'background:rgba(0,0,0,.88);color:#9f9;border-radius:8px;padding:8px;max-height:32vh;overflow:auto;';
+      'position:fixed;left:8px;right:8px;top:max(8px, env(safe-area-inset-top));z-index:100000;' +
+      'font:12px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;background:#1a1a2e;color:#b8f0c8;' +
+      'border:2px solid #26c6da;border-radius:10px;padding:10px;max-height:38vh;overflow:auto;' +
+      'box-shadow:0 8px 32px rgba(0,0,0,.45);pointer-events:auto;';
     wrap.innerHTML =
-      '<div style="color:#fff;font-weight:600;margin-bottom:6px">Отладка прокрутки</div>' +
-      '<pre id="gazpromScrollDebugPre" style="margin:0 0 8px;white-space:pre-wrap;word-break:break-word;font:inherit"></pre>' +
-      '<button type="button" id="gazpromScrollDebugCopy" style="width:100%;padding:10px;font-size:14px;border-radius:6px;border:none;background:#26c6da;color:#003">Скопировать все логи</button>';
+      '<div style="color:#fff;font-weight:700;margin-bottom:4px">Отладка прокрутки (web-102)</div>' +
+      '<div style="color:#8cf;font-size:11px;margin-bottom:8px">Сверните панель — кнопка DEBUG внизу справа</div>' +
+      '<pre id="gazpromScrollDebugPre" style="margin:0 0 8px;white-space:pre-wrap;word-break:break-word;font:inherit;font-size:11px"></pre>' +
+      '<button type="button" id="gazpromScrollDebugCopy" style="width:100%;padding:12px;font-size:15px;font-weight:700;border-radius:8px;border:none;background:#26c6da;color:#003">Скопировать все логи</button>' +
+      '<button type="button" id="gazpromScrollDebugHide" style="width:100%;margin-top:6px;padding:8px;font-size:13px;border-radius:8px;border:1px solid #555;background:transparent;color:#ccc">Скрыть панель</button>';
     document.body.appendChild(wrap);
+    const fab = document.createElement('button');
+    fab.type = 'button';
+    fab.id = 'gazpromScrollDebugFab';
+    fab.textContent = 'DEBUG';
+    fab.setAttribute('aria-label', 'Показать отладку прокрутки');
+    fab.style.cssText =
+      'position:fixed;right:10px;bottom:calc(100px + env(safe-area-inset-bottom));z-index:100001;' +
+      'padding:10px 14px;font-size:13px;font-weight:800;border-radius:999px;border:none;' +
+      'background:#e65100;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.35);pointer-events:auto;';
+    document.body.appendChild(fab);
+    fab.addEventListener('click', () => {
+      wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+    });
+    document.getElementById('gazpromScrollDebugHide')?.addEventListener('click', () => {
+      wrap.style.display = 'none';
+    });
     document.getElementById('gazpromScrollDebugCopy')?.addEventListener('click', async () => {
       try {
         const text = sessionStorage.getItem('gazpromDebugLogs') || '[]';
@@ -61,6 +94,16 @@ const GazpromMobileOverlay = (() => {
       }
     });
     refreshDebugPanel();
+    agentLog('UI', 'mobile-overlay.js:initDebugPanel', 'debug panel mounted', {
+      href: window.location.href,
+      search: window.location.search,
+    });
+  };
+
+  const scheduleInitDebugPanel = () => {
+    if (!isDebugScrollMode()) return;
+    if (document.body) initDebugPanel();
+    else document.addEventListener('DOMContentLoaded', initDebugPanel, { once: true });
   };
 
   const agentLog = (hypothesisId, logAt, message, data) => {
@@ -438,7 +481,7 @@ const GazpromMobileOverlay = (() => {
   };
 
   syncMobileShellClass();
-  initDebugPanel();
+  scheduleInitDebugPanel();
   requestAnimationFrame(() => ensureScrollClearance('boot'));
   mq.addEventListener('change', recoverViewportLayout);
 
