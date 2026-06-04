@@ -4025,6 +4025,13 @@
         pointer-events: none;
       }
 
+      body.gazprom-mobile-shell #historyList,
+      body.gazprom-mobile-shell #eliminationCardList,
+      body.gazprom-mobile-shell .settings-grid,
+      body.gazprom-mobile-shell .wizard-layout {
+        box-sizing: border-box;
+      }
+
       body.gazprom-mobile-shell .main {
         grid-column: 1;
         grid-row: 2;
@@ -4703,6 +4710,18 @@
         -webkit-overflow-scrolling: touch;
       }
 
+      /* Карточка нарушения: почти на всю ширину и выше, чем общий лимит 88dvh ниже */
+      .modal-root.show .modal-dialog {
+        width: calc(100% - 2 * var(--mobile-modal-gutter));
+        max-width: calc(100% - 2 * var(--mobile-modal-gutter));
+        max-height: min(
+          var(--vv-height, 92dvh),
+          calc(
+            100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16px
+          )
+        );
+      }
+
       .modal-body,
       .catalog-editor-body,
       .catalog-form-dialog,
@@ -4721,6 +4740,14 @@
       .vr-form-dialog textarea {
         max-width: 100%;
         box-sizing: border-box;
+      }
+
+      .modal-root.show .modal-body textarea,
+      .modal-root.show .modal-body input.form-control,
+      .modal-root.show .modal-body select.form-control {
+        touch-action: manipulation;
+        -webkit-user-select: text;
+        user-select: text;
       }
 
       .modal-dialog,
@@ -4984,7 +5011,6 @@
         gap: 8px;
       }
 
-      .modal-dialog,
       .catalog-editor-panel,
       .catalog-form-dialog,
       .backup-modal-dialog,
