@@ -108,15 +108,7 @@
       "violationTitle": "Неисправна вентиляция",
       "isEliminated": false,
       "eliminationDate": null,
-      "deadlineHistory": [
-        {
-          "id": "45678901-4567-4567-4567-456789012abc",
-          "deadlineDate": "2026-06-30T10:00:00Z",
-          "changeDate": "2026-05-01T10:00:00Z",
-          "reason": null,
-          "isOriginal": true
-        }
-      ],
+      "deadlineHistory": [],
       "originalEliminationDate": "2026-06-30T10:00:00Z",
       "newEliminationDate": null
     }

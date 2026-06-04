@@ -121,7 +121,7 @@ const ScheduleEditor = (() => {
       <div class="catalog-editor-backdrop" data-close></div>
       <div class="catalog-editor-panel catalog-editor-panel--schedule card">
         <div class="catalog-editor-header catalog-editor-header--schedule catalog-editor-header--year">
-          <h3 class="schedule-header-title">График проверок ${year}</h3>
+          <h3 class="schedule-header-title">График проверок</h3>
           <div class="schedule-year-controls">
             <button type="button" class="btn-ghost btn-sm" data-year-prev aria-label="Предыдущий год">‹</button>
             <span class="schedule-year-label">${year}</span>

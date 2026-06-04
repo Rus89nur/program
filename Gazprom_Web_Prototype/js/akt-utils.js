@@ -85,6 +85,23 @@ const AktUtils = (() => {
     return '—';
   }
 
+  /** История сроков: только продления (без первоначального срока из акта). */
+  function extensionDeadlineHistory(history) {
+    return (history || []).filter((h) => h && h.isOriginal !== true);
+  }
+
+  function sameDeadlineDay(aIso, bIso) {
+    if (!aIso || !bIso) return false;
+    const a = new Date(aIso);
+    const b = new Date(bIso);
+    if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return false;
+    return (
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate()
+    );
+  }
+
   /** Срок устранения: для сокращённых — дата предоставления отчёта; для полных — actustranenDate. */
   function getEliminationDeadline(akt) {
     if (!akt) return null;
@@ -354,6 +371,8 @@ const AktUtils = (() => {
     getFormatKind,
     formatKindLabel,
     getEliminationDeadline,
+    extensionDeadlineHistory,
+    sameDeadlineDay,
     parseShortViolationCounts,
     buildShortViolations,
     addMonthsIso,

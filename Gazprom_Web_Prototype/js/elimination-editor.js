@@ -178,7 +178,7 @@ const EliminationEditor = (() => {
   }
 
   function eliminationDeadline(e) {
-    const history = e.deadlineHistory || [];
+    const history = AktUtils.extensionDeadlineHistory(e.deadlineHistory);
     if (history.length > 0) {
       const sorted = [...history].sort(
         (a, b) =>
@@ -493,6 +493,17 @@ const EliminationEditor = (() => {
     const list = [...(catalog.violationEliminations || [])];
     let changed = false;
     const violationIds = new Set((akt.violations || []).map((v) => v.id));
+    const aktDeadline = AktUtils.getEliminationDeadline(akt);
+
+    for (let i = 0; i < list.length; i++) {
+      if (!aktIdMatch(list[i].aktId, akt.id) || !violationIds.has(list[i].violationId)) continue;
+      const cleaned = AktUtils.extensionDeadlineHistory(list[i].deadlineHistory);
+      if (cleaned.length !== (list[i].deadlineHistory || []).length) {
+        list[i] = { ...list[i], deadlineHistory: cleaned };
+        changed = true;
+      }
+    }
+
     for (const v of akt.violations || []) {
       const exists = list.find(
         (e) => aktIdMatch(e.aktId, akt.id) && e.violationId === v.id
@@ -505,17 +516,8 @@ const EliminationEditor = (() => {
           violationId: v.id,
           violationTitle: v.title,
           isEliminated: false,
-          originalEliminationDate: AktUtils.getEliminationDeadline(akt),
-          deadlineHistory: AktUtils.getEliminationDeadline(akt)
-            ? [
-                {
-                  id: AktUtils.uuid(),
-                  deadlineDate: AktUtils.getEliminationDeadline(akt),
-                  changeDate: new Date().toISOString(),
-                  isOriginal: true,
-                },
-              ]
-            : [],
+          originalEliminationDate: aktDeadline,
+          deadlineHistory: [],
         });
         changed = true;
       }
@@ -744,7 +746,7 @@ const EliminationEditor = (() => {
         <div class="elimination-detail-footer">
           <button type="button" class="btn-primary elim-btn-mark-all" id="elimDetailMarkAll">Отметить все как устраненные</button>
           <button type="button" class="btn-secondary elim-btn-extend" id="elimDetailExtend">Продлить срок устранения</button>
-          <button type="button" class="btn-secondary elim-btn-history" id="elimDetailHistory">История сроков</button>
+          <button type="button" class="btn-secondary elim-btn-history" id="elimDetailHistory">История продления</button>
           <button type="button" class="btn-ghost" id="elimDetailClose">Закрыть</button>
         </div>
       </div>
@@ -881,22 +883,34 @@ const EliminationEditor = (() => {
     const { akt, selectedIds } = detailState;
     const now = new Date().toISOString();
 
+    let extendedCount = 0;
     catalog.violationEliminations = (catalog.violationEliminations || []).map((e) => {
       if (!aktIdMatch(e.aktId, akt.id) || !selectedIds.has(e.violationId)) return e;
-      const entry = {
-        id: AktUtils.uuid(),
-        deadlineDate: newIso,
-        changeDate: now,
-        reason,
-        isOriginal: false,
-      };
+      const prevDeadline = eliminationDeadline(e);
+      if (AktUtils.sameDeadlineDay(prevDeadline, newIso)) return e;
+      extendedCount += 1;
+      const history = AktUtils.extensionDeadlineHistory(e.deadlineHistory);
       return {
         ...e,
         newEliminationDate: newIso,
         originalEliminationDate: newIso,
-        deadlineHistory: [...(e.deadlineHistory || []), entry],
+        deadlineHistory: [
+          ...history,
+          {
+            id: AktUtils.uuid(),
+            deadlineDate: newIso,
+            changeDate: now,
+            reason,
+            isOriginal: false,
+          },
+        ],
       };
     });
+
+    if (extendedCount === 0) {
+      GazpromToast.error('Новый срок совпадает с текущим');
+      return;
+    }
 
     schedulePersist(catalog);
     detailState.selectionMode = false;
@@ -915,7 +929,7 @@ const EliminationEditor = (() => {
     if (!detailState) return;
     const entries = [];
     for (const e of detailState.eliminations) {
-      for (const h of e.deadlineHistory || []) {
+      for (const h of AktUtils.extensionDeadlineHistory(e.deadlineHistory)) {
         entries.push({
           violation: e.violationTitle,
           date: h.deadlineDate,
@@ -937,11 +951,11 @@ const EliminationEditor = (() => {
               `<li style="margin-bottom:10px;font-size:13px"><strong>${AktUtils.escapeHtml((en.violation || '').slice(0, 60))}</strong><br>Срок: ${AktUtils.formatDateShort(en.date)} · ${AktUtils.formatDateShort(en.changeDate)}${en.reason ? `<br>Причина: ${AktUtils.escapeHtml(en.reason)}` : ''}</li>`
           )
           .join('')
-      : '<li style="color:var(--text-muted)">История сроков пуста</li>';
+      : '<li style="color:var(--text-muted)">История продлений пуста</li>';
 
     overlay.innerHTML = `
       <div class="catalog-form-dialog card" style="max-width:520px;max-height:80vh;overflow:auto">
-        <h3>История сроков</h3>
+        <h3>История продления</h3>
         <ul style="padding-left:18px;margin:12px 0">${rows}</ul>
         <div class="catalog-form-actions">
           <button type="button" class="btn-primary" data-close>Закрыть</button>

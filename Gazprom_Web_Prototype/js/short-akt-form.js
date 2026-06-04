@@ -77,34 +77,19 @@ const ShortAktForm = (() => {
           violationTitle: v.title,
           isEliminated: false,
           originalEliminationDate: deadline,
-          deadlineHistory: deadline
-            ? [
-                {
-                  id: AktUtils.uuid(),
-                  deadlineDate: deadline,
-                  changeDate: new Date().toISOString(),
-                  isOriginal: true,
-                },
-              ]
-            : [],
+          deadlineHistory: [],
         });
         changed = true;
         continue;
       }
       const entry = list[idx];
       if (deadline && entry.originalEliminationDate !== deadline) {
+        const history = AktUtils.extensionDeadlineHistory(entry.deadlineHistory);
         list[idx] = {
           ...entry,
           violationTitle: v.title,
           originalEliminationDate: deadline,
-          deadlineHistory: [
-            {
-              id: AktUtils.uuid(),
-              deadlineDate: deadline,
-              changeDate: new Date().toISOString(),
-              isOriginal: true,
-            },
-          ],
+          deadlineHistory: history,
         };
         changed = true;
       }
