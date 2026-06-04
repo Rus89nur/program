@@ -1,5 +1,5 @@
 /** Газпром — веб-приложение: навигация, PWA, импорт, экраны */
-window.GAZPROM_WEB_BUILD = 'web-105';
+window.GAZPROM_WEB_BUILD = 'web-106';
 
 const syncAppBuildLabel = () => {
   const build = window.GAZPROM_WEB_BUILD;
@@ -86,7 +86,7 @@ function registerServiceWorker() {
       });
       return;
     }
-    navigator.serviceWorker.register('./sw.js?v=105')
+    navigator.serviceWorker.register('./sw.js?v=106')
       .then((reg) => {
         reg.update();
         reg.addEventListener('updatefound', () => {

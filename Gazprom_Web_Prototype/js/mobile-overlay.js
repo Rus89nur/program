@@ -187,6 +187,7 @@ const GazpromMobileOverlay = (() => {
 
   /** Кэш нижнего отступа по экрану — логи: сброс до 80px на каждом scroll ломал накопленный blockPx. */
   const navBlockByScreen = new Map();
+  const LIST_SCROLL_SCREENS = new Set(['screen-history', 'screen-elimination']);
 
   const computeNavBlockPx = () => {
     const nav = document.querySelector('.bottom-nav');
@@ -194,6 +195,27 @@ const GazpromMobileOverlay = (() => {
     const gap = 20;
     const rect = nav.getBoundingClientRect();
     return Math.max(80, Math.ceil(Math.max(rect.height, window.innerHeight - rect.top) + gap));
+  };
+
+  const capScreenBlockPx = (blockPx) => {
+    const base = computeNavBlockPx();
+    return Math.min(Math.ceil(blockPx), base + 160);
+  };
+
+  const clampMainScrollTop = (main) => {
+    const maxTop = Math.max(0, main.scrollHeight - main.clientHeight);
+    if (main.scrollTop > maxTop) main.scrollTop = maxTop;
+    return maxTop;
+  };
+
+  /** Логи: contentBottom 1176 при viewport ~695 давал ложный overlap 524. */
+  const measureContentOverlap = (bottomEl, navR) => {
+    if (!bottomEl || !navR) return 0;
+    const rect = bottomEl.getBoundingClientRect();
+    const viewH = window.innerHeight || document.documentElement.clientHeight;
+    if (rect.bottom > viewH + 12) return 0;
+    if (rect.top >= navR.bottom) return 0;
+    return Math.round(rect.bottom - navR.top);
   };
 
   const flushMainLayout = () => {
@@ -246,17 +268,18 @@ const GazpromMobileOverlay = (() => {
     flushMainLayout();
     const maxTop = Math.max(0, main.scrollHeight - main.clientHeight);
     main.scrollTop = maxTop;
+    clampMainScrollTop(main);
     flushMainLayout();
     const navR = nav.getBoundingClientRect();
     const bottomEl = findScreenBottomElement(active);
-    const contentBottom = bottomEl?.getBoundingClientRect?.()?.bottom ?? 0;
-    const overlapPx = Math.round(contentBottom - navR.top);
+    const contentBottom = Math.round(bottomEl?.getBoundingClientRect?.()?.bottom ?? 0);
+    const overlapPx = measureContentOverlap(bottomEl, navR);
     return {
       overlapPx,
       maxTop: Math.round(maxTop),
       scrollHeight: main.scrollHeight,
       screenId: active.id,
-      contentBottom: Math.round(contentBottom),
+      contentBottom,
       navTop: Math.round(navR.top),
       bottomClass: bottomEl?.className?.slice?.(0, 80) ?? null,
       screenPaddingBottom: getComputedStyle(active).paddingBottom,
@@ -264,7 +287,7 @@ const GazpromMobileOverlay = (() => {
     };
   };
 
-  /** Цикл: padding на .screen.active → scroll end → замер (логи: padding .main не двигал contentBottom). */
+  /** Цикл: padding на .screen.active → scroll end → замер. Списки — только baseMin (логи: 2802px ломали Историю/Устранение). */
   const resolveScrollClearance = (trigger, options = {}) => {
     if (!mq.matches) return 0;
     const main = mainEl();
@@ -275,44 +298,62 @@ const GazpromMobileOverlay = (() => {
     const active = document.querySelector('.screen.active');
     const sid = active?.id || '';
     const baseMin = computeNavBlockPx();
-    let blockPx = Math.max(navBlockByScreen.get(sid) || 0, baseMin);
+    const isListScreen = LIST_SCROLL_SCREENS.has(sid);
+
+    if (trigger.startsWith('goTo-')) {
+      navBlockByScreen.set(sid, baseMin);
+    }
+
+    let blockPx = isListScreen
+      ? baseMin
+      : capScreenBlockPx(Math.max(navBlockByScreen.get(sid) || 0, baseMin));
     applyScrollClearance(blockPx);
 
     let overlapPx = 0;
     let last = null;
-    for (let attempt = 0; attempt < 8; attempt++) {
-      flushMainLayout();
-      last = readOverlapAtScrollEnd();
-      overlapPx = last.overlapPx;
-      // #region agent log
-      agentLog('E', 'mobile-overlay.js:resolveScrollClearance', 'attempt', {
-        runId: 'post-fix-v5',
-        trigger,
-        attempt,
-        overlapPx,
-        blockPx,
-        cachedBlockPx: navBlockByScreen.get(sid) || 0,
-        ...last,
-      });
-      // #endregion
-      if (overlapPx <= 0) break;
-      blockPx = Math.ceil(blockPx + overlapPx + gap);
-      applyScrollClearance(blockPx);
+    let prevOverlap = Infinity;
+
+    if (!isListScreen) {
+      for (let attempt = 0; attempt < 4; attempt++) {
+        flushMainLayout();
+        last = readOverlapAtScrollEnd();
+        overlapPx = last.overlapPx;
+        // #region agent log
+        agentLog('E', 'mobile-overlay.js:resolveScrollClearance', 'attempt', {
+          runId: 'post-fix-v6',
+          trigger,
+          attempt,
+          overlapPx,
+          blockPx,
+          cachedBlockPx: navBlockByScreen.get(sid) || 0,
+          ...last,
+        });
+        // #endregion
+        if (overlapPx <= 0) break;
+        if (overlapPx >= prevOverlap) break;
+        prevOverlap = overlapPx;
+        blockPx = capScreenBlockPx(blockPx + overlapPx + gap);
+        applyScrollClearance(blockPx);
+      }
     }
 
+    blockPx = capScreenBlockPx(blockPx);
     navBlockByScreen.set(sid, blockPx);
-    const maxTop = Math.max(0, main.scrollHeight - main.clientHeight);
+    applyScrollClearance(blockPx);
+    const maxTop = clampMainScrollTop(main);
     if (options.scrollToBottom) main.scrollTop = maxTop;
     else if (trigger.startsWith('goTo-')) main.scrollTop = 0;
     else main.scrollTop = Math.min(savedTop, maxTop);
+    clampMainScrollTop(main);
 
     // #region agent log
     agentLog('E', 'mobile-overlay.js:resolveScrollClearance', 'done', {
-      runId: 'post-fix-v5',
+      runId: 'post-fix-v6',
       trigger,
       finalOverlapPx: overlapPx,
       blockPx,
       screenId: sid,
+      isListScreen,
       restoredScrollTop: main.scrollTop,
     });
     // #endregion
@@ -335,11 +376,13 @@ const GazpromMobileOverlay = (() => {
     const rect = nav.getBoundingClientRect();
     const active = document.querySelector('.screen.active');
     const sid = active?.id || '';
-    const blockPx = Math.max(navBlockByScreen.get(sid) || 0, computeNavBlockPx());
+    const baseMin = computeNavBlockPx();
+    const raw = LIST_SCROLL_SCREENS.has(sid) ? baseMin : navBlockByScreen.get(sid) || 0;
+    const blockPx = capScreenBlockPx(Math.max(raw, baseMin));
     applyScrollClearance(blockPx);
     // #region agent log
     agentLog('A,F', 'mobile-overlay.js:syncNavScrollInset', 'nav inset computed', {
-      runId: 'post-fix-v5',
+      runId: 'post-fix-v6',
       blockPx,
       screenId: sid,
       innerHeight: window.innerHeight,
@@ -358,20 +401,22 @@ const GazpromMobileOverlay = (() => {
     if (!main || !nav || !active) return 0;
     const navR = nav.getBoundingClientRect();
     const mainStyle = getComputedStyle(main);
-    const scrollMax = main.scrollHeight - main.clientHeight;
-    const atBottom = scrollMax <= 0 || main.scrollTop >= scrollMax - 3;
+    const scrollMax = clampMainScrollTop(main);
+    const scrollTop = main.scrollTop;
+    const atBottom = scrollMax <= 0 || scrollTop >= scrollMax - 3;
     const bottomEl = findScreenBottomElement(active);
-    const contentBottom = bottomEl?.getBoundingClientRect?.()?.bottom ?? 0;
-    const overlapPx = Math.round(contentBottom - navR.top);
+    const contentBottom = Math.round(bottomEl?.getBoundingClientRect?.()?.bottom ?? 0);
+    const overlapPx = atBottom ? measureContentOverlap(bottomEl, navR) : 0;
     // #region agent log
     agentLog('E', 'mobile-overlay.js:measureScrollOverlap', 'scroll clearance', {
-      runId: 'post-fix-v5',
+      runId: 'post-fix-v6',
       trigger,
       screenId: active.id,
       atBottom,
       overlapPx,
-      scrollTop: Math.round(main.scrollTop),
+      scrollTop: Math.round(scrollTop),
       scrollMax: Math.round(scrollMax),
+      scrollTopClamped: scrollTop !== main.scrollTop,
       mainPaddingBottom: mainStyle.paddingBottom,
       screenPaddingBottom: getComputedStyle(active).paddingBottom,
       contentBottom: Math.round(contentBottom),
@@ -477,6 +522,42 @@ const GazpromMobileOverlay = (() => {
   const isHorizontalGesture = (dx, dy) =>
     Math.abs(dx) > 4 && Math.abs(dx) >= Math.abs(dy) * 0.45;
 
+  const NON_TEXT_INPUT_TYPES = new Set([
+    'button',
+    'checkbox',
+    'radio',
+    'file',
+    'submit',
+    'reset',
+    'hidden',
+    'image',
+    'range',
+    'color',
+  ]);
+
+  const isTextEditingTarget = (target) => {
+    const el = target?.closest?.('textarea, select, [contenteditable="true"]');
+    if (el) return true;
+    const input = target?.closest?.('input');
+    if (!input) return false;
+    const type = (input.getAttribute('type') || 'text').toLowerCase();
+    return !NON_TEXT_INPUT_TYPES.has(type);
+  };
+
+  const hasActiveTextSelection = () => {
+    const sel = window.getSelection?.();
+    if (!sel || sel.isCollapsed || !sel.rangeCount) return false;
+    const node = sel.anchorNode;
+    const el = node?.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+    return !!el?.closest?.(
+      'textarea, input, select, [contenteditable="true"], .modal-root, .vr-form-overlay, ' +
+        '.catalog-form-overlay, .catalog-editor-root, .schedule-form-overlay'
+    );
+  };
+
+  const shouldAllowNativeTextGesture = (target) =>
+    isTextEditingTarget(target) || hasActiveTextSelection();
+
   const handleTouchStart = (e) => {
     if (!mq.matches || e.touches.length !== 1) return;
     touchStartX = e.touches[0].clientX;
@@ -496,6 +577,7 @@ const GazpromMobileOverlay = (() => {
 
   const handleTouchMove = (e) => {
     if (!mq.matches || e.touches.length !== 1) return;
+    if (shouldAllowNativeTextGesture(e.target)) return;
     const dx = e.touches[0].clientX - touchStartX;
     const dy = e.touches[0].clientY - touchStartY;
     if (isHorizontalGesture(dx, dy)) {
