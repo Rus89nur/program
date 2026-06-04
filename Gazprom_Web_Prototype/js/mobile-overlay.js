@@ -56,7 +56,7 @@ const GazpromMobileOverlay = (() => {
   const findScreenBottomElement = (screen) => {
     if (!screen) return null;
     if (screen.id === 'screen-home') {
-      return screen.querySelector('.app-build-id') || screen.lastElementChild;
+      return screen.lastElementChild;
     }
     return (
       screen.querySelector('.wizard-footer') ||
