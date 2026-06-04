@@ -39,6 +39,21 @@ const GazpromMobileOverlay = (() => {
     }
   };
 
+  /** Нижний отступ прокрутки .main: высота fixed bottom-nav + панель Safari под ним. */
+  const syncNavScrollInset = () => {
+    const body = document.body;
+    if (!mq.matches) {
+      body.style.removeProperty('--gazprom-nav-block');
+      return;
+    }
+    const nav = document.querySelector('.bottom-nav');
+    const gap = 12;
+    if (!nav) return;
+    const rect = nav.getBoundingClientRect();
+    const blockPx = Math.max(64, Math.ceil(window.innerHeight - rect.top + gap));
+    body.style.setProperty('--gazprom-nav-block', `${blockPx}px`);
+  };
+
   const hasOpenOverlay = () =>
     !!document.querySelector(
       '.modal-root.show, .catalog-editor-root:not([hidden]), .catalog-form-overlay:not([hidden]), ' +
@@ -56,17 +71,20 @@ const GazpromMobileOverlay = (() => {
   const syncMobileShellClass = () => {
     document.body.classList.toggle('gazprom-mobile-shell', mq.matches);
     syncVisualViewport();
+    syncNavScrollInset();
     if (mq.matches) {
       window.scrollTo(0, window.scrollY);
       document.documentElement.scrollLeft = 0;
       document.body.scrollLeft = 0;
     } else {
       document.documentElement.style.removeProperty('--vv-height');
+      document.body.style.removeProperty('--gazprom-nav-block');
     }
   };
 
   const recoverViewportLayout = () => {
     syncMobileShellClass();
+    syncNavScrollInset();
     clampScrollX();
     clearStaleScrollLock();
     const main = mainEl();
@@ -166,9 +184,13 @@ const GazpromMobileOverlay = (() => {
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', () => {
       syncVisualViewport();
+      syncNavScrollInset();
       clampScrollX();
     });
-    window.visualViewport.addEventListener('scroll', syncVisualViewport);
+    window.visualViewport.addEventListener('scroll', () => {
+      syncVisualViewport();
+      syncNavScrollInset();
+    });
   }
   window.addEventListener('resize', recoverViewportLayout);
   window.addEventListener('orientationchange', () => {
@@ -187,5 +209,5 @@ const GazpromMobileOverlay = (() => {
   document.addEventListener('touchcancel', handleTouchEnd, { passive: true });
   window.addEventListener('scroll', clampScrollX, { passive: true });
 
-  return { lock, unlock, syncVisualViewport, recoverViewportLayout };
+  return { lock, unlock, syncVisualViewport, syncNavScrollInset, recoverViewportLayout };
 })();
