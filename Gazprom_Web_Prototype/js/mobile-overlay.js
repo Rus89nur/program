@@ -118,9 +118,20 @@ const GazpromMobileOverlay = (() => {
   };
 
   /** Отступ на host списка/сетки (логи: padding на .screen не двигал settings-tile). */
+  const syncNavBarHeight = () => {
+    const nav = document.querySelector('.bottom-nav');
+    if (!nav || !mq.matches) {
+      document.body.style.removeProperty('--gazprom-nav-bar-height');
+      return;
+    }
+    const h = Math.ceil(nav.getBoundingClientRect().height);
+    document.body.style.setProperty('--gazprom-nav-bar-height', `${h}px`);
+  };
+
   const applyScrollClearance = (blockPx) => {
     const px = `${blockPx}px`;
     document.body.style.setProperty('--gazprom-nav-block', px);
+    syncNavBarHeight();
     const spacer = document.querySelector('.gazprom-scroll-bottom-spacer');
     if (spacer) spacer.style.height = px;
     const main = mainEl();
@@ -142,6 +153,7 @@ const GazpromMobileOverlay = (() => {
   const clearMainScrollPadding = () => {
     navBlockByScreen.clear();
     document.body.style.removeProperty('--gazprom-nav-block');
+    document.body.style.removeProperty('--gazprom-nav-bar-height');
     document.body.style.removeProperty('--gazprom-safari-bottom-inset');
     document.querySelector('.bottom-nav')?.style.removeProperty('bottom');
     document.querySelector('.gazprom-scroll-bottom-spacer')?.style.removeProperty('height');

@@ -25,9 +25,12 @@ const WizardModals = (() => {
       </div>
     `;
     document.body.appendChild(root);
-    root.querySelectorAll('[data-close]').forEach((el) => {
-      el.addEventListener('click', close);
-    });
+    if (!root.dataset.closeBound) {
+      root.dataset.closeBound = '1';
+      root.addEventListener('click', (e) => {
+        if (e.target.closest('[data-close]')) close();
+      });
+    }
     return root;
   }
 
@@ -38,12 +41,7 @@ const WizardModals = (() => {
     GazpromMobileOverlay.lock();
     document.getElementById('modalTitle').textContent = title;
     document.getElementById('modalBody').innerHTML = bodyHtml;
-    const footer = document.getElementById('modalFooter');
-    footer.innerHTML = footerHtml || '';
-    const closeEls = footer.querySelectorAll('[data-close]');
-    closeEls.forEach((el) => {
-      el.addEventListener('click', close);
-    });
+    document.getElementById('modalFooter').innerHTML = footerHtml || '';
   }
 
   function close() {

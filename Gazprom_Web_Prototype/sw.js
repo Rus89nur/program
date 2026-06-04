@@ -1,16 +1,14 @@
-const CACHE_NAME = 'gazprom-web-v110';
+const CACHE_NAME = 'gazprom-web-v112';
 const IS_LOCALHOST = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
 const STATIC_ASSETS = [
-  './',
-  './index.html',
   './manifest.json',
-  './css/app.css?v=108',
+  './css/app.css?v=112',
   './js/idb-connection.js?v=21',
   './js/data-store.js?v=24',
   './js/photo-store.js',
   './js/akt-utils.js',
   './js/toast.js',
-  './js/mobile-overlay.js?v=21',
+  './js/mobile-overlay.js?v=22',
   './js/violation-templates.js',
   './js/violation-registry.js',
   './js/catalog-service.js',
@@ -20,12 +18,12 @@ const STATIC_ASSETS = [
   './js/catalog-editor.js',
   './js/schedule-editor.js',
   './js/elimination-editor.js?v=7',
-  './js/wizard-modals.js',
+  './js/wizard-modals.js?v=24',
   './js/wizard.js?v=39',
   './js/short-akt-form.js',
   './js/doc-generator.js',
   './js/report-exporter.js?v=2',
-  './js/app.js?v=110',
+  './js/app.js?v=112',
   './assets/sample-demo.gazprombackup',
   './assets/vendor/xlsx.full.min.js',
   './assets/vendor/pizzip.min.js',
@@ -73,6 +71,15 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  const isFreshShell =
+    request.mode === 'navigate' ||
+    request.destination === 'document' ||
+    url.pathname.endsWith('/sw.js');
+  if (isFreshShell) {
+    event.respondWith(fetch(request, { cache: 'no-store' }));
+    return;
+  }
 
   event.respondWith(
     fetch(request)
