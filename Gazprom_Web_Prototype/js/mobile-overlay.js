@@ -13,125 +13,6 @@ const GazpromMobileOverlay = (() => {
 
   const mainEl = () => document.querySelector('.main');
 
-  // #region agent log
-  const isDebugScrollMode = () => {
-    try {
-      if (localStorage.getItem('gazpromDebugScroll') === '1') return true;
-    } catch (_) {}
-    const q = window.location.search || '';
-    const h = window.location.hash || '';
-    return (
-      q.includes('debug=1') ||
-      q.includes('debug=scroll') ||
-      q.includes('debug=2c2db0') ||
-      h.includes('debug')
-    );
-  };
-
-  const refreshDebugPanel = () => {
-    if (!isDebugScrollMode()) return;
-    const panel = document.getElementById('gazpromScrollDebug');
-    const pre = document.getElementById('gazpromScrollDebugPre');
-    if (!panel || !pre) return;
-    try {
-      const logs = JSON.parse(sessionStorage.getItem('gazpromDebugLogs') || '[]');
-      const last = logs.slice(-6);
-      pre.textContent = last.length
-        ? last.map((e) => `${e.message} ${JSON.stringify(e.data)}`).join('\n\n')
-        : 'Логов пока нет — откройте вкладку и прокрутите вниз.';
-    } catch (_) {
-      pre.textContent = 'Ошибка чтения логов';
-    }
-  };
-
-  const initDebugPanel = () => {
-    if (!isDebugScrollMode()) return;
-    if (!document.body) return;
-    if (document.getElementById('gazpromScrollDebug')) return;
-    const wrap = document.createElement('div');
-    wrap.id = 'gazpromScrollDebug';
-    wrap.setAttribute('role', 'region');
-    wrap.setAttribute('aria-label', 'Отладка прокрутки');
-    wrap.style.cssText =
-      'position:fixed;left:8px;right:8px;top:max(8px, env(safe-area-inset-top));z-index:100000;' +
-      'font:12px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;background:#1a1a2e;color:#b8f0c8;' +
-      'border:2px solid #26c6da;border-radius:10px;padding:10px;max-height:38vh;overflow:auto;' +
-      'box-shadow:0 8px 32px rgba(0,0,0,.45);pointer-events:auto;';
-    wrap.innerHTML =
-      '<div style="color:#fff;font-weight:700;margin-bottom:4px">Отладка прокрутки (web-103)</div>' +
-      '<div style="color:#8cf;font-size:11px;margin-bottom:8px">Сверните панель — кнопка DEBUG внизу справа</div>' +
-      '<pre id="gazpromScrollDebugPre" style="margin:0 0 8px;white-space:pre-wrap;word-break:break-word;font:inherit;font-size:11px"></pre>' +
-      '<button type="button" id="gazpromScrollDebugCopy" style="width:100%;padding:12px;font-size:15px;font-weight:700;border-radius:8px;border:none;background:#26c6da;color:#003">Скопировать все логи</button>' +
-      '<button type="button" id="gazpromScrollDebugHide" style="width:100%;margin-top:6px;padding:8px;font-size:13px;border-radius:8px;border:1px solid #555;background:transparent;color:#ccc">Скрыть панель</button>';
-    document.body.appendChild(wrap);
-    const fab = document.createElement('button');
-    fab.type = 'button';
-    fab.id = 'gazpromScrollDebugFab';
-    fab.textContent = 'DEBUG';
-    fab.setAttribute('aria-label', 'Показать отладку прокрутки');
-    fab.style.cssText =
-      'position:fixed;right:10px;bottom:calc(100px + env(safe-area-inset-bottom));z-index:100001;' +
-      'padding:10px 14px;font-size:13px;font-weight:800;border-radius:999px;border:none;' +
-      'background:#e65100;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.35);pointer-events:auto;';
-    document.body.appendChild(fab);
-    fab.addEventListener('click', () => {
-      wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
-    });
-    document.getElementById('gazpromScrollDebugHide')?.addEventListener('click', () => {
-      wrap.style.display = 'none';
-    });
-    document.getElementById('gazpromScrollDebugCopy')?.addEventListener('click', async () => {
-      try {
-        const text = sessionStorage.getItem('gazpromDebugLogs') || '[]';
-        if (navigator.clipboard?.writeText) {
-          await navigator.clipboard.writeText(text);
-          alert('Логи скопированы. Вставьте в чат Cursor.');
-        } else {
-          prompt('Скопируйте логи:', text);
-        }
-      } catch (err) {
-        alert('Не удалось скопировать: ' + (err?.message || err));
-      }
-    });
-    refreshDebugPanel();
-    agentLog('UI', 'mobile-overlay.js:initDebugPanel', 'debug panel mounted', {
-      href: window.location.href,
-      search: window.location.search,
-    });
-  };
-
-  const scheduleInitDebugPanel = () => {
-    if (!isDebugScrollMode()) return;
-    if (document.body) initDebugPanel();
-    else document.addEventListener('DOMContentLoaded', initDebugPanel, { once: true });
-  };
-
-  const agentLog = (hypothesisId, logAt, message, data) => {
-    const payload = {
-      sessionId: '2c2db0',
-      runId: 'post-fix-v3',
-      hypothesisId,
-      location: logAt,
-      message,
-      data,
-      timestamp: Date.now(),
-    };
-    fetch('http://127.0.0.1:7931/ingest/e73f326d-990a-4349-ab2b-115a1dec68c8', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '2c2db0' },
-      body: JSON.stringify(payload),
-    }).catch(() => {});
-    try {
-      const key = 'gazpromDebugLogs';
-      const prev = JSON.parse(sessionStorage.getItem(key) || '[]');
-      prev.push(payload);
-      if (prev.length > 50) prev.shift();
-      sessionStorage.setItem(key, JSON.stringify(prev));
-    } catch (_) {}
-    refreshDebugPanel();
-  };
-  // #endregion
-
   const positionBottomNav = () => {
     const nav = document.querySelector('.bottom-nav');
     if (!nav || !mq.matches) {
@@ -174,6 +55,9 @@ const GazpromMobileOverlay = (() => {
 
   const findScreenBottomElement = (screen) => {
     if (!screen) return null;
+    if (screen.id === 'screen-home') {
+      return screen.querySelector('.app-build-id') || screen.lastElementChild;
+    }
     return (
       screen.querySelector('.wizard-footer') ||
       screen.querySelector('#historyList .history-list-item:last-child') ||
@@ -325,17 +209,6 @@ const GazpromMobileOverlay = (() => {
       flushMainLayout();
       last = readOverlapAtScrollEnd();
       overlapPx = last.overlapPx;
-      // #region agent log
-      agentLog('E', 'mobile-overlay.js:resolveScrollClearance', 'attempt', {
-        runId: 'post-fix-v7',
-        trigger,
-        attempt,
-        overlapPx,
-        blockPx,
-        cachedBlockPx: navBlockByScreen.get(sid) || 0,
-        ...last,
-      });
-      // #endregion
       if (overlapPx <= 0) break;
       const nextBlock = capScreenBlockPx(blockPx + overlapPx + gap);
       if (nextBlock <= blockPx) break;
@@ -350,17 +223,6 @@ const GazpromMobileOverlay = (() => {
     else if (trigger.startsWith('goTo-')) main.scrollTop = 0;
     else main.scrollTop = Math.min(savedTop, maxTop);
     clampMainScrollTop(main);
-
-    // #region agent log
-    agentLog('E', 'mobile-overlay.js:resolveScrollClearance', 'done', {
-      runId: 'post-fix-v7',
-      trigger,
-      finalOverlapPx: overlapPx,
-      blockPx,
-      screenId: sid,
-      restoredScrollTop: main.scrollTop,
-    });
-    // #endregion
     return overlapPx;
   };
 
@@ -377,61 +239,30 @@ const GazpromMobileOverlay = (() => {
     const nav = document.querySelector('.bottom-nav');
     if (!nav) return;
     positionBottomNav();
-    const rect = nav.getBoundingClientRect();
     const active = document.querySelector('.screen.active');
     const sid = active?.id || '';
     const baseMin = computeNavBlockPx();
     const blockPx = capScreenBlockPx(Math.max(navBlockByScreen.get(sid) || 0, baseMin));
     applyScrollClearance(blockPx);
-    // #region agent log
-    agentLog('A,F', 'mobile-overlay.js:syncNavScrollInset', 'nav inset computed', {
-      runId: 'post-fix-v6',
-      blockPx,
-      screenId: sid,
-      innerHeight: window.innerHeight,
-      navTop: Math.round(rect.top),
-      navBottom: Math.round(rect.bottom),
-      overlayZone: Math.round(window.innerHeight - rect.top),
-    });
-    // #endregion
   };
 
-  const measureScrollOverlap = (trigger) => {
+  const measureScrollOverlap = () => {
     if (!mq.matches) return 0;
     const main = mainEl();
     const nav = document.querySelector('.bottom-nav');
     const active = document.querySelector('.screen.active');
     if (!main || !nav || !active) return 0;
     const navR = nav.getBoundingClientRect();
-    const mainStyle = getComputedStyle(main);
     const scrollMax = clampMainScrollTop(main);
     const scrollTop = main.scrollTop;
     const atBottom = scrollMax <= 0 || scrollTop >= scrollMax - 3;
     const bottomEl = findScreenBottomElement(active);
-    const contentBottom = Math.round(bottomEl?.getBoundingClientRect?.()?.bottom ?? 0);
-    const overlapPx = atBottom ? measureContentOverlap(bottomEl, navR) : 0;
-    // #region agent log
-    agentLog('E', 'mobile-overlay.js:measureScrollOverlap', 'scroll clearance', {
-      runId: 'post-fix-v7',
-      trigger,
-      screenId: active.id,
-      atBottom,
-      overlapPx,
-      scrollTop: Math.round(scrollTop),
-      scrollMax: Math.round(scrollMax),
-      scrollTopClamped: scrollTop !== main.scrollTop,
-      mainPaddingBottom: mainStyle.paddingBottom,
-      hostPaddingBottom: getComputedStyle(getScreenScrollHost(active) || active).paddingBottom,
-      contentBottom: Math.round(contentBottom),
-      navTop: Math.round(navR.top),
-    });
-    // #endregion
-    return atBottom ? overlapPx : 0;
+    return atBottom ? measureContentOverlap(bottomEl, navR) : 0;
   };
 
-  /** Тихая подстройка padding после остановки скролла — без readOverlapAtScrollEnd (логи: рывок при main-scroll). */
-  const bumpScrollClearanceAtRest = (trigger) => {
-    const overlapPx = measureScrollOverlap(trigger);
+  /** Тихая подстройка padding после остановки скролла — без принудительного scrollTop в цикле. */
+  const bumpScrollClearanceAtRest = () => {
+    const overlapPx = measureScrollOverlap();
     if (overlapPx <= 0) return 0;
     const main = mainEl();
     if (!main) return 0;
@@ -461,22 +292,11 @@ const GazpromMobileOverlay = (() => {
     } else {
       main.scrollTop = Math.min(prevTop, newMax);
     }
-
-    // #region agent log
-    agentLog('E', 'mobile-overlay.js:bumpScrollClearanceAtRest', 'padding bump', {
-      runId: 'post-fix-v8',
-      trigger,
-      overlapPx,
-      blockPx: nextBlock,
-      wasAtBottom,
-      screenId: sid,
-    });
-    // #endregion
     return overlapPx;
   };
 
-  const adjustNavScrollInsetIfOverlap = (trigger) => {
-    bumpScrollClearanceAtRest(trigger);
+  const adjustNavScrollInsetIfOverlap = () => {
+    bumpScrollClearanceAtRest();
   };
 
   const hasOpenOverlay = () =>
@@ -629,7 +449,6 @@ const GazpromMobileOverlay = (() => {
   };
 
   syncMobileShellClass();
-  scheduleInitDebugPanel();
   requestAnimationFrame(() => ensureScrollClearance('boot'));
   mq.addEventListener('change', recoverViewportLayout);
 

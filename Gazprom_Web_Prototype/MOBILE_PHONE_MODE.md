@@ -3,7 +3,7 @@
 Документ для продолжения работы **без контекста чата**.  
 **Перед правками mobile — читать этот файл целиком**, особенно §7 (история) и §10 (чеклист).
 
-Актуальная сборка: **web-98** (в UI: **Главная** → внизу «Сборка: web-XX»; номер подставляется из `GAZPROM_WEB_BUILD` в `app.js` через `syncAppBuildLabel()`). См. §3.8 — фильтры и сортировка истории; §3.9 — баннер статуса данных; §3.10 — нижняя навигация.
+Актуальная сборка: **web-109** (в UI: **Главная** → внизу «Сборка: web-XX»; номер подставляется из `GAZPROM_WEB_BUILD` в `app.js` через `syncAppBuildLabel()`). См. §3.8 — фильтры и сортировка истории; §3.9 — баннер статуса данных; §3.10 — нижняя навигация и отступ прокрутки.
 
 Деплой: GitHub Pages — https://rus89nur.github.io/program/  
 Локально: `cd Gazprom_Web_Prototype && python3 dev-server.py` или `python3 -m http.server 8765`
@@ -33,7 +33,7 @@
 | Файл | Назначение |
 |------|------------|
 | `css/app.css` | Mobile shell ~3595+, mobile overlays ~3788+, landscape ~3993+, мастер `wizard-panel--*` ~3766+, баннер `.data-status--peek` |
-| `js/mobile-overlay.js` | MQ, `recoverViewportLayout`, свайп, `--vv-height`, lock `.main`, whitelist горизонтального скролла |
+| `js/mobile-overlay.js` | MQ, `recoverViewportLayout`, `applyScrollClearance` / `bumpScrollClearanceAtRest`, `--vv-height`, lock `.main`, whitelist горизонтального скролла |
 | `index.html` | Shell-скрипт, `#appBuildId` на **Главной**, без `#globalSearch` в шапке на телефоне |
 | `js/wizard.js` | Панели `wizard-panel--violations` / `--conclusions`, шаги мастера, lightbox, сводка |
 | `js/ui-bindings.js` | `renderHistory`, `renderDataStatus`, `peekDataStatusBar` / скрытие баннера |
@@ -59,7 +59,7 @@
 ```
 
 - **`html` / `body`**: `overflow: hidden`, `100dvh`, без горизонтального скролла страницы.
-- **`.main`**: скролл контента; `padding-bottom` = `--gazprom-nav-block` (на телефоне **пересчитывается в JS** — `syncNavScrollInset()` в `mobile-overlay.js`: от верха `.bottom-nav` до низа layout + запас; учитывает панель **Safari** под баром приложения).
+- **`.main`**: скролл контента; `--gazprom-nav-block` задаётся в JS (`syncNavScrollInset`, `applyScrollClearance`). Доп. `padding-bottom` на scroll-host: `#historyList`, `#eliminationCardList`, `.settings-grid`, `.wizard-layout`. Коррекция overlap после остановки скролла — `bumpScrollClearanceAtRest` (не во время жеста).
 - **Шапка (телефон):** только `#pageTitle`; **`.header-actions` скрыт** — нет глобального поиска (web-61). Поиск актов — на экране **История** (`#historySearch`). В **landscape** на телефоне — то же: только заголовок, **без** поиска в шапке.
 - **Нижний бар:** `fixed`, `bottom: 0`, outline SVG-иконки (§3.10), сдвиг вниз `--gazprom-nav-shift-down` (web-62).
 
@@ -273,6 +273,9 @@
 | web-96 | **Сборка:** `#appBuildId` перенесён в `#screen-home` — не просвечивает на шаге «Выводы» (срок устранения); **фильтры организаций** в `.pred-filter-row` снова **горизонтальный** ряд с `overflow-x` (откат web-72 в mobile CSS) |
 | web-97 | **Мастер:** «Назад»/«Далее» — уточнён статический `--gazprom-nav-block` (частично) |
 | web-98 | **Все экраны:** `syncNavScrollInset()` — динамический `--gazprom-nav-block` по `getBoundingClientRect(.bottom-nav)` + панель Safari; вызов при resize/orientation/смене вкладки |
+| web-104–107 | **Прокрутка под bottom-nav:** `padding-bottom` на scroll-host списков/настроек/мастера; кэш `navBlockByScreen`; cap ~240px; сброс PWA-кэша (105) |
+| web-108 | **Плавный скролл:** коррекция overlap только после остановки (`bumpScrollClearanceAtRest`, debounce 450ms / `scrollend`) |
+| web-109 | Удалена отладочная панель DEBUG / `agentLog` |
 
 **При каждом релизе mobile обязательно:**
 
