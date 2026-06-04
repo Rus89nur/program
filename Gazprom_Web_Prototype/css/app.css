@@ -4757,6 +4757,38 @@
         );
       }
 
+      /* Карточка нарушения: на весь экран, как шаг «Нарушения» в мастере */
+      body.gazprom-mobile-shell #wizardModalRoot.show {
+        align-items: stretch;
+        justify-content: stretch;
+        padding:
+          env(safe-area-inset-top, 0px)
+          env(safe-area-inset-right, 0px)
+          env(safe-area-inset-bottom, 0px)
+          env(safe-area-inset-left, 0px);
+      }
+
+      body.gazprom-mobile-shell #wizardModalRoot .modal-dialog {
+        width: 100%;
+        max-width: 100%;
+        height: 100%;
+        max-height: min(var(--vv-height, 100dvh), 100dvh);
+        min-height: 0;
+        margin: 0;
+        border-radius: 0;
+        flex: 1 1 auto;
+        align-self: stretch;
+      }
+
+      body.gazprom-mobile-shell #wizardModalRoot .modal-body {
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+
+      body.gazprom-mobile-shell #wizardModalRoot .modal-footer {
+        flex-shrink: 0;
+      }
+
       .catalog-form-overlay .catalog-form-dialog,
       .catalog-form-overlay .backup-modal-dialog,
       .catalog-editor-root .catalog-editor-panel,
