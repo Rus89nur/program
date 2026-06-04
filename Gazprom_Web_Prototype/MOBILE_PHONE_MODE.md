@@ -3,7 +3,7 @@
 Документ для продолжения работы **без контекста чата**.  
 **Перед правками mobile — читать этот файл целиком**, особенно §7 (история) и §10 (чеклист).
 
-Актуальная сборка: **web-96** (в UI: **Главная** → внизу «Сборка: web-XX»; номер подставляется из `GAZPROM_WEB_BUILD` в `app.js` через `syncAppBuildLabel()`). См. §3.8 — фильтры и сортировка истории; §3.9 — баннер статуса данных; §3.10 — нижняя навигация.
+Актуальная сборка: **web-97** (в UI: **Главная** → внизу «Сборка: web-XX»; номер подставляется из `GAZPROM_WEB_BUILD` в `app.js` через `syncAppBuildLabel()`). См. §3.8 — фильтры и сортировка истории; §3.9 — баннер статуса данных; §3.10 — нижняя навигация.
 
 Деплой: GitHub Pages — https://rus89nur.github.io/program/  
 Локально: `cd Gazprom_Web_Prototype && python3 dev-server.py` или `python3 -m http.server 8765`
@@ -68,7 +68,7 @@
 ```css
 --gazprom-nav-lift: 0px;
 --gazprom-nav-shift-down: 6px;   /* portrait; в landscape 4px */
---gazprom-nav-block: calc(50px + env(safe-area-inset-bottom) + 4px);
+--gazprom-nav-block: calc(56px + env(safe-area-inset-bottom) + var(--gazprom-nav-shift-down) + 4px);
 --mobile-modal-gutter: 20px;
 --mobile-modal-width: 90%;
 --vv-height: …px
@@ -271,6 +271,7 @@
 | web-94 | **Баннер данных (телефон):** более прозрачный зелёный оверлей (`rgba` ~0,58–0,62 + blur 14px) — контент просвечивает сильнее |
 | web-95 | **Баннер данных:** убрана жёлтая/статичная панель при загрузке — только краткий зелёный peek при синхронизации; `#dataStatusBar` скрыт до первого peek |
 | web-96 | **Сборка:** `#appBuildId` перенесён в `#screen-home` — не просвечивает на шаге «Выводы» (срок устранения); **фильтры организаций** в `.pred-filter-row` снова **горизонтальный** ряд с `overflow-x` (откат web-72 в mobile CSS) |
+| web-97 | **Мастер:** «Назад»/«Далее» не перекрываются нижним баром — `--gazprom-nav-block` учитывает `shift-down`, доп. `padding-bottom` у `.main` на экране мастера и `margin-bottom` у `.wizard-footer` |
 
 **При каждом релизе mobile обязательно:**
 

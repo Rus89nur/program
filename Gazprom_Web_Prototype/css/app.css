@@ -3925,7 +3925,7 @@
         /* Сразу над панелью браузера; safe-area — только «челка» домашней кнопки */
         --gazprom-nav-lift: 0px;
         --gazprom-nav-shift-down: 6px;
-        --gazprom-nav-block: calc(50px + env(safe-area-inset-bottom, 0px) + 4px);
+        --gazprom-nav-block: calc(56px + env(safe-area-inset-bottom, 0px) + var(--gazprom-nav-shift-down) + 4px);
         --mobile-modal-gutter: 20px;
         --mobile-modal-width: 90%;
         overflow: hidden;
@@ -4495,6 +4495,15 @@
         min-height: 48px;
         box-sizing: border-box;
         box-shadow: 0 2px 10px rgba(13, 71, 161, 0.28);
+      }
+
+      /* Мастер: «Назад»/«Далее» полностью над нижним баром при прокрутке вниз */
+      body.gazprom-mobile-shell #screen-wizard.active .wizard-footer {
+        margin-bottom: calc(var(--gazprom-nav-shift-down) + 8px);
+      }
+
+      body.gazprom-mobile-shell .main:has(#screen-wizard.active) {
+        padding-bottom: calc(12px + var(--gazprom-nav-block) + 8px);
       }
 
       body.gazprom-mobile-shell .bottom-nav {
