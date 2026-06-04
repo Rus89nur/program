@@ -165,6 +165,9 @@ const GazpromUI = (() => {
     if (elTotal) elTotal.textContent = String(akts.length);
     if (elDrafts) elDrafts.textContent = String(drafts);
 
+    const hint = document.getElementById('homeDataHint');
+    if (hint) hint.hidden = GazpromStore.hasData(data);
+
     const btn = document.querySelector('#screen-home .btn-primary[data-go="wizard"]');
     if (btn) {
       btn.textContent = editable

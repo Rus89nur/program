@@ -309,6 +309,7 @@
       color: var(--text-muted);
       text-align: center;
       box-sizing: border-box;
+      pointer-events: none;
     }
     @media (min-width: 901px) and (min-height: 521px) {
       #screen-home .app-build-id { display: none; }
@@ -354,6 +355,30 @@
       font-size: 1.1rem;
       color: var(--text-muted);
       margin-bottom: 28px;
+    }
+    .home-data-hint {
+      max-width: 520px;
+      margin: 0 auto 20px;
+      padding: 14px 16px;
+      text-align: left;
+      background: #fff8e1;
+      border: 1px solid #ffe082;
+      border-radius: 12px;
+    }
+    .home-data-hint__title {
+      margin: 0 0 8px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #e65100;
+    }
+    .home-data-hint__text {
+      margin: 0 0 12px;
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--text);
+    }
+    .home-data-hint__btn {
+      width: 100%;
     }
     .progress-block {
       max-width: 520px;
@@ -4666,17 +4691,37 @@
         height: 100%;
         max-width: 100%;
         z-index: 10000;
-        overflow: hidden;
-        overflow-x: clip;
         overscroll-behavior: none;
         overscroll-behavior-x: none;
-        touch-action: none;
         padding:
           max(12px, env(safe-area-inset-top))
           max(var(--mobile-modal-gutter), env(safe-area-inset-right))
           max(12px, env(safe-area-inset-bottom, 0px))
           max(var(--mobile-modal-gutter), env(safe-area-inset-left));
         box-sizing: border-box;
+      }
+
+      .catalog-form-overlay:not([hidden]),
+      .catalog-editor-root:not([hidden]),
+      .confirm-overlay,
+      .photo-lightbox.show,
+      .vr-form-overlay,
+      .schedule-form-overlay,
+      .elimination-detail-overlay {
+        overflow: hidden;
+        overflow-x: clip;
+        touch-action: none;
+      }
+
+      /* iOS: touch-action:none на корне ломает ручки выделения в textarea */
+      .modal-root,
+      .modal-root.show {
+        overflow: visible;
+        touch-action: auto;
+      }
+
+      .modal-root .modal-backdrop {
+        touch-action: none;
       }
 
       .photo-lightbox.show {
@@ -4687,7 +4732,21 @@
         z-index: 10010;
       }
 
-      .modal-root .modal-dialog,
+      .modal-root .modal-dialog {
+        touch-action: auto;
+        overflow-x: hidden;
+        width: var(--mobile-modal-width);
+        max-width: var(--mobile-modal-width);
+        margin-left: auto;
+        margin-right: auto;
+        flex: 0 1 auto;
+        align-self: center;
+        box-sizing: border-box;
+        overscroll-behavior: contain;
+        overscroll-behavior-x: none;
+        -webkit-overflow-scrolling: touch;
+      }
+
       .catalog-form-overlay .catalog-form-dialog,
       .catalog-form-overlay .backup-modal-dialog,
       .catalog-editor-root .catalog-editor-panel,
@@ -4710,18 +4769,6 @@
         -webkit-overflow-scrolling: touch;
       }
 
-      /* Карточка нарушения: почти на всю ширину и выше, чем общий лимит 88dvh ниже */
-      .modal-root.show .modal-dialog {
-        width: calc(100% - 2 * var(--mobile-modal-gutter));
-        max-width: calc(100% - 2 * var(--mobile-modal-gutter));
-        max-height: min(
-          var(--vv-height, 92dvh),
-          calc(
-            100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16px
-          )
-        );
-      }
-
       .modal-body,
       .catalog-editor-body,
       .catalog-form-dialog,
@@ -4740,14 +4787,6 @@
       .vr-form-dialog textarea {
         max-width: 100%;
         box-sizing: border-box;
-      }
-
-      .modal-root.show .modal-body textarea,
-      .modal-root.show .modal-body input.form-control,
-      .modal-root.show .modal-body select.form-control {
-        touch-action: manipulation;
-        -webkit-user-select: text;
-        user-select: text;
       }
 
       .modal-dialog,
@@ -4963,9 +5002,21 @@
         box-shadow: none;
       }
 
-      body.gazprom-mobile-shell #screen-home .app-build-id {
-        padding-bottom: 4px;
+      body.gazprom-mobile-shell #screen-home.active .app-build-id {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: var(--gazprom-nav-block, calc(72px + env(safe-area-inset-bottom, 0px)));
+        z-index: 99;
+        margin-top: 0;
+        padding: 4px 12px 6px;
         font-size: 11px;
+        line-height: 1.35;
+        background: linear-gradient(
+          to top,
+          var(--bg) 55%,
+          color-mix(in srgb, var(--bg) 88%, transparent)
+        );
       }
 
       body.gazprom-mobile-shell .home-hero {
@@ -5011,6 +5062,7 @@
         gap: 8px;
       }
 
+      .modal-dialog,
       .catalog-editor-panel,
       .catalog-form-dialog,
       .backup-modal-dialog,

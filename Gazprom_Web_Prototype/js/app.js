@@ -1,5 +1,5 @@
 /** Газпром — веб-приложение: навигация, PWA, импорт, экраны */
-window.GAZPROM_WEB_BUILD = 'web-109';
+window.GAZPROM_WEB_BUILD = 'web-110';
 
 const syncAppBuildLabel = () => {
   const build = window.GAZPROM_WEB_BUILD;
@@ -86,7 +86,7 @@ function registerServiceWorker() {
       });
       return;
     }
-    navigator.serviceWorker.register('./sw.js?v=109')
+    navigator.serviceWorker.register('./sw.js?v=110')
       .then((reg) => {
         reg.update();
         reg.addEventListener('updatefound', () => {
@@ -557,6 +557,10 @@ function init() {
   bindReports();
   bindTrash();
   bindTemplateUpload();
+  document.getElementById('homeRestoreBackupBtn')?.addEventListener('click', () => {
+    goTo('settings');
+    requestAnimationFrame(() => openBackupModal());
+  });
   CatalogEditor.bindSettingsTiles();
   ViolationRegistry.bindScreen();
   EliminationEditor.bindFilters();
