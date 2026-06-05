@@ -1997,6 +1997,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      cursor: pointer;
     }
     .mv-photo-add-slot:hover {
       border-color: var(--primary);

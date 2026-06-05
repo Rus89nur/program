@@ -6,6 +6,24 @@ const WizardModals = (() => {
   let editingViolationId = null;
   let modalPhotos = [];
 
+  const MV_PHOTO_INPUT_ID = 'mvPhotoFileInput';
+
+  const isImagePickFile = (file) => {
+    if (!file) return false;
+    if (file.type && file.type.startsWith('image/')) return true;
+    return /\.(jpe?g|png|heic|heif|webp|gif)$/i.test(file.name || '');
+  };
+
+  const ensureMvPhotoFileInput = () => {
+    const input = document.getElementById(MV_PHOTO_INPUT_ID);
+    if (!input) return null;
+    if (!input.dataset.changeBound) {
+      input.dataset.changeBound = '1';
+      input.addEventListener('change', onPhotoPick);
+    }
+    return input;
+  };
+
   function ensureModalRoot() {
     let root = document.getElementById('wizardModalRoot');
     if (root) return root;
@@ -266,7 +284,6 @@ const WizardModals = (() => {
       </div>
       <div class="form-group">
         <label class="form-label">Фотофиксация</label>
-        <input type="file" id="mvPhotoInput" accept="image/*" multiple hidden>
         <div class="photo-grid" id="mvPhotoGrid">${renderModalPhotos()}</div>
       </div>
     `;
@@ -463,9 +480,10 @@ const WizardModals = (() => {
       });
     }, 50);
 
+    ensureMvPhotoFileInput();
+
     document.getElementById('mvSave')?.addEventListener('click', saveViolation);
     document.getElementById('mvDelete')?.addEventListener('click', deleteViolation);
-    document.getElementById('mvPhotoInput')?.addEventListener('change', onPhotoPick);
     bindModalPhotoClicks();
     hydrateModalPhotoThumbs();
   }
@@ -481,7 +499,7 @@ const WizardModals = (() => {
       )
       .join('');
     // Always append the "add" slot at the end
-    const addSlot = `<div class="photo-slot wizard-photo-add mv-photo-add-slot" title="Добавить фото">+</div>`;
+    const addSlot = `<label class="photo-slot wizard-photo-add mv-photo-add-slot" for="${MV_PHOTO_INPUT_ID}" title="Добавить фото из медиатеки" aria-label="Добавить фото из медиатеки">+</label>`;
     return thumbs + addSlot;
   }
 
@@ -507,15 +525,12 @@ const WizardModals = (() => {
         }
       });
     });
-    document.querySelector('#mvPhotoGrid .mv-photo-add-slot')?.addEventListener('click', () => {
-      document.getElementById('mvPhotoInput')?.click();
-    });
   }
 
   async function onPhotoPick(e) {
     const files = [...(e.target.files || [])];
     for (const file of files) {
-      if (!file.type.startsWith('image/')) continue;
+      if (!isImagePickFile(file)) continue;
       if (file.size > 8 * 1024 * 1024) {
         GazpromToast.error(`Файл ${file.name} слишком большой (макс. 8 МБ)`);
         continue;

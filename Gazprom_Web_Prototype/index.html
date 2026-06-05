@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '127';</script>
+  <script>window.GAZPROM_ASSET_V = '128';</script>
   <style id="appShellCritical">
     @media (max-width:900px),(max-width:1280px) and (max-height:520px) and (hover:none){
       .sidebar{display:none!important}
@@ -87,6 +87,7 @@
 
   <!-- Вне модалок: iOS Safari не открывает picker у input внутри [hidden] -->
   <input type="file" id="backupFileInput" class="backup-file-input" accept=".gazprombackup,.json,application/json,text/json,text/plain,application/octet-stream" tabindex="-1" aria-hidden="true">
+  <input type="file" id="mvPhotoFileInput" class="backup-file-input" accept="image/jpeg,image/png,image/heic,image/heif,.jpg,.jpeg,.png,.heic,.heif" multiple tabindex="-1" aria-hidden="true">
 
   <div id="dataStatusBar" class="data-status" hidden></div>
 
@@ -183,7 +184,7 @@
             <div class="stat-label">Черновиков</div>
           </div>
         </div>
-        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-127</p>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-128</p>
       </section>
 
       <section class="screen" id="screen-wizard">
@@ -531,7 +532,7 @@
   <script src="js/schedule-editor.js?v=2"></script>
   <script src="js/elimination-editor.js?v=8"></script>
   <script src="js/report-exporter.js?v=2"></script>
-  <script src="js/wizard-modals.js?v=27"></script>
+  <script src="js/wizard-modals.js?v=32"></script>
   <script src="js/wizard.js?v=39"></script>
   <script src="js/short-akt-form.js?v=3"></script>
   <script src="js/doc-generator.js?v=29"></script>
