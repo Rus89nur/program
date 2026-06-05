@@ -13,6 +13,13 @@ const GazpromMobileOverlay = (() => {
 
   const mainEl = () => document.querySelector('.main');
 
+  const hasOpenOverlay = () =>
+    !!document.querySelector(
+      '.modal-root.show, .catalog-editor-root:not([hidden]), .catalog-form-overlay:not([hidden]), ' +
+        '.photo-lightbox.show, .vr-form-overlay:not([hidden]), .confirm-overlay:not([hidden]), ' +
+        '.schedule-form-overlay:not([hidden]), .elimination-detail-overlay:not([hidden])'
+    );
+
   const positionBottomNav = () => {
     const nav = document.querySelector('.bottom-nav');
     if (!nav || !mq.matches) {
@@ -20,11 +27,32 @@ const GazpromMobileOverlay = (() => {
       document.body.style.removeProperty('--gazprom-safari-bottom-inset');
       return 0;
     }
+    /* При открытом оверлее бар не поднимаем — иначе «прыгает» за модалкой (web-123). */
+    if (hasOpenOverlay()) {
+      nav.style.removeProperty('bottom');
+      document.body.style.setProperty('--gazprom-safari-bottom-inset', '0px');
+      return 0;
+    }
     const vv = window.visualViewport;
     const inset = vv ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0;
     document.body.style.setProperty('--gazprom-safari-bottom-inset', `${inset}px`);
     nav.style.bottom = `${inset}px`;
     return inset;
+  };
+
+  const isTypingInWizardModal = (modal) => {
+    const active = document.activeElement;
+    if (!active || !modal.contains(active)) return false;
+    return active.matches(
+      'input:not([type="hidden"]):not([type="file"]), textarea, select'
+    );
+  };
+
+  const isWizardModalKeyboardOpen = (modal) => {
+    if (isTypingInWizardModal(modal)) return true;
+    const vv = window.visualViewport;
+    if (!vv) return false;
+    return Math.max(0, window.innerHeight - vv.height - vv.offsetTop) > 80;
   };
 
   /** Полосы с overflow-x: auto — свайп не блокируем (см. MOBILE_PHONE_MODE §3.8, web-82). */
@@ -62,29 +90,50 @@ const GazpromMobileOverlay = (() => {
     syncWizardModalViewport();
   };
 
-  /** Fullscreen модалка нарушения: привязка к visualViewport и режим клавиатуры (§3.11, web-122). */
+  const clearWizardModalViewportStyles = (modal) => {
+    if (!modal) return;
+    modal.classList.remove('wizard-modal--keyboard', 'wizard-modal--vv-sync');
+    modal.style.removeProperty('top');
+    modal.style.removeProperty('left');
+    modal.style.removeProperty('width');
+    modal.style.removeProperty('height');
+    modal.style.removeProperty('bottom');
+    modal.style.removeProperty('right');
+  };
+
+  /** Fullscreen модалка нарушения: режим клавиатуры + якорь к vv только при overlay-клавиатуре (§3.11, web-123). */
   const syncWizardModalViewport = () => {
     const modal = document.getElementById('wizardModalRoot');
-    if (!modal?.classList.contains('show') || !mq.matches || !window.visualViewport) {
-      modal?.classList.remove('wizard-modal--keyboard', 'wizard-modal--vv-sync');
-      modal?.style.removeProperty('top');
-      modal?.style.removeProperty('left');
-      modal?.style.removeProperty('width');
-      modal?.style.removeProperty('height');
-      modal?.style.removeProperty('bottom');
-      modal?.style.removeProperty('right');
+    if (!modal?.classList.contains('show') || !mq.matches) {
+      clearWizardModalViewportStyles(modal);
       return;
     }
     const vv = window.visualViewport;
-    modal.classList.add('wizard-modal--vv-sync');
-    modal.style.top = `${vv.offsetTop}px`;
-    modal.style.left = `${vv.offsetLeft}px`;
-    modal.style.width = `${vv.width}px`;
-    modal.style.height = `${vv.height}px`;
-    modal.style.bottom = 'auto';
-    modal.style.right = 'auto';
-    const insetBottom = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    modal.classList.toggle('wizard-modal--keyboard', insetBottom > 80);
+    const keyboardOpen = isWizardModalKeyboardOpen(modal);
+    modal.classList.toggle('wizard-modal--keyboard', keyboardOpen);
+
+    const insetBottom = vv
+      ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+      : 0;
+    const needsVvAnchor = insetBottom > 80;
+    modal.classList.toggle('wizard-modal--vv-sync', needsVvAnchor);
+
+    if (needsVvAnchor && vv) {
+      modal.style.top = `${vv.offsetTop}px`;
+      modal.style.left = `${vv.offsetLeft}px`;
+      modal.style.width = `${vv.width}px`;
+      modal.style.height = `${vv.height}px`;
+      modal.style.bottom = 'auto';
+      modal.style.right = 'auto';
+      return;
+    }
+
+    modal.style.removeProperty('top');
+    modal.style.removeProperty('left');
+    modal.style.removeProperty('width');
+    modal.style.removeProperty('height');
+    modal.style.removeProperty('bottom');
+    modal.style.removeProperty('right');
   };
 
   const scrollWizardModalFieldIntoView = (target) => {
@@ -95,13 +144,19 @@ const GazpromMobileOverlay = (() => {
     const body = modal.querySelector('.modal-body');
     if (!body) return;
     requestAnimationFrame(() => {
-      const bodyRect = body.getBoundingClientRect();
+      syncWizardModalViewport();
+      const vv = window.visualViewport;
+      const visibleTop = vv ? vv.offsetTop : 0;
+      const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      const header = modal.querySelector('.modal-header');
+      const headerBottom = header ? header.getBoundingClientRect().bottom : visibleTop;
+      const minTop = Math.max(visibleTop, headerBottom) + 12;
+      const maxBottom = visibleBottom - 16;
       const fieldRect = target.getBoundingClientRect();
-      const margin = 16;
-      if (fieldRect.top < bodyRect.top + margin) {
-        body.scrollTop -= bodyRect.top + margin - fieldRect.top;
-      } else if (fieldRect.bottom > bodyRect.bottom - margin) {
-        body.scrollTop += fieldRect.bottom - bodyRect.bottom + margin;
+      if (fieldRect.bottom > maxBottom) {
+        body.scrollTop += fieldRect.bottom - maxBottom;
+      } else if (fieldRect.top < minTop) {
+        body.scrollTop -= minTop - fieldRect.top;
       }
     });
   };
@@ -378,13 +433,6 @@ const GazpromMobileOverlay = (() => {
     bumpScrollClearanceAtRest();
   };
 
-  const hasOpenOverlay = () =>
-    !!document.querySelector(
-      '.modal-root.show, .catalog-editor-root:not([hidden]), .catalog-form-overlay:not([hidden]), ' +
-        '.photo-lightbox.show, .vr-form-overlay:not([hidden]), .confirm-overlay:not([hidden]), ' +
-        '.schedule-form-overlay:not([hidden]), .elimination-detail-overlay:not([hidden])'
-    );
-
   const clearStaleScrollLock = () => {
     if (hasOpenOverlay()) return;
     depth = 0;
@@ -425,6 +473,7 @@ const GazpromMobileOverlay = (() => {
       document.documentElement.classList.add('gazprom-scroll-lock');
       mainEl()?.classList.add('gazprom-main-scroll-lock');
       syncVisualViewport();
+      positionBottomNav();
     }
     depth += 1;
   };
@@ -435,6 +484,7 @@ const GazpromMobileOverlay = (() => {
     if (depth === 0) {
       document.documentElement.classList.remove('gazprom-scroll-lock');
       mainEl()?.classList.remove('gazprom-main-scroll-lock');
+      positionBottomNav();
     }
   };
 
@@ -564,6 +614,17 @@ const GazpromMobileOverlay = (() => {
     'focusin',
     (e) => {
       scrollWizardModalFieldIntoView(e.target);
+      if (document.getElementById('wizardModalRoot')?.contains(e.target)) {
+        syncWizardModalViewport();
+      }
+    },
+    true
+  );
+
+  document.addEventListener(
+    'focusout',
+    () => {
+      window.setTimeout(syncWizardModalViewport, 120);
     },
     true
   );

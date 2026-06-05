@@ -70,15 +70,30 @@ const WizardModals = (() => {
     ctx = context;
   }
 
+  function getTextareaMinHeight(el) {
+    const root = document.getElementById('wizardModalRoot');
+    const rows = parseInt(el?.getAttribute('rows'), 10) || 2;
+    const baseMin = rows * 26;
+    if (!root?.classList.contains('wizard-modal--keyboard')) return baseMin;
+    const vv = window.visualViewport;
+    const visible = vv ? vv.height : window.innerHeight;
+    return Math.max(120, Math.round(visible * 0.38), baseMin);
+  }
+
   function autoResize(el) {
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = el.scrollHeight + 'px';
+    const minH = getTextareaMinHeight(el);
+    el.style.height = `${Math.max(el.scrollHeight, minH)}px`;
   }
 
   function bindAutoResize(el) {
     if (!el) return;
     el.addEventListener('input', () => autoResize(el));
+    el.addEventListener('focus', () => {
+      GazpromMobileOverlay.syncWizardModalViewport?.();
+      autoResize(el);
+    });
   }
 
   async function fileToBase64(file) {
