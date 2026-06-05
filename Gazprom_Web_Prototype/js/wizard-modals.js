@@ -62,6 +62,10 @@ const WizardModals = (() => {
     }
     GazpromMobileOverlay.unlock();
     GazpromMobileOverlay.syncWizardModalViewport?.();
+    requestAnimationFrame(() => {
+      document.documentElement.classList.remove('gazprom-scroll-lock');
+      document.querySelector('.main')?.classList.remove('gazprom-main-scroll-lock');
+    });
     editingViolationId = null;
     modalPhotos = [];
   }

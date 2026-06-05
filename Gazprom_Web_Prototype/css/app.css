@@ -4660,11 +4660,6 @@
         overflow: hidden;
       }
 
-      /* web-124: контент приложения не просвечивает за fullscreen-модалкой */
-      html.gazprom-scroll-lock body.gazprom-mobile-shell .app {
-        visibility: hidden;
-      }
-
       /* Устранение: карточки актов — сетка, объект на всю ширину (web-76) */
       body.gazprom-mobile-shell .elimination-card-list .elimination-act-card.card {
         display: grid;
@@ -4884,11 +4879,6 @@
 
       body.gazprom-mobile-shell #wizardModalRoot .modal-header {
         flex-shrink: 0;
-      }
-
-      body.gazprom-mobile-shell #wizardModalRoot.wizard-modal--keyboard.show {
-        height: var(--vv-height, 100dvh);
-        max-height: var(--vv-height, 100dvh);
       }
 
       body.gazprom-mobile-shell #wizardModalRoot .modal-body {

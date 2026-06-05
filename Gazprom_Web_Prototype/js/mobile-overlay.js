@@ -404,6 +404,8 @@ const GazpromMobileOverlay = (() => {
     depth = 0;
     document.documentElement.classList.remove('gazprom-scroll-lock');
     mainEl()?.classList.remove('gazprom-main-scroll-lock');
+    const modal = document.getElementById('wizardModalRoot');
+    modal?.classList.remove('wizard-modal--keyboard');
   };
 
   const syncMobileShellClass = () => {
@@ -548,6 +550,12 @@ const GazpromMobileOverlay = (() => {
     document.querySelector('.screen.active')?.id || 'screen-home'
   );
   mq.addEventListener('change', recoverViewportLayout);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      clearStaleScrollLock();
+      recoverViewportLayout();
+    }
+  });
 
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', () => {
