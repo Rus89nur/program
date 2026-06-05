@@ -94,7 +94,8 @@ const GazpromMobileOverlay = (() => {
   const scrollWizardModalFieldIntoView = (target) => {
     const modal = document.getElementById('wizardModalRoot');
     if (!modal?.classList.contains('show') || !mq.matches) return;
-    if (!target?.matches?.('input, textarea, select')) return;
+    if (!target?.matches?.('input, select')) return;
+    if (target.matches('textarea')) return;
     if (!modal.contains(target)) return;
     const body = modal.querySelector('.modal-body');
     if (!body) return;

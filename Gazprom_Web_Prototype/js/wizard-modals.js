@@ -77,9 +77,21 @@ const WizardModals = (() => {
 
   function autoResize(el) {
     if (!el) return;
+    const isMobile = window.matchMedia(
+      window.GAZPROM_PHONE_LAYOUT_MQ ||
+        '(max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none)'
+    ).matches;
     el.style.height = 'auto';
     const minH = getTextareaMinHeight(el);
-    el.style.height = `${Math.max(el.scrollHeight, minH)}px`;
+    let h = Math.max(el.scrollHeight, minH);
+    if (isMobile) {
+      const maxH = Math.round(window.innerHeight * 0.32);
+      el.style.overflowY = h > maxH ? 'auto' : 'hidden';
+      h = Math.min(h, maxH);
+    } else {
+      el.style.removeProperty('overflow-y');
+    }
+    el.style.height = `${h}px`;
   }
 
   function bindAutoResize(el) {
@@ -377,6 +389,10 @@ const WizardModals = (() => {
           const item = registryItems.find((r) => r.id === el.dataset.regId);
           if (!item) return;
 
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
+
           const titleEl   = document.getElementById('mvTitle');
           const urlEl     = document.getElementById('mvUrl');
           const formulaEl = document.getElementById('mvFormula');
@@ -402,6 +418,7 @@ const WizardModals = (() => {
           const results = document.getElementById('mvRegistryResults');
           if (results) results.innerHTML = renderRegistryResults('');
           bindRegistryResultClicks();
+          GazpromMobileOverlay.syncWizardModalViewport?.();
         });
       });
     }

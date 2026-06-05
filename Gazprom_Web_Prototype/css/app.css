@@ -4882,6 +4882,33 @@
       body.gazprom-mobile-shell #wizardModalRoot .modal-body {
         flex: 1 1 auto;
         min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+        overscroll-behavior-y: contain;
+      }
+
+      body.gazprom-mobile-shell #wizardModalRoot .modal-body textarea.form-control {
+        max-height: min(160px, 32dvh);
+        overflow-y: auto;
+        resize: none;
+        touch-action: pan-y;
+      }
+
+      body.gazprom-mobile-shell #wizardModalRoot .mv-search-block,
+      body.gazprom-mobile-shell #wizardModalRoot .mv-search-block-input,
+      body.gazprom-mobile-shell #wizardModalRoot .viol-registry-results {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      body.gazprom-mobile-shell #wizardModalRoot .viol-registry-results {
+        max-height: min(240px, 34dvh);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
       }
 
       body.gazprom-mobile-shell #wizardModalRoot .modal-footer {
@@ -4924,11 +4951,6 @@
       body.gazprom-mobile-shell #wizardModalRoot.wizard-modal--keyboard .modal-body {
         padding-top: 12px;
         padding-bottom: 12px;
-      }
-
-      body.gazprom-mobile-shell #wizardModalRoot.wizard-modal--keyboard .viol-registry-results {
-        max-height: 72px;
-        overflow-y: auto;
       }
 
       body.gazprom-mobile-shell #wizardModalRoot.wizard-modal--keyboard .modal-body input:focus,
