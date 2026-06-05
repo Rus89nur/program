@@ -1377,11 +1377,16 @@
       letter-spacing: 0.06em;
     }
 
-    /* Responsive: tablet collapses sidebar */
+    /* Responsive: phone — sidebar hidden, single-column shell */
     @media (max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none) {
       .app {
-        grid-template-columns: 64px 1fr;
-        --sidebar-w: 64px;
+        grid-template-columns: 1fr;
+      }
+      .header,
+      .main {
+        grid-column: 1;
+        width: 100%;
+        max-width: 100%;
       }
       .nav-item span:not(.nav-icon) { display: none; }
       .sidebar-brand .logo, .sidebar-brand small { display: none; }
@@ -3027,6 +3032,15 @@
 
     @media (max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none) {
       .sidebar { display: none; }
+      .app {
+        grid-template-columns: 1fr;
+      }
+      .header,
+      .main {
+        grid-column: 1;
+        width: 100%;
+        max-width: 100%;
+      }
       .bottom-nav { display: flex; }
       .header-actions .header-sync,
       .header-actions .avatar { display: none; }
