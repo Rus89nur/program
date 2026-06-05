@@ -71,13 +71,8 @@ const WizardModals = (() => {
   }
 
   function getTextareaMinHeight(el) {
-    const root = document.getElementById('wizardModalRoot');
     const rows = parseInt(el?.getAttribute('rows'), 10) || 2;
-    const baseMin = rows * 26;
-    if (!root?.classList.contains('wizard-modal--keyboard')) return baseMin;
-    const vv = window.visualViewport;
-    const visible = vv ? vv.height : window.innerHeight;
-    return Math.max(120, Math.round(visible * 0.38), baseMin);
+    return rows * 26;
   }
 
   function autoResize(el) {
@@ -90,10 +85,7 @@ const WizardModals = (() => {
   function bindAutoResize(el) {
     if (!el) return;
     el.addEventListener('input', () => autoResize(el));
-    el.addEventListener('focus', () => {
-      GazpromMobileOverlay.syncWizardModalViewport?.();
-      autoResize(el);
-    });
+    el.addEventListener('focus', () => autoResize(el));
   }
 
   async function fileToBase64(file) {

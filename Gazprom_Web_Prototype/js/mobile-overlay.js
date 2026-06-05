@@ -40,16 +40,7 @@ const GazpromMobileOverlay = (() => {
     return inset;
   };
 
-  const isTypingInWizardModal = (modal) => {
-    const active = document.activeElement;
-    if (!active || !modal.contains(active)) return false;
-    return active.matches(
-      'input:not([type="hidden"]):not([type="file"]), textarea, select'
-    );
-  };
-
-  const isWizardModalKeyboardOpen = (modal) => {
-    if (isTypingInWizardModal(modal)) return true;
+  const isWizardModalKeyboardOpen = () => {
     const vv = window.visualViewport;
     if (!vv) return false;
     return Math.max(0, window.innerHeight - vv.height - vv.offsetTop) > 80;
@@ -90,50 +81,14 @@ const GazpromMobileOverlay = (() => {
     syncWizardModalViewport();
   };
 
-  const clearWizardModalViewportStyles = (modal) => {
-    if (!modal) return;
-    modal.classList.remove('wizard-modal--keyboard', 'wizard-modal--vv-sync');
-    modal.style.removeProperty('top');
-    modal.style.removeProperty('left');
-    modal.style.removeProperty('width');
-    modal.style.removeProperty('height');
-    modal.style.removeProperty('bottom');
-    modal.style.removeProperty('right');
-  };
-
-  /** Fullscreen модалка нарушения: режим клавиатуры + якорь к vv только при overlay-клавиатуре (§3.11, web-123). */
+  /** Fullscreen модалка нарушения: только флаг клавиатуры, без смены размеров окна (§3.11, web-124). */
   const syncWizardModalViewport = () => {
     const modal = document.getElementById('wizardModalRoot');
     if (!modal?.classList.contains('show') || !mq.matches) {
-      clearWizardModalViewportStyles(modal);
+      modal?.classList.remove('wizard-modal--keyboard');
       return;
     }
-    const vv = window.visualViewport;
-    const keyboardOpen = isWizardModalKeyboardOpen(modal);
-    modal.classList.toggle('wizard-modal--keyboard', keyboardOpen);
-
-    const insetBottom = vv
-      ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
-      : 0;
-    const needsVvAnchor = insetBottom > 80;
-    modal.classList.toggle('wizard-modal--vv-sync', needsVvAnchor);
-
-    if (needsVvAnchor && vv) {
-      modal.style.top = `${vv.offsetTop}px`;
-      modal.style.left = `${vv.offsetLeft}px`;
-      modal.style.width = `${vv.width}px`;
-      modal.style.height = `${vv.height}px`;
-      modal.style.bottom = 'auto';
-      modal.style.right = 'auto';
-      return;
-    }
-
-    modal.style.removeProperty('top');
-    modal.style.removeProperty('left');
-    modal.style.removeProperty('width');
-    modal.style.removeProperty('height');
-    modal.style.removeProperty('bottom');
-    modal.style.removeProperty('right');
+    modal.classList.toggle('wizard-modal--keyboard', isWizardModalKeyboardOpen());
   };
 
   const scrollWizardModalFieldIntoView = (target) => {
@@ -144,7 +99,6 @@ const GazpromMobileOverlay = (() => {
     const body = modal.querySelector('.modal-body');
     if (!body) return;
     requestAnimationFrame(() => {
-      syncWizardModalViewport();
       const vv = window.visualViewport;
       const visibleTop = vv ? vv.offsetTop : 0;
       const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
