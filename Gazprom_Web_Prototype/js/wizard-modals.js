@@ -18,7 +18,10 @@ const WizardModals = (() => {
       <div class="modal-dialog" role="dialog" aria-modal="true">
         <div class="modal-header">
           <h3 id="modalTitle">—</h3>
-          <button type="button" class="modal-close" data-close aria-label="Закрыть">×</button>
+          <div class="modal-header-actions">
+            <button type="button" class="btn-primary btn-sm modal-header-save" id="modalHeaderSave" hidden>Сохранить</button>
+            <button type="button" class="modal-close" data-close aria-label="Закрыть">×</button>
+          </div>
         </div>
         <div class="modal-body" id="modalBody"></div>
         <div class="modal-footer" id="modalFooter"></div>
@@ -42,6 +45,13 @@ const WizardModals = (() => {
     document.getElementById('modalTitle').textContent = title;
     document.getElementById('modalBody').innerHTML = bodyHtml;
     document.getElementById('modalFooter').innerHTML = footerHtml || '';
+    const headerSave = document.getElementById('modalHeaderSave');
+    const footerPrimary = document.getElementById('modalFooter')?.querySelector('.btn-primary');
+    if (headerSave) {
+      headerSave.hidden = !footerPrimary;
+      headerSave.onclick = footerPrimary ? () => footerPrimary.click() : null;
+    }
+    GazpromMobileOverlay.syncWizardModalViewport?.();
   }
 
   function close() {
@@ -51,6 +61,7 @@ const WizardModals = (() => {
       root.hidden = true;
     }
     GazpromMobileOverlay.unlock();
+    GazpromMobileOverlay.syncWizardModalViewport?.();
     editingViolationId = null;
     modalPhotos = [];
   }

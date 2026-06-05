@@ -45,12 +45,65 @@ const GazpromMobileOverlay = (() => {
     const root = document.documentElement;
     if (!mq.matches || !window.visualViewport) {
       root.style.removeProperty('--vv-height');
+      root.style.removeProperty('--vv-offset-top');
+      root.style.removeProperty('--vv-offset-left');
+      root.style.removeProperty('--vv-width');
+      syncWizardModalViewport();
       return;
     }
-    root.style.setProperty('--vv-height', `${window.visualViewport.height}px`);
+    const vv = window.visualViewport;
+    root.style.setProperty('--vv-height', `${vv.height}px`);
+    root.style.setProperty('--vv-offset-top', `${vv.offsetTop}px`);
+    root.style.setProperty('--vv-offset-left', `${vv.offsetLeft}px`);
+    root.style.setProperty('--vv-width', `${vv.width}px`);
     if (window.scrollX !== 0) {
       window.scrollTo(0, window.scrollY);
     }
+    syncWizardModalViewport();
+  };
+
+  /** Fullscreen модалка нарушения: привязка к visualViewport и режим клавиатуры (§3.11, web-122). */
+  const syncWizardModalViewport = () => {
+    const modal = document.getElementById('wizardModalRoot');
+    if (!modal?.classList.contains('show') || !mq.matches || !window.visualViewport) {
+      modal?.classList.remove('wizard-modal--keyboard', 'wizard-modal--vv-sync');
+      modal?.style.removeProperty('top');
+      modal?.style.removeProperty('left');
+      modal?.style.removeProperty('width');
+      modal?.style.removeProperty('height');
+      modal?.style.removeProperty('bottom');
+      modal?.style.removeProperty('right');
+      return;
+    }
+    const vv = window.visualViewport;
+    modal.classList.add('wizard-modal--vv-sync');
+    modal.style.top = `${vv.offsetTop}px`;
+    modal.style.left = `${vv.offsetLeft}px`;
+    modal.style.width = `${vv.width}px`;
+    modal.style.height = `${vv.height}px`;
+    modal.style.bottom = 'auto';
+    modal.style.right = 'auto';
+    const insetBottom = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    modal.classList.toggle('wizard-modal--keyboard', insetBottom > 80);
+  };
+
+  const scrollWizardModalFieldIntoView = (target) => {
+    const modal = document.getElementById('wizardModalRoot');
+    if (!modal?.classList.contains('show') || !mq.matches) return;
+    if (!target?.matches?.('input, textarea, select')) return;
+    if (!modal.contains(target)) return;
+    const body = modal.querySelector('.modal-body');
+    if (!body) return;
+    requestAnimationFrame(() => {
+      const bodyRect = body.getBoundingClientRect();
+      const fieldRect = target.getBoundingClientRect();
+      const margin = 16;
+      if (fieldRect.top < bodyRect.top + margin) {
+        body.scrollTop -= bodyRect.top + margin - fieldRect.top;
+      } else if (fieldRect.bottom > bodyRect.bottom - margin) {
+        body.scrollTop += fieldRect.bottom - bodyRect.bottom + margin;
+      }
+    });
   };
 
   const findScreenBottomElement = (screen) => {
@@ -507,6 +560,14 @@ const GazpromMobileOverlay = (() => {
       setTimeout(recoverViewportLayout, ms);
     });
   });
+  document.addEventListener(
+    'focusin',
+    (e) => {
+      scrollWizardModalFieldIntoView(e.target);
+    },
+    true
+  );
+
   document.addEventListener('touchstart', handleTouchStart, { passive: true });
   document.addEventListener('touchmove', shieldHistoryHorizontalTouch, {
     capture: true,
@@ -522,6 +583,7 @@ const GazpromMobileOverlay = (() => {
     lock,
     unlock,
     syncVisualViewport,
+    syncWizardModalViewport,
     syncNavScrollInset,
     measureScrollOverlap,
     adjustNavScrollInsetIfOverlap,
