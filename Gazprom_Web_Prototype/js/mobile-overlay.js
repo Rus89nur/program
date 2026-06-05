@@ -81,14 +81,25 @@ const GazpromMobileOverlay = (() => {
     syncWizardModalViewport();
   };
 
-  /** Fullscreen модалка нарушения: только флаг клавиатуры, без смены размеров окна (§3.11, web-124). */
+  const isWizardModalTextareaFocused = (modal) => {
+    const active = document.activeElement;
+    return (
+      !!active &&
+      modal.contains(active) &&
+      active.matches('textarea')
+    );
+  };
+
+  /** Fullscreen модалка нарушения: клавиатура / фокус в textarea — футер скрыт, высота по vv (§3.11, web-126). */
   const syncWizardModalViewport = () => {
     const modal = document.getElementById('wizardModalRoot');
     if (!modal?.classList.contains('show') || !mq.matches) {
       modal?.classList.remove('wizard-modal--keyboard');
       return;
     }
-    modal.classList.toggle('wizard-modal--keyboard', isWizardModalKeyboardOpen());
+    const keyboardOpen =
+      isWizardModalKeyboardOpen() || isWizardModalTextareaFocused(modal);
+    modal.classList.toggle('wizard-modal--keyboard', keyboardOpen);
   };
 
   const scrollWizardModalFieldIntoView = (target) => {

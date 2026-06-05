@@ -75,12 +75,20 @@ const WizardModals = (() => {
     return rows * 26;
   }
 
-  function autoResize(el) {
-    if (!el) return;
-    const isMobile = window.matchMedia(
+  const isMobileViolationModal = () =>
+    window.matchMedia(
       window.GAZPROM_PHONE_LAYOUT_MQ ||
         '(max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none)'
     ).matches;
+
+  function autoResize(el) {
+    if (!el) return;
+    if (isMobileViolationModal() && el.id === 'mvTitle') {
+      el.style.removeProperty('height');
+      el.style.removeProperty('overflow-y');
+      return;
+    }
+    const isMobile = isMobileViolationModal();
     el.style.height = 'auto';
     const minH = getTextareaMinHeight(el);
     let h = Math.max(el.scrollHeight, minH);
@@ -97,7 +105,12 @@ const WizardModals = (() => {
   function bindAutoResize(el) {
     if (!el) return;
     el.addEventListener('input', () => autoResize(el));
-    el.addEventListener('focus', () => autoResize(el));
+    el.addEventListener('focus', () => {
+      autoResize(el);
+      if (el.id === 'mvTitle') {
+        GazpromMobileOverlay.syncWizardModalViewport?.();
+      }
+    });
   }
 
   async function fileToBase64(file) {
