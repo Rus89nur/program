@@ -88,7 +88,7 @@ function registerServiceWorker() {
       });
       return;
     }
-    navigator.serviceWorker.register('./sw.js?v=135')
+    navigator.serviceWorker.register('./sw.js?v=136')
       .then((reg) => {
         reg.update();
         document.addEventListener('visibilitychange', () => {

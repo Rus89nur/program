@@ -75,34 +75,27 @@ const WizardModals = (() => {
     ctx = context;
   }
 
-  function getTextareaMinHeight(el) {
-    const rows = parseInt(el?.getAttribute('rows'), 10) || 2;
-    return rows * 26;
+  /** Одна строка: line-height + padding + border (пустое поле). */
+  function getSingleLineTextareaHeight(el) {
+    if (!el) return 48;
+    const cs = window.getComputedStyle(el);
+    const lineHeight = parseFloat(cs.lineHeight);
+    const paddingTop = parseFloat(cs.paddingTop) || 0;
+    const paddingBottom = parseFloat(cs.paddingBottom) || 0;
+    const borderTop = parseFloat(cs.borderTopWidth) || 0;
+    const borderBottom = parseFloat(cs.borderBottomWidth) || 0;
+    const line = Number.isFinite(lineHeight) ? lineHeight : 24;
+    return Math.ceil(line + paddingTop + paddingBottom + borderTop + borderBottom);
   }
 
-  const isMobileViolationModal = () =>
-    window.matchMedia(
-      window.GAZPROM_PHONE_LAYOUT_MQ ||
-        '(max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none)'
-    ).matches;
-
-  function getTextareaMaxHeight(el) {
-    if (!isMobileViolationModal()) return null;
-    return Math.min(Math.round(window.innerHeight * 0.32), 160);
-  }
-
+  /** Высота под весь текст: сначала одна строка, затем scrollHeight — без обрезки. */
   function autoResize(el) {
     if (!el) return;
-    el.style.height = '0px';
-    const minH = getTextareaMinHeight(el);
-    let h = Math.max(el.scrollHeight, minH);
-    const maxH = getTextareaMaxHeight(el);
-    if (maxH != null) {
-      el.style.overflowY = h > maxH ? 'auto' : 'hidden';
-      h = Math.min(h, maxH);
-    } else {
-      el.style.removeProperty('overflow-y');
-    }
+    const singleLine = getSingleLineTextareaHeight(el);
+    el.style.overflow = 'hidden';
+    el.style.overflowY = 'hidden';
+    el.style.height = `${singleLine}px`;
+    const h = Math.max(el.scrollHeight, singleLine);
     el.style.height = `${h}px`;
   }
 
@@ -266,7 +259,7 @@ const WizardModals = (() => {
 
       <div class="form-group">
         <label class="form-label">Формулировка нарушения <span style="color:var(--danger)">*</span></label>
-        <textarea class="form-control" id="mvTitle" rows="3" placeholder="Не проведён инструктаж по охране труда…">${AktUtils.escapeHtml(v?.title || '')}</textarea>
+        <textarea class="form-control mv-auto-textarea" id="mvTitle" rows="1" placeholder="Не проведён инструктаж по охране труда…">${AktUtils.escapeHtml(v?.title || '')}</textarea>
       </div>
       <div class="form-group">
         <label class="form-label">Вид нарушения</label>
@@ -274,11 +267,11 @@ const WizardModals = (() => {
       </div>
       <div class="form-group">
         <label class="form-label">Пункт / ссылка на правило</label>
-        <textarea class="form-control" id="mvUrl" rows="2" data-no-capitalize placeholder="п. 4.1 СП 12-135-2003">${AktUtils.escapeHtml(v?.urlToPravilo || '')}</textarea>
+        <textarea class="form-control mv-auto-textarea" id="mvUrl" rows="1" data-no-capitalize placeholder="п. 4.1 СП 12-135-2003">${AktUtils.escapeHtml(v?.urlToPravilo || '')}</textarea>
       </div>
       <div class="form-group">
         <label class="form-label">Формулировка из правил</label>
-        <textarea class="form-control" id="mvFormula" rows="2" placeholder="Согласно п. …">${AktUtils.escapeHtml(v?.formulaFromRules || '')}</textarea>
+        <textarea class="form-control mv-auto-textarea" id="mvFormula" rows="1" placeholder="Согласно п. …">${AktUtils.escapeHtml(v?.formulaFromRules || '')}</textarea>
       </div>
       <div class="form-group">
         <label class="form-label">Фотофиксация</label>

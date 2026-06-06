@@ -1,0 +1,15 @@
+---
+description: Поля textarea в модалке «Новое нарушение» — одна строка и автовысота
+globs: Gazprom_Web_Prototype/js/wizard-modals.js,Gazprom_Web_Prototype/css/app.css
+alwaysApply: false
+---
+
+# Модалка «Новое / редактирование нарушения»
+
+Поля `#mvTitle`, `#mvUrl`, `#mvFormula` (класс `mv-auto-textarea`):
+
+1. **По умолчанию** — одна строка (пустое или короткое значение).
+2. **Ручной ввод** — поле растёт по мере текста (`input` → `autoResize`).
+3. **Выбор из реестра** — после подстановки значений вызвать `scheduleViolationTextareaResize()`; высота = весь текст, без `max-height` и без обрезки.
+
+Реализация: `getSingleLineTextareaHeight` + двухшаговый `autoResize` (сначала одна строка, затем `scrollHeight`). Не ограничивать высоту искусственным потолком — прокрутка у `.modal-body`, не внутри textarea.

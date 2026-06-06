@@ -595,6 +595,15 @@
       min-height: 44px;
     }
 
+    /* Модалка «Новое нарушение»: одна строка по умолчанию, высота — через JS */
+    #wizardModalRoot .modal-body textarea.mv-auto-textarea {
+      resize: none;
+      overflow: hidden;
+      min-height: 0;
+      max-height: none;
+      field-sizing: content;
+    }
+
     .chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
     .chip {
       display: inline-flex;
@@ -4961,16 +4970,12 @@
         overscroll-behavior-y: contain;
       }
 
-      body.gazprom-mobile-shell #wizardModalRoot .modal-body textarea.form-control {
-        max-height: min(160px, 32dvh);
-        overflow-y: auto;
+      body.gazprom-mobile-shell #wizardModalRoot .modal-body textarea.mv-auto-textarea {
         resize: none;
+        overflow: hidden;
+        min-height: 0;
+        max-height: none;
         touch-action: pan-y;
-      }
-
-      body.gazprom-mobile-shell #wizardModalRoot #mvTitle {
-        min-height: 72px;
-        max-height: min(160px, 32dvh);
       }
 
       body.gazprom-mobile-shell #wizardModalRoot .mv-search-block,
