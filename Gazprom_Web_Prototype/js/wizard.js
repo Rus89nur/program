@@ -1240,6 +1240,7 @@ const WizardController = (() => {
         box._lightboxZoom?.resetZoom?.();
         box.classList.remove('show');
         GazpromMobileOverlay.unlock();
+        GazpromMobileOverlay.scheduleRecoverViewportLayout?.();
       };
       box.querySelector('.photo-lightbox-close').onclick = hideLightbox;
       box.onclick = (e) => {

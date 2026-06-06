@@ -56,16 +56,17 @@ const WizardModals = (() => {
 
   function close() {
     const root = document.getElementById('wizardModalRoot');
+    const active = document.activeElement;
+    if (active && root?.contains(active)) {
+      active.blur();
+    }
     if (root) {
-      root.classList.remove('show');
+      root.classList.remove('show', 'wizard-modal--keyboard');
       root.hidden = true;
     }
     GazpromMobileOverlay.unlock();
     GazpromMobileOverlay.syncWizardModalViewport?.();
-    requestAnimationFrame(() => {
-      document.documentElement.classList.remove('gazprom-scroll-lock');
-      document.querySelector('.main')?.classList.remove('gazprom-main-scroll-lock');
-    });
+    GazpromMobileOverlay.scheduleRecoverViewportLayout?.();
     editingViolationId = null;
     modalPhotos = [];
   }

@@ -1391,6 +1391,7 @@
       }
       .header,
       .main {
+        grid-column: unset;
         width: 100%;
         max-width: 100%;
         min-width: 0;
@@ -3125,6 +3126,7 @@
       }
       .header,
       .main {
+        grid-column: unset;
         width: 100%;
         max-width: 100%;
         min-width: 0;
@@ -4398,6 +4400,18 @@
         right: max(16px, env(safe-area-inset-right, 0px));
         bottom: calc(var(--gazprom-nav-block, 72px) + 16px + var(--gazprom-safari-bottom-inset, 0px));
         z-index: 210;
+      }
+
+      /* iOS: font-size < 16px вызывает zoom — после модалки «плывёт» центрирование */
+      body.gazprom-mobile-shell #wizardModalRoot .form-control,
+      body.gazprom-mobile-shell #wizardModalRoot .mv-search-block-input,
+      body.gazprom-mobile-shell .wizard-panel--violations .form-control {
+        font-size: 16px;
+      }
+
+      body.gazprom-mobile-shell .header,
+      body.gazprom-mobile-shell .main {
+        grid-column: unset;
       }
 
       body.gazprom-mobile-shell .wizard-panel--violations {

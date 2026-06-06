@@ -15,9 +15,10 @@ const GazpromMobileOverlay = (() => {
 
   const hasOpenOverlay = () =>
     !!document.querySelector(
-      '.modal-root.show, .catalog-editor-root:not([hidden]), .catalog-form-overlay:not([hidden]), ' +
-        '.photo-lightbox.show, .vr-form-overlay:not([hidden]), .confirm-overlay:not([hidden]), ' +
-        '.schedule-form-overlay:not([hidden]), .elimination-detail-overlay:not([hidden])'
+      '#wizardModalRoot.show, .modal-root.show, .catalog-editor-root:not([hidden]), ' +
+        '.catalog-form-overlay:not([hidden]), .photo-lightbox.show, .vr-form-overlay:not([hidden]), ' +
+        '.confirm-overlay:not([hidden]), .schedule-form-overlay:not([hidden]), ' +
+        '.elimination-detail-overlay:not([hidden])'
     );
 
   const positionBottomNav = () => {
@@ -435,6 +436,14 @@ const GazpromMobileOverlay = (() => {
     );
   };
 
+  /** После модалки/клавиатуры на iPhone — vv и zoom сходятся не сразу. */
+  const scheduleRecoverViewportLayout = () => {
+    recoverViewportLayout();
+    [80, 200, 450, 700].forEach((ms) => {
+      window.setTimeout(recoverViewportLayout, ms);
+    });
+  };
+
   const lock = () => {
     if (!mq.matches) return;
     if (depth === 0) {
@@ -624,5 +633,6 @@ const GazpromMobileOverlay = (() => {
     adjustNavScrollInsetIfOverlap,
     ensureScrollClearance,
     recoverViewportLayout,
+    scheduleRecoverViewportLayout,
   };
 })();
