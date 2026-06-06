@@ -142,6 +142,13 @@ const PhotoStore = (() => {
     });
   }
 
+  /** Сжатие фото с камеры/галереи перед добавлением к нарушению (вместо отказа по лимиту 8 МБ). */
+  async function fileToViolationBase64(file) {
+    if (!file || !(file instanceof Blob)) return null;
+    const compressed = await compressBlob(file);
+    return blobToBase64(compressed);
+  }
+
   async function preparePhotoRecord(ref) {
     const id = ID_PREFIX + AktUtils.uuid();
     const b64 = typeof ref === 'string' ? ref : null;
@@ -422,6 +429,7 @@ const PhotoStore = (() => {
     getLastIngestStats,
     expandCatalog,
     ingestPhotoRef,
+    fileToViolationBase64,
     resolveDataUrl,
     hydrateImages,
     clearAll,

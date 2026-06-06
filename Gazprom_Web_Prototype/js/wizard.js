@@ -453,7 +453,7 @@ const WizardController = (() => {
       : `<div class="viol-empty">
           <div class="viol-empty-icon">⚠️</div>
           <div class="viol-empty-text">Нарушения не добавлены</div>
-          <div class="viol-empty-hint">Нажмите «+ Добавить нарушение» чтобы зафиксировать нарушение</div>
+          <div class="viol-empty-hint">Нажмите круглую кнопку «+» внизу справа, чтобы зафиксировать нарушение</div>
         </div>`;
 
     const allPhotos = allViolations.flatMap((v) =>
@@ -477,10 +477,14 @@ const WizardController = (() => {
     return `
       <div class="viol-step-header">
         <h3 style="margin:0">Нарушения <span class="viol-total-badge">${allViolations.length}</span></h3>
-        <button type="button" class="btn-primary" id="wAddViolation">+ Добавить нарушение</button>
       </div>
       <div class="viol-cards-list" id="wViolList">${cards}</div>
       ${photoSection}
+      <button type="button" class="viol-add-fab" id="wAddViolation" aria-label="Добавить нарушение" title="Добавить нарушение">
+        <svg class="viol-add-fab__icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+      </button>
     `;
   }
 
@@ -1107,9 +1111,106 @@ const WizardController = (() => {
     openLightbox(gallery[0], gallery);
   }
 
+  function attachLightboxZoom(viewport, imgEl) {
+    const MIN_SCALE = 1;
+    const MAX_SCALE = 5;
+    let scale = 1;
+    let tx = 0;
+    let ty = 0;
+    let pinchDist0 = 0;
+    let pinchScale0 = 1;
+    let panX0 = 0;
+    let panY0 = 0;
+    let tx0 = 0;
+    let ty0 = 0;
+    let lastTapAt = 0;
+
+    const apply = () => {
+      if (scale <= 1.02) {
+        imgEl.style.transform = '';
+        viewport.classList.remove('photo-lightbox-viewport--zoomed');
+        return;
+      }
+      imgEl.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`;
+      viewport.classList.add('photo-lightbox-viewport--zoomed');
+    };
+
+    const resetZoom = () => {
+      scale = 1;
+      tx = 0;
+      ty = 0;
+      pinchDist0 = 0;
+      imgEl.style.transform = '';
+      viewport.classList.remove('photo-lightbox-viewport--zoomed');
+    };
+
+    const touchDist = (a, b) => Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+
+    const onTouchStart = (e) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        pinchDist0 = touchDist(e.touches[0], e.touches[1]);
+        pinchScale0 = scale;
+      } else if (e.touches.length === 1 && scale > 1.02) {
+        panX0 = e.touches[0].clientX;
+        panY0 = e.touches[0].clientY;
+        tx0 = tx;
+        ty0 = ty;
+      }
+    };
+
+    const onTouchMove = (e) => {
+      if (e.touches.length === 2 && pinchDist0 > 0) {
+        e.preventDefault();
+        const d = touchDist(e.touches[0], e.touches[1]);
+        scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, pinchScale0 * (d / pinchDist0)));
+        if (scale <= 1.02) resetZoom();
+        else apply();
+      } else if (e.touches.length === 1 && scale > 1.02) {
+        e.preventDefault();
+        tx = tx0 + (e.touches[0].clientX - panX0);
+        ty = ty0 + (e.touches[0].clientY - panY0);
+        apply();
+      }
+    };
+
+    const onTouchEnd = (e) => {
+      if (e.touches.length < 2) pinchDist0 = 0;
+      if (e.touches.length === 0 && scale <= 1.02) resetZoom();
+
+      const now = Date.now();
+      if (e.changedTouches.length === 1 && now - lastTapAt < 320) {
+        if (scale > 1.02) resetZoom();
+        else {
+          scale = 2.5;
+          apply();
+        }
+        lastTapAt = 0;
+        return;
+      }
+      if (e.changedTouches.length === 1) lastTapAt = now;
+    };
+
+    const onWheel = (e) => {
+      e.preventDefault();
+      const step = e.deltaY < 0 ? 0.12 : -0.12;
+      scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale + step));
+      if (scale <= 1.02) resetZoom();
+      else apply();
+    };
+
+    viewport.addEventListener('touchstart', onTouchStart, { passive: false });
+    viewport.addEventListener('touchmove', onTouchMove, { passive: false });
+    viewport.addEventListener('touchend', onTouchEnd, { passive: true });
+    viewport.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    viewport.addEventListener('wheel', onWheel, { passive: false });
+
+    return { resetZoom };
+  }
+
   function openLightbox(src, gallery) {
     let box = document.getElementById('photoLightbox');
-    if (box && !box.querySelector('.photo-lightbox-chip')) {
+    if (box && (!box.querySelector('.photo-lightbox-chip') || !box.querySelector('.photo-lightbox-viewport'))) {
       box.remove();
       box = null;
     }
@@ -1120,7 +1221,9 @@ const WizardController = (() => {
       box.innerHTML = `
         <div class="photo-lightbox-inner">
           <button type="button" class="photo-lightbox-close" aria-label="Закрыть">×</button>
-          <img class="photo-lightbox-img" alt="">
+          <div class="photo-lightbox-viewport" aria-label="Фото, жестами можно увеличить">
+            <img class="photo-lightbox-img" alt="" draggable="false">
+          </div>
           <div class="photo-lightbox-controls">
             <button type="button" class="photo-lightbox-nav photo-lightbox-prev photo-lightbox-chip photo-lightbox-nav-btn" aria-label="Предыдущее фото">‹</button>
             <span class="photo-lightbox-counter photo-lightbox-chip" aria-live="polite"></span>
@@ -1129,8 +1232,12 @@ const WizardController = (() => {
         </div>
       `;
       document.body.appendChild(box);
+      const viewport = box.querySelector('.photo-lightbox-viewport');
+      const imgEl = box.querySelector('.photo-lightbox-img');
+      box._lightboxZoom = attachLightboxZoom(viewport, imgEl);
       const hideLightbox = () => {
         if (!box.classList.contains('show')) return;
+        box._lightboxZoom?.resetZoom?.();
         box.classList.remove('show');
         GazpromMobileOverlay.unlock();
       };
@@ -1148,6 +1255,7 @@ const WizardController = (() => {
     const nextBtn = box.querySelector('.photo-lightbox-next');
     const show = (i) => {
       idx = (i + imgs.length) % imgs.length;
+      box._lightboxZoom?.resetZoom?.();
       imgEl.src = imgs[idx];
       const multi = imgs.length > 1;
       if (counterEl) counterEl.textContent = multi ? `${idx + 1} / ${imgs.length}` : '';

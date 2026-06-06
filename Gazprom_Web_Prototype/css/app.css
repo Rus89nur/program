@@ -1798,12 +1798,31 @@
       align-items: center;
       max-width: 100%;
     }
+    .photo-lightbox-viewport {
+      position: relative;
+      overflow: hidden;
+      touch-action: none;
+      width: min(90vw, 100%);
+      max-height: calc(85vh - 72px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
     .photo-lightbox-img {
       max-width: min(90vw, 100%);
       max-height: calc(85vh - 72px);
       border-radius: 8px;
       box-shadow: 0 8px 40px rgba(0,0,0,0.5);
       background: #111;
+      transform-origin: center center;
+      will-change: transform;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .photo-lightbox-viewport--zoomed .photo-lightbox-img {
+      max-width: none;
+      max-height: none;
     }
     .photo-lightbox-close {
       position: absolute;
@@ -2721,6 +2740,40 @@
     .viol-empty-icon { font-size: 40px; margin-bottom: 12px; }
     .viol-empty-text { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
     .viol-empty-hint { font-size: 13px; max-width: 340px; margin: 0 auto; line-height: 1.6; }
+
+    /* Плавающая кнопка «+» на шаге «Нарушения» — всегда внизу справа, контент скроллится под ней */
+    .viol-add-fab {
+      position: fixed;
+      right: max(20px, env(safe-area-inset-right, 0px));
+      bottom: max(20px, env(safe-area-inset-bottom, 0px));
+      width: 56px;
+      height: 56px;
+      border: none;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 150;
+      box-shadow: 0 4px 18px rgba(13, 71, 161, 0.42), 0 2px 8px rgba(15, 23, 42, 0.12);
+      transition: background 0.15s, transform 0.12s, box-shadow 0.15s;
+    }
+    .viol-add-fab:hover {
+      background: var(--primary-hover);
+      transform: scale(1.05);
+      box-shadow: 0 6px 22px rgba(13, 71, 161, 0.48), 0 3px 10px rgba(15, 23, 42, 0.14);
+    }
+    .viol-add-fab:active { transform: scale(0.96); }
+    .viol-add-fab__icon { width: 28px; height: 28px; pointer-events: none; }
+    .wizard-panel--violations {
+      padding-bottom: 88px;
+    }
+    html.gazprom-scroll-lock .viol-add-fab {
+      visibility: hidden;
+      pointer-events: none;
+    }
 
     /* ===== Main search block in violation modal ===== */
     .mv-search-block {
@@ -4338,15 +4391,17 @@
       }
 
       body.gazprom-mobile-shell .wizard-panel--violations .viol-step-header {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
         margin-bottom: 12px;
       }
 
-      body.gazprom-mobile-shell .wizard-panel--violations .viol-step-header .btn-primary {
-        width: 100%;
-        justify-content: center;
+      body.gazprom-mobile-shell .viol-add-fab {
+        right: max(16px, env(safe-area-inset-right, 0px));
+        bottom: calc(var(--gazprom-nav-block, 72px) + 16px + var(--gazprom-safari-bottom-inset, 0px));
+        z-index: 210;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations {
+        padding-bottom: calc(88px + var(--gazprom-nav-block, 72px));
       }
 
       body.gazprom-mobile-shell .wizard-panel--violations .viol-cards-list {
@@ -4975,7 +5030,7 @@
       .schedule-form-overlay .catalog-form-dialog,
       .schedule-form-overlay .catalog-form-dialog--wide,
       .photo-lightbox-inner {
-        touch-action: pan-y;
+        touch-action: manipulation;
         overflow-x: hidden;
         width: var(--mobile-modal-width);
         max-width: var(--mobile-modal-width);
@@ -5174,6 +5229,14 @@
         width: 100%;
         max-width: 100%;
         border-radius: 0;
+      }
+
+      .photo-lightbox-viewport {
+        width: 100%;
+        max-height: calc(
+          100dvh - 120px - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+        );
+        touch-action: none;
       }
 
       .photo-lightbox-img {

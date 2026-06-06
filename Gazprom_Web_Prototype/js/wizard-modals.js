@@ -525,13 +525,25 @@ const WizardModals = (() => {
 
   async function onPhotoPick(e) {
     const files = [...(e.target.files || [])];
+    const maxInputBytes = 40 * 1024 * 1024;
     for (const file of files) {
       if (!file.type.startsWith('image/')) continue;
-      if (file.size > 8 * 1024 * 1024) {
-        GazpromToast.error(`Файл ${file.name} слишком большой (макс. 8 МБ)`);
+      if (file.size > maxInputBytes) {
+        GazpromToast.error(`Файл ${file.name} слишком большой (макс. 40 МБ)`);
         continue;
       }
-      modalPhotos.push(await fileToBase64(file));
+      try {
+        if (file.size > 2 * 1024 * 1024) {
+          GazpromToast.show('Сжимаем фото…', 'info', 2000);
+        }
+        const b64 =
+          typeof PhotoStore?.fileToViolationBase64 === 'function'
+            ? await PhotoStore.fileToViolationBase64(file)
+            : await fileToBase64(file);
+        if (b64) modalPhotos.push(b64);
+      } catch {
+        GazpromToast.error(`Не удалось обработать ${file.name}`);
+      }
     }
     document.getElementById('mvPhotoGrid').innerHTML = renderModalPhotos();
     bindModalPhotoClicks();
