@@ -71,6 +71,7 @@ const WizardController = (() => {
     const root = document.getElementById('wizardRoot');
     if (e) e.hidden = !show;
     if (root) root.hidden = show;
+    syncViolFab();
   }
 
   function scheduleAutosave() {
@@ -172,6 +173,16 @@ const WizardController = (() => {
     syncStepperUI();
     render();
     updateSummary();
+    const phoneMq =
+      window.GAZPROM_PHONE_LAYOUT_MQ ||
+      '(max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none)';
+    if (window.matchMedia(phoneMq).matches) {
+      requestAnimationFrame(() => {
+        const main = document.querySelector('.main');
+        if (main) main.scrollTop = 0;
+        GazpromMobileOverlay?.ensureScrollClearance?.('wizard-step-' + step);
+      });
+    }
   }
 
   function syncStepperUI() {
@@ -224,10 +235,18 @@ const WizardController = (() => {
     }
     bindPanelEvents();
     bindAutosaveOnPanel();
+    syncViolFab();
     hydrateViolationThumbs();
     requestAnimationFrame(() => {
       GazpromMobileOverlay?.ensureScrollClearance?.('wizard-render');
     });
+  }
+
+  function syncViolFab() {
+    const fab = document.getElementById('wizardViolFab');
+    if (!fab) return;
+    const root = document.getElementById('wizardRoot');
+    fab.hidden = step !== 3 || !root || root.hidden;
   }
 
   function bindAutosaveOnPanel() {
@@ -240,25 +259,49 @@ const WizardController = (() => {
   }
 
   async function hydrateViolationThumbs() {
+    const host = panelsHost();
+    if (!host) return;
+
+    const lazyViolImgs = [...host.querySelectorAll('img[data-viol-vid][data-viol-pidx]')];
+    await Promise.all(
+      lazyViolImgs.map(async (img) => {
+        if (img.dataset.photoHydrated === '1') return;
+        const vid = img.dataset.violVid;
+        const pidx = parseInt(img.dataset.violPidx, 10);
+        const v = (draft.violations || []).find((x) => x.id === vid);
+        const ref = v?.photo?.[pidx];
+        if (!ref) return;
+        const url = (await PhotoStore.resolveDataUrl(ref)) || AktUtils.photoSrc(ref);
+        if (!url || !img.isConnected) return;
+        img.src = url;
+        img.dataset.photoHydrated = '1';
+      })
+    );
+
     if (typeof PhotoStore?.hydrateImages === 'function') {
-      await PhotoStore.hydrateImages(panelsHost());
+      await PhotoStore.hydrateImages(host);
       return;
     }
-    panelsHost()?.querySelectorAll('img[data-photo-ref]').forEach(async (img) => {
+    host.querySelectorAll('img[data-photo-ref]').forEach(async (img) => {
       const ref = img.dataset.photoRef;
       img.src = (await PhotoStore.resolveDataUrl(ref)) || AktUtils.photoSrc(ref);
     });
   }
 
-  function wizardPhotoImgTag(ref) {
+  function wizardPhotoImgTag(ref, violationId, photoIdx) {
+    const ph =
+      (typeof PhotoStore !== 'undefined' && PhotoStore.IMG_PLACEHOLDER) ||
+      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
     if (!ref) return '<img alt="" loading="lazy" decoding="async">';
     if (typeof PhotoStore !== 'undefined' && PhotoStore.isPhotoId(ref)) {
-      const ph = PhotoStore.IMG_PLACEHOLDER || '';
       const safe = AktUtils.escapeHtml(String(ref));
       return `<img data-photo-ref="${safe}" src="${ph}" alt="" loading="lazy" decoding="async">`;
     }
-    const src = AktUtils.photoSrc(ref);
-    return `<img src="${src}" alt="" loading="lazy" decoding="async">`;
+    if (violationId != null && photoIdx != null) {
+      const safeVid = AktUtils.escapeHtml(String(violationId));
+      return `<img data-viol-vid="${safeVid}" data-viol-pidx="${photoIdx}" src="${ph}" alt="" loading="lazy" decoding="async">`;
+    }
+    return `<img src="${ph}" alt="" loading="lazy" decoding="async">`;
   }
 
   function numberOptions() {
@@ -426,7 +469,7 @@ const WizardController = (() => {
               ? `<div class="viol-card-thumbs">
                   ${(v.photo || []).slice(0, maxThumbs).map((p, idx) =>
                     `<div class="viol-card-thumb wizard-photo-thumb photo-slot filled" data-vid="${v.id}" data-pidx="${idx}">
-                      ${wizardPhotoImgTag(p)}
+                      ${wizardPhotoImgTag(p, v.id, idx)}
                     </div>`
                   ).join('')}
                   ${photos > maxThumbs ? `<div class="viol-card-thumb viol-card-thumb-more">+${photos - maxThumbs}</div>` : ''}
@@ -467,7 +510,7 @@ const WizardController = (() => {
              .map(
                ({ ref, v, idx }) =>
                  `<div class="photo-slot filled wizard-photo-thumb" data-vid="${v.id}" data-pidx="${idx}" title="${AktUtils.escapeHtml(v.title)}">
-                   ${wizardPhotoImgTag(ref)}
+                   ${wizardPhotoImgTag(ref, v.id, idx)}
                  </div>`
              )
              .join('') + (allPhotos.length > 16 ? `<div class="photo-slot">+${allPhotos.length - 16}</div>` : '')
@@ -480,11 +523,6 @@ const WizardController = (() => {
       </div>
       <div class="viol-cards-list" id="wViolList">${cards}</div>
       ${photoSection}
-      <button type="button" class="viol-add-fab" id="wAddViolation" aria-label="Добавить нарушение" title="Добавить нарушение">
-        <svg class="viol-add-fab__icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <path d="M12 5v14M5 12h14"/>
-        </svg>
-      </button>
     `;
   }
 
@@ -928,9 +966,6 @@ const WizardController = (() => {
     bindCommissionDragDrop();
     bindViolationDragDrop();
 
-    document.getElementById('wAddViolation')?.addEventListener('click', () => {
-      WizardModals.openViolationEditor(null);
-    });
     panelsHost()?.querySelectorAll('.viol-card[data-violation-id]').forEach((card) => {
       const openCard = () => WizardModals.openViolationEditor(card.dataset.violationId);
       card.addEventListener('click', (e) => {
@@ -959,7 +994,7 @@ const WizardController = (() => {
         GazpromToast.confirm(`Удалить нарушение?\n«${(v?.title || '').slice(0, 80)}»`, { confirmLabel: 'Удалить', danger: true }).then((ok) => {
           if (!ok) return;
           draft.violations = (draft.violations || []).filter((x) => x.id !== btn.dataset.vid);
-          ctx.setDraft(draft);
+          scheduleAutosave();
           render();
           updateSummary();
         });
@@ -1481,6 +1516,9 @@ const WizardController = (() => {
 
   function bindGlobalControls() {
     bindSummaryPanelToggle();
+    document.getElementById('wizardViolFab')?.addEventListener('click', () => {
+      WizardModals.openViolationEditor(null);
+    });
     document.getElementById('wizardNext')?.addEventListener('click', () => next());
     document.getElementById('wizardPrev')?.addEventListener('click', () => prev());
     document.querySelectorAll('#wizardStepper .wizard-step').forEach((btn) => {

@@ -290,13 +290,27 @@ const GazpromMobileOverlay = (() => {
     const sid = active?.id || '';
     const baseMin = computeNavBlockPx();
     const isBootLayout = trigger === 'boot' || trigger === 'recoverViewportLayout';
+    const isWizardPanelRender =
+      trigger === 'wizard-render' || trigger.startsWith('wizard-step-');
 
-    if (trigger.startsWith('goTo-')) {
+    if (trigger.startsWith('goTo-') || trigger.startsWith('wizard-step-')) {
       navBlockByScreen.delete(sid);
     }
 
     if (isBootLayout) {
       applyBaselineScrollClearance(sid);
+      return 0;
+    }
+
+    /* Шаг «Нарушения»: без цикла scroll-to-bottom — на iPhone «выкидывает» из мастера. */
+    if (isWizardPanelRender) {
+      applyBaselineScrollClearance(sid);
+      if (trigger.startsWith('wizard-step-')) {
+        main.scrollTop = 0;
+      } else {
+        main.scrollTop = Math.min(savedTop, Math.max(0, main.scrollHeight - main.clientHeight));
+      }
+      clampMainScrollTop(main);
       return 0;
     }
 

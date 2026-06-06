@@ -74,6 +74,7 @@ let backupImportInProgress = false;
 
 function shouldDeferAppReload() {
   if (backupImportInProgress) return true;
+  if (document.getElementById('screen-wizard')?.classList.contains('active')) return true;
   return typeof WizardController?.isDirty === 'function' && WizardController.isDirty();
 }
 
@@ -87,7 +88,7 @@ function registerServiceWorker() {
       });
       return;
     }
-    navigator.serviceWorker.register('./sw.js?v=134')
+    navigator.serviceWorker.register('./sw.js?v=135')
       .then((reg) => {
         reg.update();
         document.addEventListener('visibilitychange', () => {
