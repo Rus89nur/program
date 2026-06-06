@@ -1798,7 +1798,10 @@
       align-items: center;
       justify-content: center;
       padding: 16px;
+      padding-top: max(16px, env(safe-area-inset-top, 0px));
+      padding-right: max(16px, env(safe-area-inset-right, 0px));
       box-sizing: border-box;
+      overflow: visible;
     }
     .photo-lightbox.show { display: flex; }
     .photo-lightbox-inner {
@@ -1840,8 +1843,8 @@
     }
     .photo-lightbox-close {
       position: absolute;
-      top: -8px;
-      right: -4px;
+      top: max(12px, env(safe-area-inset-top, 0px));
+      right: max(12px, env(safe-area-inset-right, 0px));
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -1853,10 +1856,11 @@
       font-family: inherit;
       cursor: pointer;
       line-height: 1;
-      width: 40px;
-      height: 40px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
-      z-index: 2;
+      z-index: 3;
+      flex-shrink: 0;
       transition: background 0.15s, transform 0.1s;
     }
     .photo-lightbox-close:hover {

@@ -1319,7 +1319,8 @@ const WizardController = (() => {
     let box = document.getElementById('photoLightbox');
     if (
       box &&
-      (!box.querySelector('.photo-lightbox-chip') ||
+      (!box.querySelector(':scope > .photo-lightbox-close') ||
+        !box.querySelector('.photo-lightbox-chip') ||
         !box.querySelector('.photo-lightbox-viewport') ||
         !box.querySelector('.photo-lightbox-stage'))
     ) {
@@ -1331,8 +1332,8 @@ const WizardController = (() => {
       box.id = 'photoLightbox';
       box.className = 'photo-lightbox';
       box.innerHTML = `
+        <button type="button" class="photo-lightbox-close" aria-label="Закрыть">×</button>
         <div class="photo-lightbox-inner">
-          <button type="button" class="photo-lightbox-close" aria-label="Закрыть">×</button>
           <div class="photo-lightbox-viewport" aria-label="Фото, жестами можно увеличить">
             <div class="photo-lightbox-stage">
               <img class="photo-lightbox-img" alt="" draggable="false">
