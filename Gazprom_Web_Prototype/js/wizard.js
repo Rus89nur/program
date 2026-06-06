@@ -171,18 +171,18 @@ const WizardController = (() => {
     step = Math.max(0, Math.min(TOTAL_STEPS - 1, newStep));
     if (step === 2) normalizeObjectsCheck();
     syncStepperUI();
-    render();
+    render({ skipLayoutSync: true });
     updateSummary();
-    const phoneMq =
-      window.GAZPROM_PHONE_LAYOUT_MQ ||
-      '(max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none)';
-    if (window.matchMedia(phoneMq).matches) {
-      requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const phoneMq =
+        window.GAZPROM_PHONE_LAYOUT_MQ ||
+        '(max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none)';
+      if (window.matchMedia(phoneMq).matches) {
         const main = document.querySelector('.main');
         if (main) main.scrollTop = 0;
-        GazpromMobileOverlay?.ensureScrollClearance?.('wizard-step-' + step);
-      });
-    }
+      }
+      GazpromMobileOverlay?.ensureScrollClearance?.('wizard-step-' + step);
+    });
   }
 
   function syncStepperUI() {
@@ -203,7 +203,7 @@ const WizardController = (() => {
     }
   }
 
-  function render() {
+  function render(options = {}) {
     syncStepperUI();
     const host = panelsHost();
     if (!host || !draft) return;
@@ -237,9 +237,11 @@ const WizardController = (() => {
     bindAutosaveOnPanel();
     syncViolFab();
     hydrateViolationThumbs();
-    requestAnimationFrame(() => {
-      GazpromMobileOverlay?.ensureScrollClearance?.('wizard-render');
-    });
+    if (!options.skipLayoutSync) {
+      requestAnimationFrame(() => {
+        GazpromMobileOverlay?.ensureScrollClearance?.('wizard-render');
+      });
+    }
   }
 
   function syncViolFab() {
@@ -263,20 +265,22 @@ const WizardController = (() => {
     if (!host) return;
 
     const lazyViolImgs = [...host.querySelectorAll('img[data-viol-vid][data-viol-pidx]')];
-    await Promise.all(
-      lazyViolImgs.map(async (img) => {
-        if (img.dataset.photoHydrated === '1') return;
-        const vid = img.dataset.violVid;
-        const pidx = parseInt(img.dataset.violPidx, 10);
-        const v = (draft.violations || []).find((x) => x.id === vid);
-        const ref = v?.photo?.[pidx];
-        if (!ref) return;
-        const url = (await PhotoStore.resolveDataUrl(ref)) || AktUtils.photoSrc(ref);
-        if (!url || !img.isConnected) return;
-        img.src = url;
-        img.dataset.photoHydrated = '1';
-      })
-    );
+    const hydrateOne = async (img) => {
+      if (img.dataset.photoHydrated === '1') return;
+      const vid = img.dataset.violVid;
+      const pidx = parseInt(img.dataset.violPidx, 10);
+      const v = (draft.violations || []).find((x) => x.id === vid);
+      const ref = v?.photo?.[pidx];
+      if (!ref) return;
+      const url = (await PhotoStore.resolveDataUrl(ref)) || AktUtils.photoSrc(ref);
+      if (!url || !img.isConnected) return;
+      img.src = url;
+      img.dataset.photoHydrated = '1';
+    };
+    const batchSize = 3;
+    for (let i = 0; i < lazyViolImgs.length; i += batchSize) {
+      await Promise.all(lazyViolImgs.slice(i, i + batchSize).map(hydrateOne));
+    }
 
     if (typeof PhotoStore?.hydrateImages === 'function') {
       await PhotoStore.hydrateImages(host);

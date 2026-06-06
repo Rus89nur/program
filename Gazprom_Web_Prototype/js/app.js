@@ -23,6 +23,9 @@ const titles = {
 };
 
 function goTo(screenId, options = {}) {
+  if (screenId === 'home' && tryApplySwUpdate()) return;
+
+  const wasWizard = document.getElementById('screen-wizard')?.classList.contains('active');
   document.documentElement.classList.add('gazprom-navigated');
   document.querySelectorAll('.nav-item, .bottom-nav-item').forEach((n) => {
     n.classList.toggle('active', n.dataset.screen === screenId);
@@ -33,8 +36,8 @@ function goTo(screenId, options = {}) {
 
   if (screenId === 'wizard' && !options.skipWizardReload) {
     WizardController.open(options.aktId ?? null, {
-      preserveStep: options.preserveStep,
-      preserveDraft: options.preserveDraft,
+      preserveStep: options.preserveStep ?? wasWizard,
+      preserveDraft: options.preserveDraft ?? wasWizard,
       forceNew: options.forceNew,
     });
   }
@@ -48,7 +51,11 @@ function goTo(screenId, options = {}) {
 
 function bindNavigation() {
   document.querySelectorAll('.nav-item, .bottom-nav-item').forEach((btn) => {
-    btn.addEventListener('click', () => goTo(btn.dataset.screen));
+    btn.addEventListener('click', () => {
+      const screenId = btn.dataset.screen;
+      if (document.getElementById('screen-' + screenId)?.classList.contains('active')) return;
+      goTo(screenId);
+    });
   });
 }
 
@@ -71,11 +78,27 @@ function bindHeaderSync() {
 }
 
 let backupImportInProgress = false;
+let swUpdatePending = false;
 
 function shouldDeferAppReload() {
   if (backupImportInProgress) return true;
   if (document.getElementById('screen-wizard')?.classList.contains('active')) return true;
+  if (typeof WizardModals !== 'undefined' && document.getElementById('wizardModalRoot')?.classList.contains('show')) {
+    return true;
+  }
   return typeof WizardController?.isDirty === 'function' && WizardController.isDirty();
+}
+
+function markSwUpdatePending() {
+  if (swUpdatePending) return;
+  swUpdatePending = true;
+}
+
+function tryApplySwUpdate() {
+  if (!swUpdatePending || shouldDeferAppReload()) return false;
+  swUpdatePending = false;
+  location.reload();
+  return true;
 }
 
 function registerServiceWorker() {
@@ -88,7 +111,7 @@ function registerServiceWorker() {
       });
       return;
     }
-    navigator.serviceWorker.register('./sw.js?v=136')
+    navigator.serviceWorker.register('./sw.js?v=137')
       .then((reg) => {
         reg.update();
         document.addEventListener('visibilitychange', () => {
@@ -98,7 +121,7 @@ function registerServiceWorker() {
           const newSW = reg.installing;
           if (!newSW) return;
           newSW.addEventListener('statechange', () => {
-            if (newSW.state === 'activated' && !shouldDeferAppReload()) location.reload();
+            if (newSW.state === 'activated') markSwUpdatePending();
           });
         });
       })
@@ -106,7 +129,7 @@ function registerServiceWorker() {
         console.warn('SW registration failed', err);
       });
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (!shouldDeferAppReload()) location.reload();
+      markSwUpdatePending();
     });
   });
 }

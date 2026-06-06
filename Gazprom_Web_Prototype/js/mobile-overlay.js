@@ -292,6 +292,7 @@ const GazpromMobileOverlay = (() => {
     const isBootLayout = trigger === 'boot' || trigger === 'recoverViewportLayout';
     const isWizardPanelRender =
       trigger === 'wizard-render' || trigger.startsWith('wizard-step-');
+    const isWizardScreen = sid === 'screen-wizard';
 
     if (trigger.startsWith('goTo-') || trigger.startsWith('wizard-step-')) {
       navBlockByScreen.delete(sid);
@@ -302,10 +303,10 @@ const GazpromMobileOverlay = (() => {
       return 0;
     }
 
-    /* Шаг «Нарушения»: без цикла scroll-to-bottom — на iPhone «выкидывает» из мастера. */
-    if (isWizardPanelRender) {
+    /* Мастер: без цикла scroll-to-bottom — на iPhone «выкидывает» / Safari «problem occurred». */
+    if (isWizardScreen || isWizardPanelRender) {
       applyBaselineScrollClearance(sid);
-      if (trigger.startsWith('wizard-step-')) {
+      if (trigger.startsWith('wizard-step-') || trigger === 'goTo-wizard') {
         main.scrollTop = 0;
       } else {
         main.scrollTop = Math.min(savedTop, Math.max(0, main.scrollHeight - main.clientHeight));
@@ -377,6 +378,7 @@ const GazpromMobileOverlay = (() => {
 
   /** Тихая подстройка padding после остановки скролла — без принудительного scrollTop в цикле. */
   const bumpScrollClearanceAtRest = () => {
+    if (document.querySelector('.screen.active')?.id === 'screen-wizard') return 0;
     const overlapPx = measureScrollOverlap();
     if (overlapPx <= 0) return 0;
     const main = mainEl();
@@ -453,9 +455,7 @@ const GazpromMobileOverlay = (() => {
   /** После модалки/клавиатуры на iPhone — vv и zoom сходятся не сразу. */
   const scheduleRecoverViewportLayout = () => {
     recoverViewportLayout();
-    [80, 200, 450, 700].forEach((ms) => {
-      window.setTimeout(recoverViewportLayout, ms);
-    });
+    window.setTimeout(recoverViewportLayout, 300);
   };
 
   const lock = () => {
