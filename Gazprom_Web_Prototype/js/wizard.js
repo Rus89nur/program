@@ -1150,28 +1150,42 @@ const WizardController = (() => {
     openLightbox(gallery[0], gallery);
   }
 
-  function attachLightboxZoom(viewport, imgEl) {
+  function attachLightboxZoom(viewport, stageEl) {
     const MIN_SCALE = 1;
-    const MAX_SCALE = 5;
+    const MAX_SCALE = 4;
+    const SNAP_THRESHOLD = 1.08;
+
     let scale = 1;
     let tx = 0;
     let ty = 0;
     let pinchDist0 = 0;
     let pinchScale0 = 1;
+    let pinchTx0 = 0;
+    let pinchTy0 = 0;
     let panX0 = 0;
     let panY0 = 0;
-    let tx0 = 0;
-    let ty0 = 0;
+    let panTx0 = 0;
+    let panTy0 = 0;
+    let multiTouchGesture = false;
     let lastTapAt = 0;
 
-    const apply = () => {
-      if (scale <= 1.02) {
-        imgEl.style.transform = '';
-        viewport.classList.remove('photo-lightbox-viewport--zoomed');
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+    const touchDist = (a, b) => Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+
+    const viewportCenter = () => {
+      const r = viewport.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    };
+
+    const paint = () => {
+      if (scale <= 1) {
+        scale = 1;
+        tx = 0;
+        ty = 0;
+        stageEl.style.transform = '';
         return;
       }
-      imgEl.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`;
-      viewport.classList.add('photo-lightbox-viewport--zoomed');
+      stageEl.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`;
     };
 
     const resetZoom = () => {
@@ -1179,69 +1193,123 @@ const WizardController = (() => {
       tx = 0;
       ty = 0;
       pinchDist0 = 0;
-      imgEl.style.transform = '';
-      viewport.classList.remove('photo-lightbox-viewport--zoomed');
+      multiTouchGesture = false;
+      stageEl.style.transform = '';
     };
 
-    const touchDist = (a, b) => Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+    const beginPinch = (t0, t1) => {
+      multiTouchGesture = true;
+      pinchDist0 = Math.max(touchDist(t0, t1), 8);
+      pinchScale0 = scale;
+      pinchTx0 = tx;
+      pinchTy0 = ty;
+    };
+
+    const updatePinch = (t0, t1) => {
+      const dist = touchDist(t0, t1);
+      const midX = (t0.clientX + t1.clientX) / 2;
+      const midY = (t0.clientY + t1.clientY) / 2;
+      const c = viewportCenter();
+      const nextScale = clamp(pinchScale0 * (dist / pinchDist0), MIN_SCALE, MAX_SCALE);
+      const ratio = nextScale / pinchScale0;
+
+      scale = nextScale;
+      tx = pinchTx0 + (midX - c.x) * (1 - ratio);
+      ty = pinchTy0 + (midY - c.y) * (1 - ratio);
+      paint();
+    };
+
+    const beginPan = (t) => {
+      panX0 = t.clientX;
+      panY0 = t.clientY;
+      panTx0 = tx;
+      panTy0 = ty;
+    };
+
+    const updatePan = (t) => {
+      tx = panTx0 + (t.clientX - panX0);
+      ty = panTy0 + (t.clientY - panY0);
+      paint();
+    };
+
+    const stopTouch = (e) => {
+      e.stopPropagation();
+    };
 
     const onTouchStart = (e) => {
-      if (e.touches.length === 2) {
+      stopTouch(e);
+      if (e.touches.length >= 2) {
         e.preventDefault();
-        pinchDist0 = touchDist(e.touches[0], e.touches[1]);
-        pinchScale0 = scale;
-      } else if (e.touches.length === 1 && scale > 1.02) {
-        panX0 = e.touches[0].clientX;
-        panY0 = e.touches[0].clientY;
-        tx0 = tx;
-        ty0 = ty;
+        beginPinch(e.touches[0], e.touches[1]);
+        return;
       }
+      if (e.touches.length === 1 && scale > 1) beginPan(e.touches[0]);
     };
 
     const onTouchMove = (e) => {
-      if (e.touches.length === 2 && pinchDist0 > 0) {
+      stopTouch(e);
+      if (e.touches.length >= 2) {
         e.preventDefault();
-        const d = touchDist(e.touches[0], e.touches[1]);
-        scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, pinchScale0 * (d / pinchDist0)));
-        if (scale <= 1.02) resetZoom();
-        else apply();
-      } else if (e.touches.length === 1 && scale > 1.02) {
+        if (pinchDist0 <= 0) beginPinch(e.touches[0], e.touches[1]);
+        updatePinch(e.touches[0], e.touches[1]);
+        return;
+      }
+      if (e.touches.length === 1 && scale > 1 && pinchDist0 <= 0) {
         e.preventDefault();
-        tx = tx0 + (e.touches[0].clientX - panX0);
-        ty = ty0 + (e.touches[0].clientY - panY0);
-        apply();
+        updatePan(e.touches[0]);
       }
     };
 
     const onTouchEnd = (e) => {
-      if (e.touches.length < 2) pinchDist0 = 0;
-      if (e.touches.length === 0 && scale <= 1.02) resetZoom();
+      stopTouch(e);
+      const remaining = e.touches.length;
+      const wasMulti = multiTouchGesture;
 
-      const now = Date.now();
-      if (e.changedTouches.length === 1 && now - lastTapAt < 320) {
-        if (scale > 1.02) resetZoom();
-        else {
-          scale = 2.5;
-          apply();
-        }
-        lastTapAt = 0;
+      if (remaining === 1) {
+        pinchDist0 = 0;
+        if (scale > 1) beginPan(e.touches[0]);
         return;
       }
-      if (e.changedTouches.length === 1) lastTapAt = now;
+
+      if (remaining !== 0) return;
+
+      pinchDist0 = 0;
+      if (scale < SNAP_THRESHOLD) resetZoom();
+
+      if (!wasMulti && e.changedTouches.length === 1) {
+        const now = Date.now();
+        if (now - lastTapAt < 280) {
+          lastTapAt = 0;
+          if (scale > 1) resetZoom();
+          else {
+            scale = 2.5;
+            paint();
+          }
+        } else {
+          lastTapAt = now;
+        }
+      }
+
+      window.setTimeout(() => {
+        if (!viewport.ownerDocument?.defaultView) return;
+        multiTouchGesture = false;
+      }, 400);
     };
 
     const onWheel = (e) => {
       e.preventDefault();
-      const step = e.deltaY < 0 ? 0.12 : -0.12;
-      scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale + step));
-      if (scale <= 1.02) resetZoom();
-      else apply();
+      e.stopPropagation();
+      const step = e.deltaY < 0 ? 0.1 : -0.1;
+      scale = clamp(scale + step, MIN_SCALE, MAX_SCALE);
+      if (scale <= 1) resetZoom();
+      else paint();
     };
 
-    viewport.addEventListener('touchstart', onTouchStart, { passive: false });
-    viewport.addEventListener('touchmove', onTouchMove, { passive: false });
-    viewport.addEventListener('touchend', onTouchEnd, { passive: true });
-    viewport.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    const touchOpts = { passive: false, capture: true };
+    viewport.addEventListener('touchstart', onTouchStart, touchOpts);
+    viewport.addEventListener('touchmove', onTouchMove, touchOpts);
+    viewport.addEventListener('touchend', onTouchEnd, touchOpts);
+    viewport.addEventListener('touchcancel', onTouchEnd, touchOpts);
     viewport.addEventListener('wheel', onWheel, { passive: false });
 
     return { resetZoom };
@@ -1249,7 +1317,12 @@ const WizardController = (() => {
 
   function openLightbox(src, gallery) {
     let box = document.getElementById('photoLightbox');
-    if (box && (!box.querySelector('.photo-lightbox-chip') || !box.querySelector('.photo-lightbox-viewport'))) {
+    if (
+      box &&
+      (!box.querySelector('.photo-lightbox-chip') ||
+        !box.querySelector('.photo-lightbox-viewport') ||
+        !box.querySelector('.photo-lightbox-stage'))
+    ) {
       box.remove();
       box = null;
     }
@@ -1261,7 +1334,9 @@ const WizardController = (() => {
         <div class="photo-lightbox-inner">
           <button type="button" class="photo-lightbox-close" aria-label="Закрыть">×</button>
           <div class="photo-lightbox-viewport" aria-label="Фото, жестами можно увеличить">
-            <img class="photo-lightbox-img" alt="" draggable="false">
+            <div class="photo-lightbox-stage">
+              <img class="photo-lightbox-img" alt="" draggable="false">
+            </div>
           </div>
           <div class="photo-lightbox-controls">
             <button type="button" class="photo-lightbox-nav photo-lightbox-prev photo-lightbox-chip photo-lightbox-nav-btn" aria-label="Предыдущее фото">‹</button>
@@ -1272,8 +1347,8 @@ const WizardController = (() => {
       `;
       document.body.appendChild(box);
       const viewport = box.querySelector('.photo-lightbox-viewport');
-      const imgEl = box.querySelector('.photo-lightbox-img');
-      box._lightboxZoom = attachLightboxZoom(viewport, imgEl);
+      const stageEl = box.querySelector('.photo-lightbox-stage');
+      box._lightboxZoom = attachLightboxZoom(viewport, stageEl);
       const hideLightbox = () => {
         if (!box.classList.contains('show')) return;
         box._lightboxZoom?.resetZoom?.();

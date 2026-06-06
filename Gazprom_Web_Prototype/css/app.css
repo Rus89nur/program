@@ -1813,26 +1813,30 @@
       overflow: hidden;
       touch-action: none;
       width: min(90vw, 100%);
+      height: calc(85vh - 72px);
       max-height: calc(85vh - 72px);
       display: flex;
       align-items: center;
       justify-content: center;
     }
+    .photo-lightbox-stage {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform-origin: center center;
+      will-change: transform;
+      -webkit-user-select: none;
+      user-select: none;
+    }
     .photo-lightbox-img {
+      display: block;
       max-width: min(90vw, 100%);
       max-height: calc(85vh - 72px);
       border-radius: 8px;
       box-shadow: 0 8px 40px rgba(0,0,0,0.5);
       background: #111;
-      transform-origin: center center;
-      will-change: transform;
-      -webkit-user-select: none;
-      user-select: none;
       -webkit-user-drag: none;
-    }
-    .photo-lightbox-viewport--zoomed .photo-lightbox-img {
-      max-width: none;
-      max-height: none;
+      pointer-events: none;
     }
     .photo-lightbox-close {
       position: absolute;
@@ -5252,6 +5256,9 @@
 
       .photo-lightbox-viewport {
         width: 100%;
+        height: calc(
+          100dvh - 120px - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+        );
         max-height: calc(
           100dvh - 120px - env(safe-area-inset-top) - env(safe-area-inset-bottom)
         );
