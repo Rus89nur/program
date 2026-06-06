@@ -85,25 +85,40 @@ const WizardModals = (() => {
         '(max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none)'
     ).matches;
 
+  function getTextareaMaxHeight(el) {
+    if (!isMobileViolationModal()) return null;
+    return Math.min(Math.round(window.innerHeight * 0.32), 160);
+  }
+
   function autoResize(el) {
     if (!el) return;
-    if (isMobileViolationModal() && el.id === 'mvTitle') {
-      el.style.removeProperty('height');
-      el.style.removeProperty('overflow-y');
-      return;
-    }
-    const isMobile = isMobileViolationModal();
-    el.style.height = 'auto';
+    el.style.height = '0px';
     const minH = getTextareaMinHeight(el);
     let h = Math.max(el.scrollHeight, minH);
-    if (isMobile) {
-      const maxH = Math.round(window.innerHeight * 0.32);
+    const maxH = getTextareaMaxHeight(el);
+    if (maxH != null) {
       el.style.overflowY = h > maxH ? 'auto' : 'hidden';
       h = Math.min(h, maxH);
     } else {
       el.style.removeProperty('overflow-y');
     }
     el.style.height = `${h}px`;
+  }
+
+  function resizeViolationTextareas() {
+    ['mvTitle', 'mvUrl', 'mvFormula'].forEach((id) => {
+      autoResize(document.getElementById(id));
+    });
+  }
+
+  function scheduleViolationTextareaResize() {
+    requestAnimationFrame(() => {
+      resizeViolationTextareas();
+      requestAnimationFrame(() => {
+        resizeViolationTextareas();
+        GazpromMobileOverlay.syncWizardModalViewport?.();
+      });
+    });
   }
 
   function bindAutoResize(el) {
@@ -413,10 +428,10 @@ const WizardModals = (() => {
           const titleEl   = document.getElementById('mvTitle');
           const urlEl     = document.getElementById('mvUrl');
           const formulaEl = document.getElementById('mvFormula');
-          if (titleEl)   { titleEl.value   = item.title            || ''; autoResize(titleEl); }
-          if (urlEl)     { urlEl.value     = item.subTitle         || ''; autoResize(urlEl); }
+          if (titleEl)   titleEl.value   = item.title            || '';
+          if (urlEl)     urlEl.value     = item.subTitle         || '';
           document.getElementById('mvVid').value = item.vid || '';
-          if (formulaEl) { formulaEl.value = item.formulaFromRules || ''; autoResize(formulaEl); }
+          if (formulaEl) formulaEl.value = item.formulaFromRules || '';
 
           // Store snapshot for change detection
           selectedRegistryItem = { ...item };
@@ -435,7 +450,7 @@ const WizardModals = (() => {
           const results = document.getElementById('mvRegistryResults');
           if (results) results.innerHTML = renderRegistryResults('');
           bindRegistryResultClicks();
-          GazpromMobileOverlay.syncWizardModalViewport?.();
+          scheduleViolationTextareaResize();
         });
       });
     }
@@ -457,11 +472,7 @@ const WizardModals = (() => {
     });
 
     // After layout — resize all textareas to fit pre-filled content
-    setTimeout(() => {
-      ['mvTitle', 'mvUrl', 'mvFormula'].forEach((id) => {
-        autoResize(document.getElementById(id));
-      });
-    }, 50);
+    setTimeout(scheduleViolationTextareaResize, 50);
 
     document.getElementById('mvSave')?.addEventListener('click', saveViolation);
     document.getElementById('mvDelete')?.addEventListener('click', deleteViolation);
@@ -832,7 +843,10 @@ const WizardModals = (() => {
 
       // Pre-fill violation title field if it's empty
       const titleEl = document.getElementById('mvTitle');
-      if (titleEl && !titleEl.value) titleEl.value = title;
+      if (titleEl && !titleEl.value) {
+        titleEl.value = title;
+        scheduleViolationTextareaResize();
+      }
 
       // Clear search and refresh registry results in violation editor
       const searchEl = document.getElementById('mvRegistrySearch');
