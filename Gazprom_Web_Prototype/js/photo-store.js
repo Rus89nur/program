@@ -195,6 +195,23 @@ const PhotoStore = (() => {
     return commitPrepared(prepared);
   }
 
+  /** Base64 / blob → photo:id[]; между фото — пауза для UI (iPhone). */
+  async function ingestPhotoRefs(refs) {
+    const out = [];
+    for (let i = 0; i < (refs || []).length; i += 1) {
+      const p = refs[i];
+      if (!p) continue;
+      if (isPhotoId(p)) {
+        out.push(p);
+        continue;
+      }
+      const result = await ingestPhotoRef(p);
+      if (result?.id) out.push(result.id);
+      if (i < refs.length - 1) await yieldToMain();
+    }
+    return out;
+  }
+
   function collectPhotoTasks(catalog) {
     const tasks = [];
     const scan = (list) => {
@@ -429,6 +446,7 @@ const PhotoStore = (() => {
     getLastIngestStats,
     expandCatalog,
     ingestPhotoRef,
+    ingestPhotoRefs,
     fileToViolationBase64,
     resolveDataUrl,
     hydrateImages,

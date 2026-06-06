@@ -1449,8 +1449,28 @@ const WizardController = (() => {
 
   let saveDraftChain = Promise.resolve();
 
+  async function ingestDraftInlinePhotos(akt) {
+    if (!akt || typeof PhotoStore?.ingestPhotoRef !== 'function') return;
+    for (const v of akt.violations || []) {
+      if (!v.photo?.length) continue;
+      const ingested = [];
+      for (const p of v.photo) {
+        if (!p) continue;
+        if (PhotoStore.isPhotoId(p)) {
+          ingested.push(p);
+          continue;
+        }
+        const result = await PhotoStore.ingestPhotoRef(p);
+        if (result?.id) ingested.push(result.id);
+      }
+      v.photo = ingested;
+    }
+  }
+
   async function saveDraft() {
     if (!catalog || !draft) return;
+
+    await ingestDraftInlinePhotos(draft);
 
     const draftCopy = AktUtils.clone(draft);
     const draftId = draftCopy.id;
