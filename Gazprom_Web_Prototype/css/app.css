@@ -2017,6 +2017,8 @@
       font-weight: 600;
       flex: 1;
       min-width: 0;
+      margin: 0;
+      line-height: 1.45;
     }
     #mvSaveNewToRegistry {
       white-space: nowrap;
@@ -5022,6 +5024,27 @@
         text-align: center;
         min-height: 48px;
         box-sizing: border-box;
+      }
+
+      body.gazprom-mobile-shell #wizardModalRoot .mv-save-registry-hint {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        margin-bottom: 4px;
+      }
+
+      body.gazprom-mobile-shell #wizardModalRoot .mv-save-registry-hint-text {
+        flex: none;
+        width: 100%;
+      }
+
+      body.gazprom-mobile-shell #wizardModalRoot #mvSaveNewToRegistry {
+        width: 100%;
+        white-space: normal;
+        text-align: center;
+        min-height: 44px;
+        line-height: 1.35;
+        padding: 10px 12px;
       }
 
       /* web-124: клавиатура — футер скрыт, «Сохранить» в шапке; без раздувания полей */

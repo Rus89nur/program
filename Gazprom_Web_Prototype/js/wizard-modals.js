@@ -7,6 +7,8 @@ const WizardModals = (() => {
   let modalPhotos = [];
   let savingViolation = false;
 
+  const isSavingViolation = () => savingViolation;
+
   function ensureModalRoot() {
     let root = document.getElementById('wizardModalRoot');
     if (root) return root;
@@ -107,6 +109,7 @@ const WizardModals = (() => {
 
   function finishViolationSave(onUpdate) {
     close({ deferRecover: true });
+    window.__gazpromSavingViolation = false;
     onUpdate?.();
     requestAnimationFrame(() => {
       GazpromMobileOverlay?.scheduleRecoverViewportLayout?.();
@@ -361,7 +364,7 @@ const WizardModals = (() => {
           hint.id = 'mvSaveToRegistryHint';
           hint.className = 'mv-save-registry-hint';
           hint.innerHTML = `
-            <span class="mv-save-registry-hint-text">Данные отличаются от реестра</span>
+            <p class="mv-save-registry-hint-text">Данные отличаются от реестра</p>
             <button type="button" class="btn-ghost btn-sm" id="mvSaveNewToRegistry">+ Сохранить как новое нарушение в реестр</button>
           `;
           const modalBody = document.getElementById('modalBody');
@@ -617,7 +620,11 @@ const WizardModals = (() => {
     }
 
     savingViolation = true;
+    window.__gazpromSavingViolation = true;
     setSaveButtonsBusy(true);
+
+    const violationId = editingViolationId || AktUtils.uuid();
+    const prevCount = (ctx.getDraft()?.violations || []).length;
 
     try {
       const mesto = document.getElementById('mvMesto')?.value?.trim() || '';
@@ -628,8 +635,10 @@ const WizardModals = (() => {
       const photoRefs = await finalizePhotoRefs(modalPhotos);
 
       const draft = ctx.getDraft();
+      if (!draft) throw new Error('Черновик акта недоступен');
+
       const payload = {
-        id: editingViolationId || AktUtils.uuid(),
+        id: violationId,
         title,
         mesto,
         urlToPravilo,
@@ -648,10 +657,22 @@ const WizardModals = (() => {
 
       ctx.setDraft(draft);
       await ctx.saveDraft();
-      finishViolationSave(ctx.onUpdate);
+
+      const saved = (ctx.getDraft()?.violations || []).find((x) => x.id === violationId);
+      if (!saved) {
+        throw new Error('Нарушение не записалось в черновик');
+      }
+      if (!editingViolationId && (ctx.getDraft()?.violations || []).length <= prevCount) {
+        throw new Error('Нарушение не добавилось в список');
+      }
+
+      const onUpdate = ctx.onUpdate;
+      finishViolationSave(onUpdate);
+      GazpromToast.success(editingViolationId ? 'Нарушение сохранено' : 'Нарушение добавлено');
     } catch (err) {
       console.error(err);
       savingViolation = false;
+      window.__gazpromSavingViolation = false;
       setSaveButtonsBusy(false);
       GazpromToast.error(
         err?.message || 'Не удалось сохранить нарушение. Попробуйте ещё раз.'
@@ -939,5 +960,5 @@ const WizardModals = (() => {
     };
   }
 
-  return { init, open, close, openViolationEditor, openQuickAdd };
+  return { init, open, close, openViolationEditor, openQuickAdd, isSavingViolation };
 })();

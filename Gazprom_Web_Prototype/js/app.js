@@ -111,7 +111,7 @@ function registerServiceWorker() {
       });
       return;
     }
-    navigator.serviceWorker.register('./sw.js?v=140')
+    navigator.serviceWorker.register('./sw.js?v=141')
       .then((reg) => {
         reg.update();
         document.addEventListener('visibilitychange', () => {
@@ -596,6 +596,13 @@ function init() {
   EliminationEditor.bindTableActions();
 
   const handleAppBackground = () => {
+    if (
+      window.__gazpromSavingViolation ||
+      document.getElementById('wizardModalRoot')?.classList.contains('show') ||
+      (typeof WizardModals?.isSavingViolation === 'function' && WizardModals.isSavingViolation())
+    ) {
+      return;
+    }
     if (typeof WizardController?.flushSave === 'function') void WizardController.flushSave();
     if (typeof EliminationEditor?.flushPersist === 'function') void EliminationEditor.flushPersist();
     void GazpromStore.flushToDisk();

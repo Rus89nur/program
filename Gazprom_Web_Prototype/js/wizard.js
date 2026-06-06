@@ -1468,13 +1468,20 @@ const WizardController = (() => {
   }
 
   async function saveDraft() {
-    if (!catalog || !draft) return;
+    if (!catalog || !draft) {
+      throw new Error('Не удалось сохранить черновик: данные акта недоступны');
+    }
 
     await ingestDraftInlinePhotos(draft);
 
     const draftCopy = AktUtils.clone(draft);
     const draftId = draftCopy.id;
     const draftNumber = draftCopy.number;
+    const reference = {
+      aktId: draftId,
+      aktNumber: draftNumber,
+      lastModified: catalog.editableAkt?.lastModified || new Date().toISOString(),
+    };
 
     const op = saveDraftChain.then(async () => {
       AktUtils.applyCurrentEditable(catalog, draftCopy);
@@ -1483,14 +1490,15 @@ const WizardController = (() => {
       if (idx >= 0) catalog.akts[idx] = draftCopy;
       else catalog.akts = [...(catalog.akts || []), draftCopy];
 
-      await GazpromStore.saveWizardDraft(draftCopy, {
-        aktId: draftId,
-        aktNumber: draftNumber,
-        lastModified: catalog.editableAkt.lastModified,
-      });
+      await GazpromStore.saveWizardDraft(draftCopy, reference);
+      draft = draftCopy;
     });
-    saveDraftChain = op.catch(() => {});
+    saveDraftChain = op.catch((err) => {
+      console.error('[wizard saveDraft]', err);
+    });
     await op;
+    dirty = false;
+    updateDirtyIndicator();
   }
 
   async function syncCatalog() {
