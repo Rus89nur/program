@@ -23,6 +23,16 @@ const titles = {
 };
 
 function goTo(screenId, options = {}) {
+  const activeScreen = document.querySelector('.screen.active')?.id?.replace('screen-', '');
+  if (
+    !options.forceNavigate &&
+    hasEditingOverlay() &&
+    screenId !== activeScreen
+  ) {
+    GazpromToast.info('Сначала сохраните или отмените редактирование нарушения');
+    return;
+  }
+
   if (screenId === 'home' && tryApplySwUpdate()) return;
 
   const wasWizard = document.getElementById('screen-wizard')?.classList.contains('active');
@@ -80,12 +90,20 @@ function bindHeaderSync() {
 let backupImportInProgress = false;
 let swUpdatePending = false;
 
-function shouldDeferAppReload() {
-  if (backupImportInProgress) return true;
-  if (document.getElementById('screen-wizard')?.classList.contains('active')) return true;
-  if (typeof WizardModals !== 'undefined' && document.getElementById('wizardModalRoot')?.classList.contains('show')) {
+function hasEditingOverlay() {
+  if (window.__gazpromSavingViolation) return true;
+  if (document.getElementById('wizardModalRoot')?.classList.contains('show')) return true;
+  if (document.querySelector('.vr-form-overlay')) return true;
+  if (typeof WizardModals?.isSavingViolation === 'function' && WizardModals.isSavingViolation()) {
     return true;
   }
+  return false;
+}
+
+function shouldDeferAppReload() {
+  if (backupImportInProgress) return true;
+  if (hasEditingOverlay()) return true;
+  if (document.getElementById('screen-wizard')?.classList.contains('active')) return true;
   return typeof WizardController?.isDirty === 'function' && WizardController.isDirty();
 }
 
@@ -111,7 +129,7 @@ function registerServiceWorker() {
       });
       return;
     }
-    navigator.serviceWorker.register('./sw.js?v=141')
+    navigator.serviceWorker.register('./sw.js?v=142')
       .then((reg) => {
         reg.update();
         document.addEventListener('visibilitychange', () => {
@@ -596,11 +614,7 @@ function init() {
   EliminationEditor.bindTableActions();
 
   const handleAppBackground = () => {
-    if (
-      window.__gazpromSavingViolation ||
-      document.getElementById('wizardModalRoot')?.classList.contains('show') ||
-      (typeof WizardModals?.isSavingViolation === 'function' && WizardModals.isSavingViolation())
-    ) {
+    if (hasEditingOverlay()) {
       return;
     }
     if (typeof WizardController?.flushSave === 'function') void WizardController.flushSave();

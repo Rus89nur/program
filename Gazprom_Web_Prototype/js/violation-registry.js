@@ -359,6 +359,12 @@ const ViolationRegistry = (() => {
   /* ——— Форма добавления / редактирования ——— */
 
   function openForm(item) {
+    const existing = document.querySelector('.vr-form-overlay');
+    if (existing) {
+      existing.remove();
+      GazpromMobileOverlay.unlock();
+    }
+
     const vidTypes = ViolationTemplates.VIOLATION_TYPES;
     const vidOptions = vidTypes
       .map((v) => `<option value="${escHtml(v)}" ${item?.vid === v ? 'selected' : ''}>${escHtml(v)}</option>`)
@@ -424,7 +430,12 @@ const ViolationRegistry = (() => {
     form.querySelector('[data-cancel]').onclick = remove;
     form.addEventListener('keydown', (e) => { if (e.key === 'Escape') remove(); });
 
-    form.querySelector('[data-save]').onclick = async () => {
+    const saveBtn = form.querySelector('[data-save]');
+    const defaultSaveLabel = saveBtn?.textContent || 'Сохранить';
+
+    saveBtn.onclick = async () => {
+      if (saveBtn.disabled) return;
+
       const title = form.querySelector('[data-field="title"]')?.value?.trim();
       if (!title) { GazpromToast.error('Заполните формулировку несоответствия'); return; }
 
@@ -436,17 +447,29 @@ const ViolationRegistry = (() => {
         formulaFromRules: form.querySelector('[data-field="formulaFromRules"]')?.value?.trim() || '',
       };
 
-      if (item) {
-        await updateItem(item.id, fields);
-        GazpromToast.success('Запись обновлена');
-      } else {
-        await addItem(fields);
-        GazpromToast.success('Нарушение добавлено в реестр');
-      }
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Сохранение…';
+      form.querySelector('[data-cancel]').disabled = true;
 
-      remove();
-      await GazpromUI.refreshAll();
-      renderScreen(screenQuery, screenVidFilter);
+      try {
+        if (item) {
+          await updateItem(item.id, fields);
+          GazpromToast.success('Запись обновлена');
+        } else {
+          await addItem(fields);
+          GazpromToast.success('Нарушение добавлено в реестр');
+        }
+
+        remove();
+        await GazpromUI.refreshAll();
+        renderScreen(screenQuery, screenVidFilter);
+      } catch (err) {
+        console.error('[ViolationRegistry] save error:', err);
+        GazpromToast.error(err?.message || 'Не удалось сохранить. Попробуйте ещё раз.');
+        saveBtn.disabled = false;
+        saveBtn.textContent = defaultSaveLabel;
+        form.querySelector('[data-cancel]').disabled = false;
+      }
     };
   }
 

@@ -509,16 +509,33 @@ const GazpromMobileOverlay = (() => {
   const isHorizontalGesture = (dx, dy) =>
     Math.abs(dx) > 4 && Math.abs(dx) >= Math.abs(dy) * 0.45;
 
+  /** Поля ввода и активное выделение — не перехватываем жест (ручки iOS двигаются по X). */
+  const TEXT_FIELD_SELECTOR =
+    'input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=button]):not([type=submit]):not([type=reset]):not([type=hidden]):not([type=image]), textarea, select, [contenteditable="true"]';
+
+  const hasActiveTextSelection = () => {
+    const sel = window.getSelection?.();
+    return !!(sel && sel.rangeCount > 0 && !sel.isCollapsed);
+  };
+
+  const isTextInteractionTarget = (target) => {
+    if (!target?.closest) return false;
+    if (target.closest(TEXT_FIELD_SELECTOR)) return true;
+    return hasActiveTextSelection();
+  };
+
   const handleTouchStart = (e) => {
     if (!mq.matches || e.touches.length !== 1) return;
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
+    if (isTextInteractionTarget(e.target)) return;
     clampScrollX();
   };
 
   /** Не даём document touchmove глушить свайп по полосам Истории (кнопки pills на iOS). */
   const shieldHistoryHorizontalTouch = (e) => {
     if (!mq.matches || e.touches.length !== 1) return;
+    if (isTextInteractionTarget(e.target)) return;
     if (!allowHorizontalScroll(e.target)) return;
     const dx = e.touches[0].clientX - touchStartX;
     const dy = e.touches[0].clientY - touchStartY;
@@ -528,6 +545,7 @@ const GazpromMobileOverlay = (() => {
 
   const handleTouchMove = (e) => {
     if (!mq.matches || e.touches.length !== 1) return;
+    if (isTextInteractionTarget(e.target)) return;
     if (hasOpenOverlay()) return;
     const dx = e.touches[0].clientX - touchStartX;
     const dy = e.touches[0].clientY - touchStartY;
@@ -577,6 +595,8 @@ const GazpromMobileOverlay = (() => {
     if (document.visibilityState === 'visible') {
       clearStaleScrollLock();
       recoverViewportLayout();
+      window.setTimeout(syncWizardModalViewport, 120);
+      window.setTimeout(syncWizardModalViewport, 400);
     }
   });
 

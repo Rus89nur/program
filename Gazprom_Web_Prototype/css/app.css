@@ -1977,6 +1977,13 @@
       font-size: 13px;
       white-space: nowrap;
     }
+    .modal-header-cancel {
+      display: none;
+      min-height: 36px;
+      padding: 6px 10px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
     .modal-close {
       background: none;
       border: none;
@@ -4108,6 +4115,16 @@
         touch-action: pan-y;
       }
 
+      /* iOS: pan-y на shell ломает ручки выделения в полях — на инпутах разрешаем auto */
+      body.gazprom-mobile-shell input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=button]):not([type=submit]):not([type=reset]):not([type=hidden]):not([type=image]),
+      body.gazprom-mobile-shell textarea,
+      body.gazprom-mobile-shell select,
+      body.gazprom-mobile-shell [contenteditable='true'] {
+        touch-action: auto;
+        -webkit-user-select: text;
+        user-select: text;
+      }
+
       body.gazprom-mobile-shell #dataStatusBar.data-status {
         padding-top: max(4px, env(safe-area-inset-top));
         padding-bottom: 4px;
@@ -4885,7 +4902,7 @@
       .elimination-detail-overlay {
         overflow: hidden;
         overflow-x: clip;
-        touch-action: none;
+        touch-action: auto;
       }
 
       /* iOS: touch-action:none на корне ломает ручки выделения; overflow:hidden — клики по кнопкам */
@@ -4985,7 +5002,15 @@
         overflow: hidden;
         min-height: 0;
         max-height: none;
-        touch-action: pan-y;
+        touch-action: auto;
+      }
+
+      body.gazprom-mobile-shell #wizardModalRoot .modal-body input,
+      body.gazprom-mobile-shell #wizardModalRoot .modal-body textarea,
+      body.gazprom-mobile-shell #wizardModalRoot .modal-body select {
+        touch-action: auto;
+        -webkit-user-select: text;
+        user-select: text;
       }
 
       body.gazprom-mobile-shell #wizardModalRoot .mv-search-block,
@@ -5061,6 +5086,10 @@
         display: inline-flex;
       }
 
+      body.gazprom-mobile-shell #wizardModalRoot.wizard-modal--keyboard .modal-header-cancel {
+        display: inline-flex;
+      }
+
       body.gazprom-mobile-shell #wizardModalRoot.wizard-modal--keyboard .modal-body {
         padding-top: 12px;
         padding-bottom: 12px;
@@ -5080,7 +5109,7 @@
       .schedule-form-overlay .catalog-form-dialog,
       .schedule-form-overlay .catalog-form-dialog--wide,
       .photo-lightbox-inner {
-        touch-action: manipulation;
+        touch-action: auto;
         overflow-x: hidden;
         width: var(--mobile-modal-width);
         max-width: var(--mobile-modal-width);
@@ -5216,7 +5245,7 @@
       }
 
       .elimination-detail-overlay .elimination-detail-sheet {
-        touch-action: pan-y;
+        touch-action: auto;
         width: var(--mobile-modal-width);
         max-width: var(--mobile-modal-width);
         margin-left: auto;

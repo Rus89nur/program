@@ -2,12 +2,32 @@
  * Модальные окна мастера: нарушение, быстрое добавление в справочник.
  */
 const WizardModals = (() => {
+  const SAVE_TIMEOUT_MS = 60000;
+
   let ctx = null;
   let editingViolationId = null;
   let modalPhotos = [];
   let savingViolation = false;
+  let violationFormInitial = null;
 
   const isSavingViolation = () => savingViolation;
+
+  const withSaveTimeout = (promise, message) =>
+    Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        window.setTimeout(
+          () =>
+            reject(
+              new Error(
+                message ||
+                  'Сохранение заняло слишком много времени. Проверьте соединение и попробуйте снова.'
+              )
+            ),
+          SAVE_TIMEOUT_MS
+        );
+      }),
+    ]);
 
   function ensureModalRoot() {
     let root = document.getElementById('wizardModalRoot');
@@ -22,6 +42,7 @@ const WizardModals = (() => {
         <div class="modal-header">
           <h3 id="modalTitle">—</h3>
           <div class="modal-header-actions">
+            <button type="button" class="btn-ghost btn-sm modal-header-cancel" id="modalHeaderCancel" hidden>Отмена</button>
             <button type="button" class="btn-primary btn-sm modal-header-save" id="modalHeaderSave" hidden>Сохранить</button>
             <button type="button" class="modal-close" data-close aria-label="Закрыть">×</button>
           </div>
@@ -34,7 +55,10 @@ const WizardModals = (() => {
     if (!root.dataset.closeBound) {
       root.dataset.closeBound = '1';
       root.addEventListener('click', (e) => {
-        if (e.target.closest('[data-close]')) close();
+        if (e.target.closest('[data-close]')) {
+          e.preventDefault();
+          void requestClose();
+        }
       });
     }
     return root;
@@ -49,12 +73,60 @@ const WizardModals = (() => {
     document.getElementById('modalBody').innerHTML = bodyHtml;
     document.getElementById('modalFooter').innerHTML = footerHtml || '';
     const headerSave = document.getElementById('modalHeaderSave');
+    const headerCancel = document.getElementById('modalHeaderCancel');
     const footerPrimary = document.getElementById('modalFooter')?.querySelector('.btn-primary');
     if (headerSave) {
       headerSave.hidden = !footerPrimary;
+      headerSave.disabled = false;
       headerSave.onclick = footerPrimary ? () => footerPrimary.click() : null;
     }
+    if (headerCancel) {
+      headerCancel.hidden = false;
+      headerCancel.disabled = false;
+      headerCancel.onclick = () => {
+        void requestClose();
+      };
+    }
     GazpromMobileOverlay.syncWizardModalViewport?.();
+  }
+
+  function readViolationFormSnapshot() {
+    return {
+      title: document.getElementById('mvTitle')?.value?.trim() || '',
+      mesto: document.getElementById('mvMesto')?.value?.trim() || '',
+      subTitle: document.getElementById('mvUrl')?.value?.trim() || '',
+      vid: document.getElementById('mvVid')?.value || '',
+      formulaFromRules: document.getElementById('mvFormula')?.value?.trim() || '',
+      photoCount: modalPhotos.length,
+    };
+  }
+
+  function isViolationFormDirty() {
+    if (!violationFormInitial) return false;
+    const current = readViolationFormSnapshot();
+    return (
+      current.title !== violationFormInitial.title ||
+      current.mesto !== violationFormInitial.mesto ||
+      current.subTitle !== violationFormInitial.subTitle ||
+      current.vid !== violationFormInitial.vid ||
+      current.formulaFromRules !== violationFormInitial.formulaFromRules ||
+      current.photoCount !== violationFormInitial.photoCount
+    );
+  }
+
+  async function requestClose(options = {}) {
+    if (savingViolation) {
+      GazpromToast.info('Дождитесь завершения сохранения…');
+      return;
+    }
+    if (!options.skipConfirm && isViolationFormDirty()) {
+      const ok = await GazpromToast.confirm('Закрыть без сохранения?', {
+        confirmLabel: 'Закрыть',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    close(options);
   }
 
   function close(options = {}) {
@@ -75,6 +147,8 @@ const WizardModals = (() => {
     editingViolationId = null;
     modalPhotos = [];
     savingViolation = false;
+    violationFormInitial = null;
+    window.__gazpromSavingViolation = false;
   }
 
   function setSaveButtonsBusy(busy, label = 'Сохранение…') {
@@ -332,6 +406,7 @@ const WizardModals = (() => {
     `;
 
     open(violationId ? 'Редактирование нарушения' : 'Новое нарушение', body, footer);
+    violationFormInitial = readViolationFormSnapshot();
 
     // Track the registry item that was last selected to detect manual edits
     let selectedRegistryItem = null;
@@ -606,7 +681,10 @@ const WizardModals = (() => {
   }
 
   async function saveViolation() {
-    if (savingViolation) return;
+    if (savingViolation) {
+      GazpromToast.info('Сохранение уже выполняется…');
+      return;
+    }
 
     const title = document.getElementById('mvTitle')?.value?.trim();
     if (!title) {
@@ -625,58 +703,64 @@ const WizardModals = (() => {
 
     const violationId = editingViolationId || AktUtils.uuid();
     const prevCount = (ctx.getDraft()?.violations || []).length;
+    const wasEditing = !!editingViolationId;
 
     try {
-      const mesto = document.getElementById('mvMesto')?.value?.trim() || '';
-      const vid = document.getElementById('mvVid')?.value || '';
-      const urlToPravilo = document.getElementById('mvUrl')?.value?.trim() || '';
-      const formulaFromRules = document.getElementById('mvFormula')?.value?.trim() || null;
+      await withSaveTimeout((async () => {
+        const mesto = document.getElementById('mvMesto')?.value?.trim() || '';
+        const vid = document.getElementById('mvVid')?.value || '';
+        const urlToPravilo = document.getElementById('mvUrl')?.value?.trim() || '';
+        const formulaFromRules = document.getElementById('mvFormula')?.value?.trim() || null;
 
-      const photoRefs = await finalizePhotoRefs(modalPhotos);
+        const photoRefs = await finalizePhotoRefs(modalPhotos);
 
-      const draft = ctx.getDraft();
-      if (!draft) throw new Error('Черновик акта недоступен');
+        const draft = ctx.getDraft();
+        if (!draft) throw new Error('Черновик акта недоступен');
 
-      const payload = {
-        id: violationId,
-        title,
-        mesto,
-        urlToPravilo,
-        photo: photoRefs,
-        vid,
-        formulaFromRules: formulaFromRules || null,
-      };
+        const payload = {
+          id: violationId,
+          title,
+          mesto,
+          urlToPravilo,
+          photo: photoRefs,
+          vid,
+          formulaFromRules: formulaFromRules || null,
+        };
 
-      if (editingViolationId) {
-        draft.violations = (draft.violations || []).map((x) =>
-          x.id === editingViolationId ? payload : x
-        );
-      } else {
-        draft.violations = [...(draft.violations || []), payload];
-      }
+        if (editingViolationId) {
+          draft.violations = (draft.violations || []).map((x) =>
+            x.id === editingViolationId ? payload : x
+          );
+        } else {
+          draft.violations = [...(draft.violations || []), payload];
+        }
 
-      ctx.setDraft(draft);
-      await ctx.saveDraft();
+        ctx.setDraft(draft);
+        await ctx.saveDraft();
 
-      const saved = (ctx.getDraft()?.violations || []).find((x) => x.id === violationId);
-      if (!saved) {
-        throw new Error('Нарушение не записалось в черновик');
-      }
-      if (!editingViolationId && (ctx.getDraft()?.violations || []).length <= prevCount) {
-        throw new Error('Нарушение не добавилось в список');
-      }
+        const saved = (ctx.getDraft()?.violations || []).find((x) => x.id === violationId);
+        if (!saved) {
+          throw new Error('Нарушение не записалось в черновик');
+        }
+        if (!editingViolationId && (ctx.getDraft()?.violations || []).length <= prevCount) {
+          throw new Error('Нарушение не добавилось в список');
+        }
+      })());
 
       const onUpdate = ctx.onUpdate;
       finishViolationSave(onUpdate);
-      GazpromToast.success(editingViolationId ? 'Нарушение сохранено' : 'Нарушение добавлено');
+      GazpromToast.success(wasEditing ? 'Нарушение сохранено' : 'Нарушение добавлено');
     } catch (err) {
       console.error(err);
-      savingViolation = false;
-      window.__gazpromSavingViolation = false;
-      setSaveButtonsBusy(false);
       GazpromToast.error(
         err?.message || 'Не удалось сохранить нарушение. Попробуйте ещё раз.'
       );
+    } finally {
+      if (document.getElementById('wizardModalRoot')?.classList.contains('show')) {
+        savingViolation = false;
+        window.__gazpromSavingViolation = false;
+        setSaveButtonsBusy(false);
+      }
     }
   }
 
