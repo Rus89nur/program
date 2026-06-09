@@ -11,8 +11,6 @@ const WizardController = (() => {
   let descEditMode = false;
   let predOrgFilters = new Set();
   let violSearchQuery = '';
-  let violVidFilter = '';
-  let violMestoFilter = '';
 
   const AUTOSAVE_MS = window.matchMedia('(pointer: coarse)').matches ? 600 : 2000;
 
@@ -68,8 +66,6 @@ const WizardController = (() => {
     const editable = AktUtils.getFullEditableAkt(catalog);
     draft = editable ? AktUtils.clone(editable) : AktUtils.createEmptyDraft(catalog);
     violSearchQuery = '';
-    violVidFilter = '';
-    violMestoFilter = '';
   }
 
   function showEmpty(show) {
@@ -259,7 +255,7 @@ const WizardController = (() => {
 
   function bindAutosaveOnPanel() {
     panelsHost()?.querySelectorAll('input, select, textarea').forEach((el) => {
-      if (el.id === 'wViolSearch' || el.id === 'wViolVidFilter') return;
+      if (el.id === 'wViolSearch') return;
       el.removeEventListener('input', scheduleAutosave);
       el.removeEventListener('change', scheduleAutosave);
       el.addEventListener('input', scheduleAutosave);
@@ -462,13 +458,10 @@ const WizardController = (() => {
     `;
   }
 
-  function filterActViolations(violations, query, vidFilter, mestoFilter) {
-    let list = [...(violations || [])];
-    if (vidFilter) list = list.filter((v) => v.vid === vidFilter);
-    if (mestoFilter) list = list.filter((v) => (v.mesto || '') === mestoFilter);
+  function filterActViolations(violations, query) {
     const q = String(query).trim().toLowerCase();
-    if (!q) return list;
-    return list.filter((v) => {
+    if (!q) return [...(violations || [])];
+    return (violations || []).filter((v) => {
       const haystack = [
         v.title,
         v.urlToPravilo,
@@ -486,7 +479,7 @@ const WizardController = (() => {
   }
 
   function isViolFiltering() {
-    return !!(String(violSearchQuery).trim() || violVidFilter || violMestoFilter);
+    return !!String(violSearchQuery).trim();
   }
 
   function violIndexInAct(violationId, allViolations) {
@@ -540,7 +533,7 @@ const WizardController = (() => {
       </div>`;
     }
     if (!filteredViolations.length) {
-      const hint = [violSearchQuery.trim(), violVidFilter, violMestoFilter].filter(Boolean).join(' · ');
+      const hint = violSearchQuery.trim();
       return `<div class="viol-empty viol-empty--filter">
         <div class="viol-empty-icon">🔍</div>
         <div class="viol-empty-text">Ничего не найдено</div>
@@ -583,7 +576,7 @@ const WizardController = (() => {
   function refreshViolList() {
     if (step !== 3 || !draft) return;
     const allViolations = draft.violations || [];
-    const filtered = filterActViolations(allViolations, violSearchQuery, violVidFilter, violMestoFilter);
+    const filtered = filterActViolations(allViolations, violSearchQuery);
     const listEl = document.getElementById('wViolList');
     if (!listEl) return;
 
@@ -607,41 +600,9 @@ const WizardController = (() => {
 
   function renderStepViolations() {
     const allViolations = draft.violations || [];
-    const filtered = filterActViolations(allViolations, violSearchQuery, violVidFilter, violMestoFilter);
+    const filtered = filterActViolations(allViolations, violSearchQuery);
     const cards = renderViolCardsListInnerHtml(allViolations, filtered);
     const photoSection = renderViolPhotoSectionHtml(isViolFiltering() ? filtered : allViolations);
-
-    const uniqueVids = [...new Set(allViolations.map((v) => v.vid).filter(Boolean))].sort();
-    const vidSelect = uniqueVids.length > 1
-      ? `<select class="form-control" id="wViolVidFilter" aria-label="Фильтр по виду нарушения">
-          <option value="">Все виды</option>
-          ${uniqueVids
-            .map(
-              (vid) =>
-                `<option value="${AktUtils.escapeHtml(vid)}" ${violVidFilter === vid ? 'selected' : ''}>${AktUtils.escapeHtml(vid)}</option>`
-            )
-            .join('')}
-        </select>`
-      : '';
-
-    const mestoCounts = new Map();
-    allViolations.forEach((v) => {
-      const m = v.mesto || '';
-      if (!m) return;
-      mestoCounts.set(m, (mestoCounts.get(m) || 0) + 1);
-    });
-    const mestoFilters = mestoCounts.size > 1
-      ? `<div class="viol-filters" id="wViolMestoFilters">
-          ${[...mestoCounts.entries()]
-            .sort((a, b) => a[0].localeCompare(b[0], 'ru'))
-            .map(([mesto, count]) => {
-              const active = violMestoFilter === mesto;
-              return `<button type="button" class="viol-filter-chip${active ? ' active' : ''}" data-viol-mesto="${AktUtils.escapeHtml(mesto)}">${AktUtils.escapeHtml(mesto)}<span class="chip-count">${count}</span></button>`;
-            })
-            .join('')}
-          ${violMestoFilter ? `<button type="button" class="btn-org-filter-reset" id="wViolMestoReset">✕ Сбросить место</button>` : ''}
-        </div>`
-      : '';
 
     const searchToolbar = allViolations.length
       ? `<div class="viol-search-toolbar">
@@ -652,9 +613,7 @@ const WizardController = (() => {
             value="${AktUtils.escapeHtml(violSearchQuery)}"
             autocomplete="off"
             aria-label="Поиск нарушений в акте">
-          ${vidSelect}
-        </div>
-        ${mestoFilters}`
+        </div>`
       : '';
 
     return `
@@ -964,7 +923,7 @@ const WizardController = (() => {
 
         if (fromActGrid) {
           const sourceViolations = isViolFiltering()
-            ? filterActViolations(draft.violations || [], violSearchQuery, violVidFilter, violMestoFilter)
+            ? filterActViolations(draft.violations || [], violSearchQuery)
             : draft.violations || [];
           const items = sourceViolations.flatMap((vi) =>
             (vi.photo || []).map((ref, i) => ({ vid: vi.id, pidx: i, ref }))
@@ -1000,26 +959,10 @@ const WizardController = (() => {
 
   function bindViolSearchEvents() {
     const searchEl = document.getElementById('wViolSearch');
-    if (searchEl) {
-      searchEl.addEventListener('input', () => {
-        violSearchQuery = searchEl.value;
-        refreshViolList();
-      });
-    }
-    document.getElementById('wViolVidFilter')?.addEventListener('change', (e) => {
-      violVidFilter = e.target.value;
+    if (!searchEl) return;
+    searchEl.addEventListener('input', () => {
+      violSearchQuery = searchEl.value;
       refreshViolList();
-    });
-    panelsHost()?.querySelectorAll('[data-viol-mesto]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const m = btn.dataset.violMesto;
-        violMestoFilter = violMestoFilter === m ? '' : m;
-        render();
-      });
-    });
-    document.getElementById('wViolMestoReset')?.addEventListener('click', () => {
-      violMestoFilter = '';
-      render();
     });
   }
 
