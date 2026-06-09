@@ -10,6 +10,9 @@ const WizardController = (() => {
   let dirty = false;
   let descEditMode = false;
   let predOrgFilters = new Set();
+  let violSearchQuery = '';
+  let violVidFilter = '';
+  let violMestoFilter = '';
 
   const AUTOSAVE_MS = window.matchMedia('(pointer: coarse)').matches ? 600 : 2000;
 
@@ -64,6 +67,9 @@ const WizardController = (() => {
   function initDraft() {
     const editable = AktUtils.getFullEditableAkt(catalog);
     draft = editable ? AktUtils.clone(editable) : AktUtils.createEmptyDraft(catalog);
+    violSearchQuery = '';
+    violVidFilter = '';
+    violMestoFilter = '';
   }
 
   function showEmpty(show) {
@@ -253,6 +259,7 @@ const WizardController = (() => {
 
   function bindAutosaveOnPanel() {
     panelsHost()?.querySelectorAll('input, select, textarea').forEach((el) => {
+      if (el.id === 'wViolSearch' || el.id === 'wViolVidFilter') return;
       el.removeEventListener('input', scheduleAutosave);
       el.removeEventListener('change', scheduleAutosave);
       el.addEventListener('input', scheduleAutosave);
@@ -455,76 +462,206 @@ const WizardController = (() => {
     `;
   }
 
-  function renderStepViolations() {
-    const allViolations = draft.violations || [];
+  function filterActViolations(violations, query, vidFilter, mestoFilter) {
+    let list = [...(violations || [])];
+    if (vidFilter) list = list.filter((v) => v.vid === vidFilter);
+    if (mestoFilter) list = list.filter((v) => (v.mesto || '') === mestoFilter);
+    const q = String(query).trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((v) => {
+      const haystack = [
+        v.title,
+        v.urlToPravilo,
+        v.subTitle,
+        v.mesto,
+        v.vid,
+        v.formulaFromRules,
+        v.description,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }
 
-    const cards = allViolations.length
-      ? allViolations
-          .map((v, i) => {
-            const photos = v.photo?.length || 0;
-            const vidBadge = v.vid
-              ? `<span class="viol-card-badge" title="${AktUtils.escapeHtml(v.vid)}">${AktUtils.escapeHtml(v.vid)}</span>`
-              : '';
-            const refLine = v.urlToPravilo
-              ? `<div class="viol-card-subtitle">📄 ${AktUtils.escapeHtml(v.urlToPravilo)}</div>`
-              : '';
-            const maxThumbs = 5;
-            const thumbsHtml = photos
-              ? `<div class="viol-card-thumbs">
-                  ${(v.photo || []).slice(0, maxThumbs).map((p, idx) =>
-                    `<div class="viol-card-thumb wizard-photo-thumb photo-slot filled" data-vid="${v.id}" data-pidx="${idx}">
-                      ${wizardPhotoImgTag(p, v.id, idx)}
-                    </div>`
-                  ).join('')}
-                  ${photos > maxThumbs ? `<div class="viol-card-thumb viol-card-thumb-more">+${photos - maxThumbs}</div>` : ''}
-                </div>`
-              : '';
-            return `<div class="viol-card" data-violation-id="${v.id}" role="button" tabindex="0" title="Открыть карточку нарушения" draggable="true">
-              <div class="viol-card-num">${i + 1}</div>
-              <div class="viol-card-body">
-                <div class="viol-card-title">${AktUtils.escapeHtml(v.title)}</div>
-                ${refLine}
-                <div class="viol-card-meta">
-                  <span class="viol-card-mesto">📍 ${v.mesto ? AktUtils.escapeHtml(v.mesto) : '<span style="color:var(--border)">—</span>'}</span>
-                  ${vidBadge}
-                </div>
-                ${thumbsHtml}
-              </div>
-              <div class="viol-card-actions">
-                <button type="button" class="btn-ghost btn-sm w-viol-edit" data-vid="${v.id}" title="Редактировать">✏️</button>
-                <button type="button" class="btn-ghost btn-sm modal-btn-danger w-viol-del" data-vid="${v.id}" title="Удалить">🗑</button>
-              </div>
-            </div>`;
-          })
-          .join('')
-      : `<div class="viol-empty">
-          <div class="viol-empty-icon">⚠️</div>
-          <div class="viol-empty-text">Нарушения не добавлены</div>
-          <div class="viol-empty-hint">Нажмите круглую кнопку «+» внизу справа, чтобы зафиксировать нарушение</div>
-        </div>`;
+  function isViolFiltering() {
+    return !!(String(violSearchQuery).trim() || violVidFilter || violMestoFilter);
+  }
 
-    const allPhotos = allViolations.flatMap((v) =>
+  function violIndexInAct(violationId, allViolations) {
+    const idx = (allViolations || []).findIndex((v) => v.id === violationId);
+    return idx >= 0 ? idx + 1 : '?';
+  }
+
+  function renderViolCardHtml(v, displayNum) {
+    const photos = v.photo?.length || 0;
+    const vidBadge = v.vid
+      ? `<span class="viol-card-badge" title="${AktUtils.escapeHtml(v.vid)}">${AktUtils.escapeHtml(v.vid)}</span>`
+      : '';
+    const refLine = v.urlToPravilo
+      ? `<div class="viol-card-subtitle">📄 ${AktUtils.escapeHtml(v.urlToPravilo)}</div>`
+      : '';
+    const maxThumbs = 5;
+    const thumbsHtml = photos
+      ? `<div class="viol-card-thumbs">
+          ${(v.photo || []).slice(0, maxThumbs).map((p, idx) =>
+            `<div class="viol-card-thumb wizard-photo-thumb photo-slot filled" data-vid="${v.id}" data-pidx="${idx}">
+              ${wizardPhotoImgTag(p, v.id, idx)}
+            </div>`
+          ).join('')}
+          ${photos > maxThumbs ? `<div class="viol-card-thumb viol-card-thumb-more">+${photos - maxThumbs}</div>` : ''}
+        </div>`
+      : '';
+    return `<div class="viol-card" data-violation-id="${v.id}" role="button" tabindex="0" title="Открыть карточку нарушения" draggable="true">
+      <div class="viol-card-num">${displayNum}</div>
+      <div class="viol-card-body">
+        <div class="viol-card-title">${AktUtils.escapeHtml(v.title)}</div>
+        ${refLine}
+        <div class="viol-card-meta">
+          <span class="viol-card-mesto">📍 ${v.mesto ? AktUtils.escapeHtml(v.mesto) : '<span style="color:var(--border)">—</span>'}</span>
+          ${vidBadge}
+        </div>
+        ${thumbsHtml}
+      </div>
+      <div class="viol-card-actions">
+        <button type="button" class="btn-ghost btn-sm w-viol-edit" data-vid="${v.id}" title="Редактировать">✏️</button>
+        <button type="button" class="btn-ghost btn-sm modal-btn-danger w-viol-del" data-vid="${v.id}" title="Удалить">🗑</button>
+      </div>
+    </div>`;
+  }
+
+  function renderViolCardsListInnerHtml(allViolations, filteredViolations) {
+    if (!allViolations.length) {
+      return `<div class="viol-empty">
+        <div class="viol-empty-icon">⚠️</div>
+        <div class="viol-empty-text">Нарушения не добавлены</div>
+        <div class="viol-empty-hint">Нажмите круглую кнопку «+» внизу справа, чтобы зафиксировать нарушение</div>
+      </div>`;
+    }
+    if (!filteredViolations.length) {
+      const hint = [violSearchQuery.trim(), violVidFilter, violMestoFilter].filter(Boolean).join(' · ');
+      return `<div class="viol-empty viol-empty--filter">
+        <div class="viol-empty-icon">🔍</div>
+        <div class="viol-empty-text">Ничего не найдено</div>
+        <div class="viol-empty-hint">По запросу «${AktUtils.escapeHtml(hint)}» нет совпадений среди ${allViolations.length} нарушений акта</div>
+      </div>`;
+    }
+    return filteredViolations
+      .map((v) => renderViolCardHtml(v, violIndexInAct(v.id, allViolations)))
+      .join('');
+  }
+
+  function renderViolPhotoSectionHtml(violations) {
+    const allPhotos = (violations || []).flatMap((v) =>
       (v.photo || []).map((p, idx) => ({ v, idx, ref: p }))
     );
-    const photoSection = allPhotos.length
-      ? `<h3 style="margin-top:4px;font-size:14px;margin-bottom:12px">Все фото акта</h3>
-         <div class="photo-grid" id="wPhotoGrid">${
-           allPhotos
-             .slice(0, 16)
-             .map(
-               ({ ref, v, idx }) =>
-                 `<div class="photo-slot filled wizard-photo-thumb" data-vid="${v.id}" data-pidx="${idx}" title="${AktUtils.escapeHtml(v.title)}">
-                   ${wizardPhotoImgTag(ref, v.id, idx)}
-                 </div>`
-             )
-             .join('') + (allPhotos.length > 16 ? `<div class="photo-slot">+${allPhotos.length - 16}</div>` : '')
-         }</div>`
+    if (!allPhotos.length) return '';
+    return `<div id="wViolPhotoSection">
+      <h3 style="margin-top:4px;font-size:14px;margin-bottom:12px">Все фото акта</h3>
+      <div class="photo-grid" id="wPhotoGrid">${
+        allPhotos
+          .slice(0, 16)
+          .map(
+            ({ ref, v, idx }) =>
+              `<div class="photo-slot filled wizard-photo-thumb" data-vid="${v.id}" data-pidx="${idx}" title="${AktUtils.escapeHtml(v.title)}">
+                ${wizardPhotoImgTag(ref, v.id, idx)}
+              </div>`
+          )
+          .join('') + (allPhotos.length > 16 ? `<div class="photo-slot">+${allPhotos.length - 16}</div>` : '')
+      }</div>
+    </div>`;
+  }
+
+  function renderViolCountBadgeText(allCount, filteredCount) {
+    if (isViolFiltering() && filteredCount !== allCount) {
+      return `${filteredCount} из ${allCount}`;
+    }
+    return String(allCount);
+  }
+
+  function refreshViolList() {
+    if (step !== 3 || !draft) return;
+    const allViolations = draft.violations || [];
+    const filtered = filterActViolations(allViolations, violSearchQuery, violVidFilter, violMestoFilter);
+    const listEl = document.getElementById('wViolList');
+    if (!listEl) return;
+
+    listEl.innerHTML = renderViolCardsListInnerHtml(allViolations, filtered);
+
+    const badgeEl = document.getElementById('wViolCountBadge');
+    if (badgeEl) badgeEl.textContent = renderViolCountBadgeText(allViolations.length, filtered.length);
+
+    const photoHost = document.getElementById('wViolPhotoSection');
+    const photoHtml = renderViolPhotoSectionHtml(isViolFiltering() ? filtered : allViolations);
+    if (photoHost) {
+      if (photoHtml) photoHost.outerHTML = photoHtml;
+      else photoHost.remove();
+    } else if (photoHtml) {
+      listEl.insertAdjacentHTML('afterend', photoHtml);
+    }
+
+    bindViolationListEvents();
+    hydrateViolationThumbs();
+  }
+
+  function renderStepViolations() {
+    const allViolations = draft.violations || [];
+    const filtered = filterActViolations(allViolations, violSearchQuery, violVidFilter, violMestoFilter);
+    const cards = renderViolCardsListInnerHtml(allViolations, filtered);
+    const photoSection = renderViolPhotoSectionHtml(isViolFiltering() ? filtered : allViolations);
+
+    const uniqueVids = [...new Set(allViolations.map((v) => v.vid).filter(Boolean))].sort();
+    const vidSelect = uniqueVids.length > 1
+      ? `<select class="form-control" id="wViolVidFilter" aria-label="Фильтр по виду нарушения">
+          <option value="">Все виды</option>
+          ${uniqueVids
+            .map(
+              (vid) =>
+                `<option value="${AktUtils.escapeHtml(vid)}" ${violVidFilter === vid ? 'selected' : ''}>${AktUtils.escapeHtml(vid)}</option>`
+            )
+            .join('')}
+        </select>`
+      : '';
+
+    const mestoCounts = new Map();
+    allViolations.forEach((v) => {
+      const m = v.mesto || '';
+      if (!m) return;
+      mestoCounts.set(m, (mestoCounts.get(m) || 0) + 1);
+    });
+    const mestoFilters = mestoCounts.size > 1
+      ? `<div class="viol-filters" id="wViolMestoFilters">
+          ${[...mestoCounts.entries()]
+            .sort((a, b) => a[0].localeCompare(b[0], 'ru'))
+            .map(([mesto, count]) => {
+              const active = violMestoFilter === mesto;
+              return `<button type="button" class="viol-filter-chip${active ? ' active' : ''}" data-viol-mesto="${AktUtils.escapeHtml(mesto)}">${AktUtils.escapeHtml(mesto)}<span class="chip-count">${count}</span></button>`;
+            })
+            .join('')}
+          ${violMestoFilter ? `<button type="button" class="btn-org-filter-reset" id="wViolMestoReset">✕ Сбросить место</button>` : ''}
+        </div>`
+      : '';
+
+    const searchToolbar = allViolations.length
+      ? `<div class="viol-search-toolbar">
+          <input type="search"
+            class="form-control"
+            id="wViolSearch"
+            placeholder="🔍 Поиск по формулировке, месту, документу, виду…"
+            value="${AktUtils.escapeHtml(violSearchQuery)}"
+            autocomplete="off"
+            aria-label="Поиск нарушений в акте">
+          ${vidSelect}
+        </div>
+        ${mestoFilters}`
       : '';
 
     return `
       <div class="viol-step-header">
-        <h3 style="margin:0">Нарушения <span class="viol-total-badge">${allViolations.length}</span></h3>
+        <h3 style="margin:0">Нарушения <span class="viol-total-badge" id="wViolCountBadge">${renderViolCountBadgeText(allViolations.length, filtered.length)}</span></h3>
       </div>
+      ${searchToolbar}
       <div class="viol-cards-list" id="wViolList">${cards}</div>
       ${photoSection}
     `;
@@ -770,6 +907,122 @@ const WizardController = (() => {
     });
   }
 
+  function bindViolationListEvents() {
+    bindViolationDragDrop();
+
+    panelsHost()?.querySelectorAll('.viol-card[data-violation-id]').forEach((card) => {
+      const openCard = () => WizardModals.openViolationEditor(card.dataset.violationId);
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.viol-card-actions')) return;
+        if (e.target.closest('.viol-card-thumbs')) return;
+        if (document.getElementById('wViolList')?.dataset.dragging) return;
+        openCard();
+      });
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openCard();
+        }
+      });
+    });
+    panelsHost()?.querySelectorAll('.w-viol-edit').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        WizardModals.openViolationEditor(btn.dataset.vid);
+      });
+    });
+    panelsHost()?.querySelectorAll('.w-viol-del').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const v = (draft.violations || []).find((x) => x.id === btn.dataset.vid);
+        GazpromToast.confirm(`Удалить нарушение?\n«${(v?.title || '').slice(0, 80)}»`, { confirmLabel: 'Удалить', danger: true }).then((ok) => {
+          if (!ok) return;
+          draft.violations = (draft.violations || []).filter((x) => x.id !== btn.dataset.vid);
+          scheduleAutosave();
+          render();
+          updateSummary();
+        });
+      });
+    });
+    panelsHost()?.querySelectorAll('.wizard-photo-thumb').forEach((el) => {
+      el.addEventListener('click', async () => {
+        const vid = el.dataset.vid;
+        const pidx = parseInt(el.dataset.pidx, 10);
+        const fromActGrid = !!el.closest('#wPhotoGrid');
+
+        const buildGallery = async (refs, matchIdx) => {
+          const urls = await Promise.all(refs.map((p) => AktUtils.photoSrcAsync(p)));
+          const gallery = [];
+          let start = 0;
+          urls.forEach((url, i) => {
+            if (!url) return;
+            if (i === matchIdx) start = gallery.length;
+            gallery.push(url);
+          });
+          return { gallery, start };
+        };
+
+        if (fromActGrid) {
+          const sourceViolations = isViolFiltering()
+            ? filterActViolations(draft.violations || [], violSearchQuery, violVidFilter, violMestoFilter)
+            : draft.violations || [];
+          const items = sourceViolations.flatMap((vi) =>
+            (vi.photo || []).map((ref, i) => ({ vid: vi.id, pidx: i, ref }))
+          );
+          if (!items.length) return;
+          const urls = await Promise.all(items.map((x) => AktUtils.photoSrcAsync(x.ref)));
+          const gallery = [];
+          let start = 0;
+          urls.forEach((url, i) => {
+            if (!url) return;
+            if (items[i].vid === vid && items[i].pidx === pidx) start = gallery.length;
+            gallery.push(url);
+          });
+          if (!gallery.length) {
+            GazpromToast.info('Не удалось открыть фото');
+            return;
+          }
+          openLightbox(gallery[start], gallery);
+          return;
+        }
+
+        const v = (draft.violations || []).find((x) => x.id === vid);
+        if (!v?.photo?.length) return;
+        const { gallery, start } = await buildGallery(v.photo, Number.isNaN(pidx) ? 0 : pidx);
+        if (!gallery.length) {
+          GazpromToast.info('Не удалось открыть фото');
+          return;
+        }
+        openLightbox(gallery[start], gallery);
+      });
+    });
+  }
+
+  function bindViolSearchEvents() {
+    const searchEl = document.getElementById('wViolSearch');
+    if (searchEl) {
+      searchEl.addEventListener('input', () => {
+        violSearchQuery = searchEl.value;
+        refreshViolList();
+      });
+    }
+    document.getElementById('wViolVidFilter')?.addEventListener('change', (e) => {
+      violVidFilter = e.target.value;
+      refreshViolList();
+    });
+    panelsHost()?.querySelectorAll('[data-viol-mesto]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const m = btn.dataset.violMesto;
+        violMestoFilter = violMestoFilter === m ? '' : m;
+        render();
+      });
+    });
+    document.getElementById('wViolMestoReset')?.addEventListener('click', () => {
+      violMestoFilter = '';
+      render();
+    });
+  }
+
   function bindCommissionDragDrop() {
     const container = document.getElementById('wCommissionChips');
     if (!container) return;
@@ -968,91 +1221,9 @@ const WizardController = (() => {
     });
 
     bindCommissionDragDrop();
-    bindViolationDragDrop();
+    bindViolationListEvents();
+    bindViolSearchEvents();
 
-    panelsHost()?.querySelectorAll('.viol-card[data-violation-id]').forEach((card) => {
-      const openCard = () => WizardModals.openViolationEditor(card.dataset.violationId);
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('.viol-card-actions')) return;
-        if (e.target.closest('.viol-card-thumbs')) return;
-        if (document.getElementById('wViolList')?.dataset.dragging) return;
-        openCard();
-      });
-      card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          openCard();
-        }
-      });
-    });
-    panelsHost()?.querySelectorAll('.w-viol-edit').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        WizardModals.openViolationEditor(btn.dataset.vid);
-      });
-    });
-    panelsHost()?.querySelectorAll('.w-viol-del').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const v = (draft.violations || []).find((x) => x.id === btn.dataset.vid);
-        GazpromToast.confirm(`Удалить нарушение?\n«${(v?.title || '').slice(0, 80)}»`, { confirmLabel: 'Удалить', danger: true }).then((ok) => {
-          if (!ok) return;
-          draft.violations = (draft.violations || []).filter((x) => x.id !== btn.dataset.vid);
-          scheduleAutosave();
-          render();
-          updateSummary();
-        });
-      });
-    });
-    panelsHost()?.querySelectorAll('.wizard-photo-thumb').forEach((el) => {
-      el.addEventListener('click', async () => {
-        const vid = el.dataset.vid;
-        const pidx = parseInt(el.dataset.pidx, 10);
-        const fromActGrid = !!el.closest('#wPhotoGrid');
-
-        const buildGallery = async (refs, matchIdx) => {
-          const urls = await Promise.all(refs.map((p) => AktUtils.photoSrcAsync(p)));
-          const gallery = [];
-          let start = 0;
-          urls.forEach((url, i) => {
-            if (!url) return;
-            if (i === matchIdx) start = gallery.length;
-            gallery.push(url);
-          });
-          return { gallery, start };
-        };
-
-        if (fromActGrid) {
-          const items = (draft.violations || []).flatMap((vi) =>
-            (vi.photo || []).map((ref, i) => ({ vid: vi.id, pidx: i, ref }))
-          );
-          if (!items.length) return;
-          const urls = await Promise.all(items.map((x) => AktUtils.photoSrcAsync(x.ref)));
-          const gallery = [];
-          let start = 0;
-          urls.forEach((url, i) => {
-            if (!url) return;
-            if (items[i].vid === vid && items[i].pidx === pidx) start = gallery.length;
-            gallery.push(url);
-          });
-          if (!gallery.length) {
-            GazpromToast.info('Не удалось открыть фото');
-            return;
-          }
-          openLightbox(gallery[start], gallery);
-          return;
-        }
-
-        const v = (draft.violations || []).find((x) => x.id === vid);
-        if (!v?.photo?.length) return;
-        const { gallery, start } = await buildGallery(v.photo, Number.isNaN(pidx) ? 0 : pidx);
-        if (!gallery.length) {
-          GazpromToast.info('Не удалось открыть фото');
-          return;
-        }
-        openLightbox(gallery[start], gallery);
-      });
-    });
     document.getElementById('wSaveDraft')?.addEventListener('click', () => finish());
     // Проверяем наличие шаблона и обновляем статус-блок
     DocGenerator.hasTemplate().then((has) => {

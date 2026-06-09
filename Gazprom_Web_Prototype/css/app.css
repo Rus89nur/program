@@ -2580,6 +2580,17 @@
       vertical-align: middle;
       margin-left: 6px;
     }
+    .viol-search-toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .viol-search-toolbar .form-control { font-size: 13px; }
+    .viol-search-toolbar input[type="search"] { flex: 1; min-width: 180px; }
+    .viol-search-toolbar select { min-width: 160px; max-width: 240px; }
+    .viol-empty--filter .viol-empty-icon { font-size: 32px; }
     .viol-filters {
       display: flex;
       gap: 8px;
@@ -4430,6 +4441,27 @@
 
       body.gazprom-mobile-shell .wizard-panel--violations .viol-step-header {
         margin-bottom: 12px;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations .viol-search-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations .viol-search-toolbar input[type="search"],
+      body.gazprom-mobile-shell .wizard-panel--violations .viol-search-toolbar select {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+      }
+
+      body.gazprom-mobile-shell .wizard-panel--violations .viol-filters {
+        margin-bottom: 12px;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        -webkit-overflow-scrolling: touch;
       }
 
       body.gazprom-mobile-shell .viol-add-fab {
