@@ -3439,7 +3439,15 @@
     }
 
     /* Выводы комиссии — блок с шаблонами */
-    .vyvody-group textarea[readonly] {
+    .vyvody-group textarea.vyvody-textarea {
+      resize: vertical;
+      overflow: auto;
+      min-height: 88px;
+      max-height: none;
+    }
+    .vyvody-group textarea.vyvody-textarea[readonly] {
+      resize: none;
+      overflow: hidden;
       background: #f9fafb;
       color: var(--text-secondary);
       cursor: default;
@@ -4734,6 +4742,11 @@
       body.gazprom-mobile-shell .wizard-panel--conclusions #wVyvody {
         min-height: 112px;
         width: 100%;
+        resize: vertical;
+        max-height: none;
+      }
+      body.gazprom-mobile-shell .wizard-panel--conclusions #wVyvody[readonly] {
+        resize: none;
       }
 
       body.gazprom-mobile-shell .wizard-panel--conclusions .vyvody-actions {

@@ -155,4 +155,12 @@ describe('AktUtils', () => {
     expect(AktUtils.capitalizeFirstLetter('123abc')).toBe('123abc');
     expect(AktUtils.capitalizeFirstLetter('')).toBe('');
   });
+
+  it('lowercaseFirstLetter lowercases first letter in Russian text', () => {
+    expect(AktUtils.lowercaseFirstLetter('Начальник участка')).toBe('начальник участка');
+    expect(AktUtils.lowercaseFirstLetter('  Главный инженер')).toBe('  главный инженер');
+    expect(AktUtils.lowercaseFirstLetter('уже с маленькой')).toBe('уже с маленькой');
+    expect(AktUtils.lowercaseFirstLetter('123abc')).toBe('123abc');
+    expect(AktUtils.lowercaseFirstLetter('')).toBe('');
+  });
 });

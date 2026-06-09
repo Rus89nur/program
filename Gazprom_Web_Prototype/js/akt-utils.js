@@ -325,6 +325,15 @@ const AktUtils = (() => {
     return val.slice(0, idx) + m[2].toLocaleUpperCase('ru-RU') + val.slice(idx + 1);
   }
 
+  function lowercaseFirstLetter(text) {
+    const val = String(text ?? '');
+    if (!val) return val;
+    const m = val.match(/^(\s*)(\p{Lu})/u);
+    if (!m) return val;
+    const idx = m[1].length;
+    return val.slice(0, idx) + m[2].toLocaleLowerCase('ru-RU') + val.slice(idx + 1);
+  }
+
   function isAutoCapitalizeField(el) {
     if (!el || !(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return false;
     if (el.readOnly || el.disabled) return false;
@@ -389,6 +398,7 @@ const AktUtils = (() => {
     clone,
     defaultOrg,
     capitalizeFirstLetter,
+    lowercaseFirstLetter,
     isAutoCapitalizeField,
     applyAutoCapitalize,
     bindAutoCapitalize,

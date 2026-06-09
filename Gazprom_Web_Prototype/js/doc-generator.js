@@ -67,44 +67,41 @@ const DocGenerator = (() => {
       return raw;
     }
 
-    function capitalizeFirst(text) {
-      const s = String(text || '').trim();
-      if (!s) return '';
-      return s.charAt(0).toUpperCase() + s.slice(1);
+    function jobTitleInText(jobTitle) {
+      return AktUtils.lowercaseFirstLetter(String(jobTitle || '').trim());
+    }
+
+    function jobTitleForSign(jobTitle) {
+      return AktUtils.capitalizeFirstLetter(String(jobTitle || '').trim());
+    }
+
+    function formatJobFioInText(p) {
+      const job = jobTitleInText(p.jobTitle);
+      const fio = String(p.fio || '').trim();
+      return `${job}${job && fio ? ' - ' : ''}${fio}`;
+    }
+
+    function formatSignerLine(p) {
+      const fioShort = formatFioForSign(p.fio);
+      const jobTitle = jobTitleForSign(p.jobTitle);
+      return `${jobTitle || ''}${jobTitle && fioShort ? ' — ' : ''}${fioShort || ''}`;
     }
 
     const commissionList = (akt.comission || []);
 
-    // FIX 1: Формат комиссии — "должность - ФИО"
-    const commissionText = commissionList
-      .map((p) => `${p.jobTitle || ''}${p.jobTitle && p.fio ? ' - ' : ''}${p.fio || ''}`)
-      .join(', ');
+    // Описание в тексте акта: должность с маленькой буквы — "должность - ФИО"
+    const commissionText = commissionList.map(formatJobFioInText).join(', ');
 
-    // FIX 2: Все представители, не только первый
     const predsAll = (akt.predstavitelyComission || []);
-    const pedstavText = predsAll
-      .map((p) => `${p.jobTitle || ''}${p.jobTitle && p.fio ? ' - ' : ''}${p.fio || ''}`)
-      .join('; ');
+    const pedstavText = predsAll.map(formatJobFioInText).join('; ');
 
     const pred = predsAll[0];
     const mainObject = (akt.objectsCheck || [])[0];
     const nameObject = mainObject?.title || '';
-    const predVoiceLines = commissionList
-      .map((p) => {
-        const fioShort = formatFioForSign(p.fio);
-        const jobTitle = capitalizeFirst(p.jobTitle);
-        return `${jobTitle || ''}${jobTitle && fioShort ? ' — ' : ''}${fioShort || ''}`;
-      })
-      .filter(Boolean);
+    const predVoiceLines = commissionList.map(formatSignerLine).filter(Boolean);
     const predVoiceText = predVoiceLines.join('\n\n');
 
-    const pedstavVoiceLines = predsAll
-      .map((p) => {
-        const fioShort = formatFioForSign(p.fio);
-        const jobTitle = capitalizeFirst(p.jobTitle);
-        return `${jobTitle || ''}${jobTitle && fioShort ? ' — ' : ''}${fioShort || ''}`;
-      })
-      .filter(Boolean);
+    const pedstavVoiceLines = predsAll.map(formatSignerLine).filter(Boolean);
     const pedstavVoiceText = pedstavVoiceLines.join('\n\n');
 
     // Нарушения для таблицы
@@ -124,12 +121,16 @@ const DocGenerator = (() => {
       n: i + 1, title: o.title || '', subtitle: o.subTitle || '',
     }));
 
-    const commission = commissionList.map((p, i) => ({
-      n: i + 1,
-      fio: p.fio || '',
-      job: p.jobTitle || '',
-      jobFio: `${p.jobTitle || ''}${p.jobTitle && p.fio ? ' - ' : ''}${p.fio || ''}`,
-    }));
+    const commission = commissionList.map((p, i) => {
+      const job = jobTitleInText(p.jobTitle);
+      const fio = String(p.fio || '').trim();
+      return {
+        n: i + 1,
+        fio,
+        job,
+        jobFio: `${job}${job && fio ? ' - ' : ''}${fio}`,
+      };
+    });
 
     return {
       Number:           akt.number || '',
@@ -158,7 +159,7 @@ const DocGenerator = (() => {
       UtverzderDate: AktUtils.formatDateShort(akt.actUtverzdenDate),
       utverzderDate: AktUtils.formatDateShort(akt.actUtverzdenDate),
       predFio:   pred?.fio || '',
-      predJob:   pred?.jobTitle || '',
+      predJob:   jobTitleInText(pred?.jobTitle),
       commission,
       objects,
       violationCount: violations.length,
@@ -437,50 +438,126 @@ const DocGenerator = (() => {
     zip.file(path, ct);
   }
 
-  /** Сжатие фото для вставки в docx (как в iOS GenerateViewModel). */
-  function compressDataUrlToJpeg(dataUrl, maxDim = 1200, quality = 0.82) {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        let w = img.naturalWidth;
-        let h = img.naturalHeight;
-        const scale = Math.min(1, maxDim / Math.max(w, h, 1));
-        w = Math.max(1, Math.round(w * scale));
-        h = Math.max(1, Math.round(h * scale));
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+  /** Целевой размер готового акта с фото (байт). Оригиналы в IndexedDB не меняются. */
+  const TARGET_ACT_MAX_BYTES = 8_000_000;
+  const DOC_PHOTO_MIN_BYTES = 50_000;
+  const DOC_PHOTO_MAX_BYTES = 200_000;
+
+  function countViolationPhotos(violations) {
+    return (violations || []).reduce((n, v) => n + (v.photo?.length || 0), 0);
+  }
+
+  /** Бюджет на одно фото в docx: делим оставшийся лимит на число снимков. */
+  function computeDocPhotoByteBudget(violations, templateBytes) {
+    const count = countViolationPhotos(violations);
+    if (count <= 0) return DOC_PHOTO_MAX_BYTES;
+    const tplSize = templateBytes?.byteLength ?? templateBytes?.length ?? 400_000;
+    const overhead = Math.min(tplSize + 300_000, 1_800_000);
+    const forPhotos = Math.max(500_000, TARGET_ACT_MAX_BYTES - overhead);
+    const perPhoto = Math.floor(forPhotos / count);
+    return Math.max(DOC_PHOTO_MIN_BYTES, Math.min(DOC_PHOTO_MAX_BYTES, perPhoto));
+  }
+
+  async function blobToJpegBytes(blob, maxDim, quality) {
+    if (!blob || typeof document === 'undefined') return null;
+    let bitmap;
+    try {
+      if (typeof createImageBitmap === 'function') {
+        bitmap = await createImageBitmap(blob);
+      } else {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        bitmap = await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = dataUrl;
+        });
+      }
+      const srcW = bitmap.width || bitmap.naturalWidth || 1;
+      const srcH = bitmap.height || bitmap.naturalHeight || 1;
+      const scale = Math.min(1, maxDim / Math.max(srcW, srcH, 1));
+      const w = Math.max(1, Math.round(srcW * scale));
+      const h = Math.max(1, Math.round(srcH * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.drawImage(bitmap, 0, 0, w, h);
+      if (typeof bitmap.close === 'function') bitmap.close();
+
+      return new Promise((resolve) => {
         canvas.toBlob(
-          (blob) => {
-            if (!blob) return resolve(null);
-            blob.arrayBuffer().then((buf) => resolve(new Uint8Array(buf))).catch(() => resolve(null));
+          (out) => {
+            if (!out) return resolve(null);
+            out.arrayBuffer()
+              .then((buf) => resolve(new Uint8Array(buf)))
+              .catch(() => resolve(null));
           },
           'image/jpeg',
           quality
         );
-      };
-      img.onerror = () => resolve(null);
-      img.src = dataUrl;
-    });
+      });
+    } catch {
+      if (bitmap && typeof bitmap.close === 'function') bitmap.close();
+      return null;
+    }
   }
 
-  async function loadPhotoJpegBytes(photoRef) {
+  /**
+   * Сжатие только для фототаблицы docx. Оригиналы в PhotoStore / карточках нарушений не трогаем.
+   */
+  async function compressPhotoForDocx(dataUrl, maxBytes) {
+    if (!dataUrl) return null;
+    let blob;
+    try {
+      blob = await fetch(dataUrl).then((r) => r.blob());
+    } catch {
+      return null;
+    }
+
+    const dimSteps =
+      maxBytes < 85_000
+        ? [600, 500, 400]
+        : maxBytes < 130_000
+          ? [760, 640, 520]
+          : [920, 780, 640];
+    const qualities = [0.7, 0.56, 0.44, 0.34];
+
+    let best = null;
+    for (const maxDim of dimSteps) {
+      for (const q of qualities) {
+        const bytes = await blobToJpegBytes(blob, maxDim, q);
+        if (!bytes?.length) continue;
+        if (!best || bytes.length < best.length) best = bytes;
+        if (bytes.length <= maxBytes) return bytes;
+      }
+    }
+    return best;
+  }
+
+  async function loadPhotoJpegBytes(photoRef, maxBytes) {
     const dataUrl = await AktUtils.photoSrcAsync(photoRef);
     if (!dataUrl) return null;
-    return compressDataUrlToJpeg(dataUrl);
+    return compressPhotoForDocx(dataUrl, maxBytes);
   }
 
   /**
    * Фототаблица: tempOne — № п/п (порядок строк в таблице), tempTwo — № пункта по акту (PoradNum),
    * tempThree — JPEG.
    */
-  async function processPhotoTable(xml, zip, violations) {
+  async function processPhotoTable(xml, zip, violations, templateBytes) {
     const match = xml.match(PHOTO_ROW_RE);
     if (!match) return { xml, photoTableEnd: -1 };
 
     const photoTableEndBefore = findPhotoTableEndPos(xml);
     const photoRowTemplate = match[0];
+    const photoByteBudget = computeDocPhotoByteBudget(violations, templateBytes);
     let allPhotoRows = '';
     const pendingImages = [];
     let rowIndex = 0;
@@ -496,7 +573,7 @@ const DocGenerator = (() => {
 
       let imageXMLSnippets = '';
       for (const photoRef of violation.photo) {
-        const bytes = await loadPhotoJpegBytes(photoRef);
+        const bytes = await loadPhotoJpegBytes(photoRef, photoByteBudget);
         if (!bytes?.length) continue;
         pendingImages.push({ bytes });
         const imageIndex = pendingImages.length;
@@ -594,7 +671,7 @@ const DocGenerator = (() => {
       doc.render(tplData);
       const outZip = doc.getZip();
       let xmlOut = outZip.files['word/document.xml']?.asText() || '';
-      const photoResult = await processPhotoTable(xmlOut, outZip, akt.violations || []);
+      const photoResult = await processPhotoTable(xmlOut, outZip, akt.violations || [], templateBytes);
       xmlOut = applySignatureTables(photoResult.xml, tplData, photoResult.photoTableEnd);
       assertValidDocumentXml(xmlOut);
       outZip.file('word/document.xml', xmlOut);
@@ -614,7 +691,7 @@ const DocGenerator = (() => {
       });
 
       // 2. Фототаблица (tempOne / tempTwo / tempThree)
-      const photoResult = await processPhotoTable(xml, zip, akt.violations || []);
+      const photoResult = await processPhotoTable(xml, zip, akt.violations || [], templateBytes);
       xml = photoResult.xml;
 
       // 3. Подписи комиссии и представителей

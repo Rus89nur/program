@@ -237,6 +237,7 @@ const WizardController = (() => {
     }
     bindPanelEvents();
     bindAutosaveOnPanel();
+    if (step === 4) bindVyvodyTextarea();
     syncViolFab();
     hydrateViolationThumbs();
     if (!options.skipLayoutSync) {
@@ -251,6 +252,30 @@ const WizardController = (() => {
     if (!fab) return;
     const root = document.getElementById('wizardRoot');
     fab.hidden = step !== 3 || !root || root.hidden;
+  }
+
+  /** Высота #wVyvody: под текст + сохранение ручного растягивания. */
+  function autoResizeVyvodyTextarea(el) {
+    if (!el) return;
+    const preserved = el.offsetHeight;
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(el.scrollHeight, preserved)}px`;
+  }
+
+  function scheduleVyvodyTextareaResize() {
+    requestAnimationFrame(() => {
+      const ta = document.getElementById('wVyvody');
+      autoResizeVyvodyTextarea(ta);
+      requestAnimationFrame(() => autoResizeVyvodyTextarea(ta));
+    });
+  }
+
+  function bindVyvodyTextarea() {
+    const ta = document.getElementById('wVyvody');
+    if (!ta || ta.dataset.vyvodyResizeBound === '1') return;
+    ta.dataset.vyvodyResizeBound = '1';
+    ta.addEventListener('input', () => autoResizeVyvodyTextarea(ta));
+    scheduleVyvodyTextareaResize();
   }
 
   function bindAutosaveOnPanel() {
@@ -689,7 +714,7 @@ const WizardController = (() => {
       <h3>Выводы комиссии</h3>
       <div class="form-group vyvody-group">
         <label>Выводы комиссии</label>
-        <textarea class="form-control" id="wVyvody" rows="4" placeholder="Введите выводы комиссии…">${vyvody}</textarea>
+        <textarea class="form-control vyvody-textarea" id="wVyvody" rows="1" placeholder="Введите выводы комиссии…"${isEdit ? '' : ' readonly'}>${vyvody}</textarea>
         <div class="vyvody-actions">
           ${editBtn}
           <div class="vyvody-templates">${templateBtns}</div>
@@ -1123,6 +1148,7 @@ const WizardController = (() => {
       if (!descEditMode) {
         descEditMode = true;
         render();
+        scheduleVyvodyTextareaResize();
         document.getElementById('wVyvody')?.focus();
       } else {
         const val = textarea ? textarea.value : '';
