@@ -172,6 +172,9 @@ const WizardController = (() => {
     predOrgFilters = new Set();
     step = Math.max(0, Math.min(TOTAL_STEPS - 1, newStep));
     if (step === 2) normalizeObjectsCheck();
+    if (step === 4 && draft) {
+      AktUtils.syncConclusionDatesFromInspection(draft);
+    }
     syncStepperUI();
     render({ skipLayoutSync: true });
     updateSummary();
@@ -1069,6 +1072,25 @@ const WizardController = (() => {
     updateSummary();
   }
 
+  function ensureConclusionDatesManual() {
+    if (!draft.conclusionDatesManual) {
+      draft.conclusionDatesManual = AktUtils.normalizeConclusionDatesManual(draft);
+    }
+    return draft.conclusionDatesManual;
+  }
+
+  function markConclusionDateManual(key) {
+    ensureConclusionDatesManual()[key] = true;
+  }
+
+  function applyConclusionDateFromInput(inputId, draftKey, manualKey) {
+    const el = document.getElementById(inputId);
+    if (!el?.value) return;
+    draft[draftKey] = new Date(el.value + 'T12:00:00').toISOString();
+    markConclusionDateManual(manualKey);
+    scheduleAutosave();
+  }
+
   function bindPanelEvents() {
     if (step === 2) normalizeObjectsCheck();
 
@@ -1093,6 +1115,8 @@ const WizardController = (() => {
       numEl.innerHTML = opts
         .map((n) => `<option value="${n}" ${String(selected) === String(n) ? 'selected' : ''}>${n}</option>`)
         .join('');
+      AktUtils.syncConclusionDatesFromInspection(draft);
+      if (step === 4) render();
       scheduleAutosave();
     });
     document.getElementById('wNewPersonBtn')?.addEventListener('click', () =>
@@ -1141,6 +1165,16 @@ const WizardController = (() => {
     document.getElementById('wPredFilterReset')?.addEventListener('click', () => {
       predOrgFilters = new Set();
       render();
+    });
+
+    document.getElementById('wElimDate')?.addEventListener('change', () => {
+      applyConclusionDateFromInput('wElimDate', 'actustranenDate', 'elim');
+    });
+    document.getElementById('wPredDate')?.addEventListener('change', () => {
+      applyConclusionDateFromInput('wPredDate', 'actPredostavlenDate', 'pred');
+    });
+    document.getElementById('wUtverDate')?.addEventListener('change', () => {
+      applyConclusionDateFromInput('wUtverDate', 'actUtverzdenDate', 'utver');
     });
 
     document.getElementById('wVyvodyEditBtn')?.addEventListener('click', async () => {
@@ -1539,7 +1573,10 @@ const WizardController = (() => {
     if (s === 0) {
       const dateEl = document.getElementById('wDate');
       const numEl = document.getElementById('wNumber');
-      if (dateEl?.value) draft.date = new Date(dateEl.value + 'T12:00:00').toISOString();
+      if (dateEl?.value) {
+        draft.date = new Date(dateEl.value + 'T12:00:00').toISOString();
+        AktUtils.syncConclusionDatesFromInspection(draft);
+      }
       if (numEl?.value) draft.number = numEl.value;
     }
 

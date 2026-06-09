@@ -160,7 +160,7 @@ const DocGenerator = (() => {
       predVoiceLines,
       PedstavVoice:     pedstavVoiceText,
       pedstavVoiceLines,
-      Conclusion:       akt.description || akt.komissijaVyvody || '',
+      Conclusion:       akt.komissijaVyvody || akt.description || '',
       ustranenDate:     AktUtils.formatDateShort(akt.actustranenDate),
       predostavlenDate: AktUtils.formatDateShort(akt.actPredostavlenDate),
       violations,
@@ -651,11 +651,13 @@ const DocGenerator = (() => {
     return xml.split(key).join(val);
   }
 
+  const MULTILINE_SCALAR_KEYS = new Set(['PredVoice', 'PedstavVoice', 'Conclusion']);
+
   /** Заменяет скалярные маркеры в XML их значениями */
   function replaceScalarMarkers(xml, data, markerKeys) {
     let result = xml;
     for (const key of markerKeys) {
-      const val = key === 'PredVoice' || key === 'PedstavVoice'
+      const val = MULTILINE_SCALAR_KEYS.has(key)
         ? toWordMultilineTextXml(data[key] || '')
         : xmlEscape(String(data[key] || ''));
       result = replaceScalarMarker(result, key, val);

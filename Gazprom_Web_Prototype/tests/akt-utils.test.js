@@ -163,4 +163,54 @@ describe('AktUtils', () => {
     expect(AktUtils.lowercaseFirstLetter('123abc')).toBe('123abc');
     expect(AktUtils.lowercaseFirstLetter('')).toBe('');
   });
+
+  it('computeConclusionDatesFromInspection matches iOS (+1 month, +7 days)', () => {
+    const inspection = '2026-03-15T12:00:00.000Z';
+    const dates = AktUtils.computeConclusionDatesFromInspection(inspection);
+    expect(AktUtils.toDateInputValue(dates.actustranenDate)).toBe('2026-04-15');
+    expect(AktUtils.toDateInputValue(dates.actPredostavlenDate)).toBe('2026-04-15');
+    expect(AktUtils.toDateInputValue(dates.actUtverzdenDate)).toBe('2026-03-22');
+  });
+
+  it('syncConclusionDatesFromInspection updates only non-manual dates', () => {
+    const akt = {
+      date: '2026-01-10T12:00:00.000Z',
+      actustranenDate: '2026-05-01T12:00:00.000Z',
+      actPredostavlenDate: '2026-05-01T12:00:00.000Z',
+      actUtverzdenDate: '2026-01-20T12:00:00.000Z',
+      conclusionDatesManual: { elim: true, pred: false, utver: false },
+    };
+    AktUtils.syncConclusionDatesFromInspection(akt);
+    expect(AktUtils.toDateInputValue(akt.actustranenDate)).toBe('2026-05-01');
+    expect(AktUtils.toDateInputValue(akt.actPredostavlenDate)).toBe('2026-02-10');
+    expect(AktUtils.toDateInputValue(akt.actUtverzdenDate)).toBe('2026-01-17');
+  });
+
+  it('syncConclusionDatesFromInspection preserves legacy acts without manual flags', () => {
+    const akt = {
+      date: '2026-06-01T12:00:00.000Z',
+      actustranenDate: '2026-08-01T12:00:00.000Z',
+      actPredostavlenDate: '2026-08-01T12:00:00.000Z',
+      actUtverzdenDate: '2026-06-10T12:00:00.000Z',
+    };
+    AktUtils.syncConclusionDatesFromInspection(akt);
+    expect(AktUtils.toDateInputValue(akt.actustranenDate)).toBe('2026-08-01');
+    expect(AktUtils.toDateInputValue(akt.actPredostavlenDate)).toBe('2026-08-01');
+    expect(AktUtils.toDateInputValue(akt.actUtverzdenDate)).toBe('2026-06-10');
+  });
+
+  it('createEmptyDraft sets iOS-style conclusion dates', () => {
+    const draft = AktUtils.createEmptyDraft({ akts: [], organizations: [] });
+    expect(draft.conclusionDatesManual).toEqual({ elim: false, pred: false, utver: false });
+    const expected = AktUtils.computeConclusionDatesFromInspection(draft.date);
+    expect(AktUtils.toDateInputValue(draft.actustranenDate)).toBe(
+      AktUtils.toDateInputValue(expected.actustranenDate)
+    );
+    expect(AktUtils.toDateInputValue(draft.actPredostavlenDate)).toBe(
+      AktUtils.toDateInputValue(expected.actPredostavlenDate)
+    );
+    expect(AktUtils.toDateInputValue(draft.actUtverzdenDate)).toBe(
+      AktUtils.toDateInputValue(expected.actUtverzdenDate)
+    );
+  });
 });

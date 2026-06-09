@@ -165,6 +165,89 @@ const AktUtils = (() => {
     return out.toISOString();
   }
 
+  function addDaysIso(iso, days) {
+    const d = new Date(iso || Date.now());
+    if (Number.isNaN(d.getTime())) return new Date().toISOString();
+    const out = new Date(d);
+    out.setDate(out.getDate() + days);
+    return out.toISOString();
+  }
+
+  function isWeekendUtc(d) {
+    const day = d.getUTCDay();
+    return day === 0 || day === 6;
+  }
+
+  /** Если дата на субботу/воскресенье — сдвиг на предыдущий рабочий день (пятница и т.д.). */
+  function adjustToPrevWorkdayIso(iso) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    while (isWeekendUtc(d)) {
+      d.setUTCDate(d.getUTCDate() - 1);
+    }
+    return d.toISOString();
+  }
+
+  /** Флаги ручного изменения дат в шаге «Выводы»; сбрасываются при смене даты проверки. */
+  function defaultConclusionDatesManual() {
+    return { elim: false, pred: false, utver: false };
+  }
+
+  function normalizeConclusionDatesManual(akt) {
+    const m = akt?.conclusionDatesManual;
+    if (!m || typeof m !== 'object') {
+      return { elim: true, pred: true, utver: true };
+    }
+    return {
+      elim: Boolean(m.elim),
+      pred: Boolean(m.pred),
+      utver: Boolean(m.utver),
+    };
+  }
+
+  function ensureConclusionDateTracking(akt) {
+    if (!akt) return akt;
+    if (akt.date && !akt.conclusionDatesInspectionBasis) {
+      akt.conclusionDatesInspectionBasis = akt.date;
+    }
+    if (!akt.conclusionDatesManual) {
+      akt.conclusionDatesManual = normalizeConclusionDatesManual(akt);
+    }
+    return akt;
+  }
+
+  /** Даты выводов: +1 мес. (устранение и предоставление), +7 дн. (утверждение); без выходных. */
+  function computeConclusionDatesFromInspection(inspectionIso) {
+    const base = inspectionIso || new Date().toISOString();
+    const elim = adjustToPrevWorkdayIso(addMonthsIso(base, 1));
+    const utver = adjustToPrevWorkdayIso(addDaysIso(base, 7));
+    return {
+      actustranenDate: elim,
+      actPredostavlenDate: elim,
+      actUtverzdenDate: utver,
+    };
+  }
+
+  /**
+   * Смена даты проверки: при другом календарном дне — полный пересчёт всех дат и сброс ручных флагов.
+   * Ручные правки сохраняются, пока дата проверки не изменится снова.
+   */
+  function applyInspectionDateChange(akt, inspectionIso) {
+    if (!akt || !inspectionIso) return akt;
+    ensureConclusionDateTracking(akt);
+    const basis = akt.conclusionDatesInspectionBasis || akt.date;
+    akt.date = inspectionIso;
+    if (!sameDeadlineDay(basis, inspectionIso)) {
+      const computed = computeConclusionDatesFromInspection(inspectionIso);
+      akt.actustranenDate = computed.actustranenDate;
+      akt.actPredostavlenDate = computed.actPredostavlenDate;
+      akt.actUtverzdenDate = computed.actUtverzdenDate;
+      akt.conclusionDatesManual = defaultConclusionDatesManual();
+      akt.conclusionDatesInspectionBasis = inspectionIso;
+    }
+    return akt;
+  }
+
   /** Текущий полный акт для «Продолжить…» / мастера (сокращённые не учитываются). */
   function getFullEditableAkt(catalog) {
     const akt = catalog?.editableAkt?.akt;
@@ -267,8 +350,7 @@ const AktUtils = (() => {
   function createEmptyDraft(catalog) {
     const now = new Date();
     const iso = now.toISOString();
-    const in30 = new Date(now);
-    in30.setDate(in30.getDate() + 30);
+    const conclusionDates = computeConclusionDatesFromInspection(iso);
 
     const year = new Date(iso).getFullYear();
     const number = nextAktNumberForYear(catalog?.akts, year);
@@ -283,9 +365,11 @@ const AktUtils = (() => {
       predstavitelyComission: [],
       violations: [],
       description: '',
-      actustranenDate: in30.toISOString(),
-      actPredostavlenDate: iso,
-      actUtverzdenDate: iso,
+      actustranenDate: conclusionDates.actustranenDate,
+      actPredostavlenDate: conclusionDates.actPredostavlenDate,
+      actUtverzdenDate: conclusionDates.actUtverzdenDate,
+      conclusionDatesManual: defaultConclusionDatesManual(),
+      conclusionDatesInspectionBasis: iso,
       urlToFllACT: null,
       realDateCreate: iso,
       uniqueID: `${toDateInputValue(iso)}-${number}`,
@@ -385,6 +469,13 @@ const AktUtils = (() => {
     parseShortViolationCounts,
     buildShortViolations,
     addMonthsIso,
+    addDaysIso,
+    adjustToPrevWorkdayIso,
+    defaultConclusionDatesManual,
+    normalizeConclusionDatesManual,
+    ensureConclusionDateTracking,
+    computeConclusionDatesFromInspection,
+    applyInspectionDateChange,
     getFullEditableAkt,
     applyCurrentEditable,
     isDraft,
