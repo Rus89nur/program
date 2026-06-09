@@ -1662,23 +1662,23 @@ const WizardController = (() => {
   function updateSummary() {
     const panel = document.getElementById('wizardSummaryCard');
     if (!panel || !draft) return;
-    const photos = AktUtils.countPhotos(draft);
-    const rows = panel.querySelectorAll('.summary-row');
     const orgLabel =
       draft.organization?.shortTitle ||
       draft.organization?.title ||
       '—';
-    const vals = [
-      `№ ${draft.number}`,
-      AktUtils.formatDateShort(draft.date),
-      `${(draft.comission || []).length} чел.`,
-      orgLabel,
-      `${(draft.violations || []).length}`,
-      `${photos}`,
-    ];
-    rows.forEach((row, i) => {
+    const vals = {
+      number: `№ ${draft.number || '—'}`,
+      date: AktUtils.formatDateShort(draft.date),
+      commission: `${(draft.comission || []).length} чел.`,
+      organization: orgLabel,
+      representatives: `${(draft.predstavitelyComission || []).length} чел.`,
+      violations: `${(draft.violations || []).length}`,
+      photos: `${AktUtils.countPhotos(draft)}`,
+    };
+    panel.querySelectorAll('.summary-row[data-summary-key]').forEach((row) => {
+      const key = row.dataset.summaryKey;
       const span = row.querySelector('span:last-child');
-      if (span && vals[i] !== undefined) span.textContent = vals[i];
+      if (span && vals[key] !== undefined) span.textContent = vals[key];
     });
   }
 
