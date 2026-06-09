@@ -232,13 +232,9 @@ const ViolationRegistry = (() => {
       .map(
         (item, i) => `
       <tr>
-        <td style="text-align:center;color:var(--text-muted);font-size:12px;width:44px;">
-          ${item.number || i + 1}
-        </td>
-        <td>
-          <div class="vr-cell-title" style="font-weight:600;font-size:13px;line-height:1.45;color:var(--text);">
-            ${escHtml(item.title)}
-          </div>
+        <td class="vr-col-num">${item.number || i + 1}</td>
+        <td class="vr-col-title">
+          <div class="vr-cell-title">${escHtml(item.title)}</div>
           ${item.subTitle ? `
           <div class="vr-cell-ref" style="font-size:12px;color:var(--text-muted);margin-top:6px;padding-top:5px;border-top:1px dashed var(--border);">
             📄 ${escHtml(item.subTitle)}
@@ -248,17 +244,17 @@ const ViolationRegistry = (() => {
             📋 ${escHtml(item.formulaFromRules.slice(0, 100))}${item.formulaFromRules.length > 100 ? '…' : ''}
           </div>` : ''}
         </td>
-        <td style="width:200px;padding-top:16px;">
+        <td class="vr-col-vid">
           ${item.vid
-            ? `<span class="badge" style="background:var(--primary-soft);color:var(--primary);font-size:11px;white-space:normal;line-height:1.4;padding:4px 8px;display:inline-block;">${escHtml(item.vid)}</span>`
-            : '<span style="color:var(--text-muted);font-size:13px;">—</span>'}
+            ? `<span class="badge vr-vid-badge">${escHtml(item.vid)}</span>`
+            : '<span class="vr-cell-empty">—</span>'}
         </td>
-        <td style="width:160px;font-size:12px;color:var(--text-muted);padding-top:16px;line-height:1.5;">
+        <td class="vr-col-note">
           ${item.description
             ? escHtml(item.description.slice(0, 80)) + (item.description.length > 80 ? '…' : '')
-            : '<span style="color:var(--border);">—</span>'}
+            : '<span class="vr-cell-empty">—</span>'}
         </td>
-        <td class="btn-row" style="width:80px;white-space:nowrap;padding-top:12px;">
+        <td class="btn-row vr-col-actions">
           <button class="btn-ghost btn-sm" title="Изменить" data-vrs-edit="${item.id}">✏️</button>
           <button class="btn-ghost btn-sm modal-btn-danger" title="Удалить" data-vrs-del="${item.id}">🗑</button>
         </td>

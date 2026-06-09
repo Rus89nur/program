@@ -292,8 +292,10 @@
       display: flex;
       flex-direction: column;
       overflow-y: auto;
+      overflow-x: clip;
       padding: 24px;
       background: var(--bg);
+      min-width: 0;
     }
     .main > .screen.active {
       flex: 1 1 auto;
@@ -545,6 +547,9 @@
       display: grid;
       grid-template-columns: 1fr 320px;
       gap: 20px;
+    }
+    .wizard-layout > div {
+      min-width: 0;
     }
     @media (max-width: 1100px) {
       .wizard-layout { grid-template-columns: 1fr; }
@@ -2586,16 +2591,20 @@
       align-items: center;
       flex-wrap: wrap;
       margin-bottom: 12px;
+      max-width: 100%;
+      min-width: 0;
     }
-    .viol-search-toolbar .form-control { font-size: 13px; }
-    .viol-search-toolbar input[type="search"] { flex: 1; min-width: 180px; }
-    .viol-search-toolbar select { min-width: 160px; max-width: 240px; }
+    .viol-search-toolbar .form-control { font-size: 13px; min-width: 0; }
+    .viol-search-toolbar input[type="search"] { flex: 1 1 180px; min-width: 0; }
+    .viol-search-toolbar select { flex: 0 1 200px; min-width: 0; max-width: 240px; }
     .viol-empty--filter .viol-empty-icon { font-size: 32px; }
     .viol-filters {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
       margin-bottom: 16px;
+      max-width: 100%;
+      min-width: 0;
     }
     .viol-filter-chip {
       padding: 6px 14px;
@@ -2638,6 +2647,8 @@
       flex-direction: column;
       gap: 10px;
       margin-bottom: 16px;
+      max-width: 100%;
+      min-width: 0;
     }
     .viol-card {
       display: flex;
@@ -2650,6 +2661,8 @@
       transition: box-shadow 0.15s, border-color 0.15s;
       cursor: grab;
       user-select: none;
+      max-width: 100%;
+      min-width: 0;
     }
     .viol-card:active { cursor: grabbing; }
     .viol-card .viol-card-actions { cursor: default; }
@@ -2698,9 +2711,13 @@
       font-size: 12px;
       color: var(--text-muted);
       margin-bottom: 6px;
-      white-space: nowrap;
+      line-height: 1.45;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
       overflow: hidden;
-      text-overflow: ellipsis;
     }
     .viol-card-meta {
       display: flex;
@@ -2717,10 +2734,13 @@
       background: var(--bg);
       border-radius: 6px;
       padding: 3px 8px;
+      max-width: 100%;
+      word-break: break-word;
+      overflow-wrap: anywhere;
     }
     .viol-card-thumbs {
       display: flex;
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
       gap: 6px;
       margin-top: 8px;
     }
@@ -2756,10 +2776,9 @@
       border-radius: 6px;
       padding: 3px 8px;
       line-height: 1.4;
-      max-width: 220px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      max-width: 100%;
+      word-break: break-word;
+      overflow-wrap: anywhere;
     }
     .viol-card-actions {
       display: flex;
@@ -2807,6 +2826,9 @@
     .viol-add-fab__icon { width: 28px; height: 28px; pointer-events: none; }
     .wizard-panel--violations {
       padding-bottom: 88px;
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: clip;
     }
     html.gazprom-scroll-lock .viol-add-fab {
       visibility: hidden;
@@ -3026,9 +3048,16 @@
     }
 
     /* ===== Реестр нарушений (экран #screen-violations) ===== */
+    #screen-violations {
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: clip;
+    }
     .violations-screen-header {
       margin-bottom: 0;
       border-radius: var(--radius) var(--radius) 0 0;
+      max-width: 100%;
+      min-width: 0;
     }
     .violations-screen-nav {
       display: flex;
@@ -3046,14 +3075,40 @@
       align-items: center;
       flex-wrap: wrap;
       padding-bottom: 4px;
+      max-width: 100%;
+      min-width: 0;
     }
-    .violations-screen-toolbar .form-control { font-size: 13px; }
-    .violations-screen-toolbar input[type="search"] { flex: 1; min-width: 180px; }
+    .violations-screen-toolbar .form-control { font-size: 13px; min-width: 0; }
+    .violations-screen-toolbar input[type="search"] { flex: 1 1 180px; min-width: 0; }
+    .violations-screen-toolbar select {
+      flex: 0 1 200px;
+      min-width: 0;
+      max-width: 240px;
+      font-size: 13px;
+    }
+    .violations-screen-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
     .violations-screen-header { padding: 18px 20px 14px; }
 
     #vrScreenTableWrap {
       border-radius: 0 0 var(--radius) var(--radius);
       margin-top: 0;
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: clip;
+    }
+    #vrScreenTableWrap .list-table {
+      width: 100%;
+      max-width: 100%;
+    }
+    #vrScreenTableWrap .list-table th,
+    #vrScreenTableWrap .list-table td {
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
     #vrScreenTableWrap .list-table th {
       padding: 14px 16px;
@@ -3069,7 +3124,15 @@
       border-top: 1px solid var(--border);
     }
     /* Отступы внутри ячейки с формулировкой */
-    #vrScreenTableBody .vr-cell-title { margin-bottom: 0; }
+    #vrScreenTableBody .vr-cell-title {
+      margin-bottom: 0;
+      font-weight: 600;
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--text);
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
     #vrScreenTableBody .vr-cell-ref {
       margin-top: 6px;
       padding-top: 5px;
@@ -3079,6 +3142,33 @@
       margin-top: 5px;
       padding-top: 4px;
     }
+    #vrScreenTableWrap .vr-col-num {
+      width: 44px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+    #vrScreenTableWrap .vr-col-vid { width: 18%; }
+    #vrScreenTableWrap .vr-col-note {
+      width: 14%;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    #vrScreenTableWrap .vr-col-actions { width: 80px; }
+    .vr-vid-badge {
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 11px;
+      white-space: normal;
+      line-height: 1.4;
+      padding: 4px 8px;
+      display: inline-block;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .vr-cell-empty { color: var(--text-muted); font-size: 13px; }
 
     .vr-screen-empty {
       display: flex;
