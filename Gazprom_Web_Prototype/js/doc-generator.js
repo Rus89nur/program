@@ -53,6 +53,23 @@ const DocGenerator = (() => {
     GazpromToast.success('Шаблон Word сохранён');
   }
 
+  /** Запасной вариант, если в кэше старый akt-utils.js без lowercaseFirstLetter. */
+  function lowercaseFirstLetterFallback(text) {
+    const val = String(text ?? '');
+    if (!val) return val;
+    const m = val.match(/^(\s*)(\p{Lu})/u);
+    if (!m) return val;
+    const idx = m[1].length;
+    return val.slice(0, idx) + m[2].toLocaleLowerCase('ru-RU') + val.slice(idx + 1);
+  }
+
+  function lowercaseFirstLetter(text) {
+    if (typeof AktUtils.lowercaseFirstLetter === 'function') {
+      return AktUtils.lowercaseFirstLetter(text);
+    }
+    return lowercaseFirstLetterFallback(text);
+  }
+
   function buildTemplateData(akt) {
     function formatFioForSign(fio) {
       const raw = String(fio || '').trim();
@@ -68,7 +85,7 @@ const DocGenerator = (() => {
     }
 
     function jobTitleInText(jobTitle) {
-      return AktUtils.lowercaseFirstLetter(String(jobTitle || '').trim());
+      return lowercaseFirstLetter(String(jobTitle || '').trim());
     }
 
     function jobTitleForSign(jobTitle) {
