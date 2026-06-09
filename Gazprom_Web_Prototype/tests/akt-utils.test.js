@@ -165,43 +165,71 @@ describe('AktUtils', () => {
   });
 
   it('computeConclusionDatesFromInspection matches iOS (+1 month, +7 days)', () => {
-    const inspection = '2026-03-15T12:00:00.000Z';
+    const inspection = '2026-03-09T12:00:00.000Z';
     const dates = AktUtils.computeConclusionDatesFromInspection(inspection);
-    expect(AktUtils.toDateInputValue(dates.actustranenDate)).toBe('2026-04-15');
-    expect(AktUtils.toDateInputValue(dates.actPredostavlenDate)).toBe('2026-04-15');
-    expect(AktUtils.toDateInputValue(dates.actUtverzdenDate)).toBe('2026-03-22');
+    expect(AktUtils.toDateInputValue(dates.actustranenDate)).toBe('2026-04-09');
+    expect(AktUtils.toDateInputValue(dates.actPredostavlenDate)).toBe('2026-04-09');
+    expect(AktUtils.toDateInputValue(dates.actUtverzdenDate)).toBe('2026-03-16');
   });
 
-  it('syncConclusionDatesFromInspection updates only non-manual dates', () => {
+  it('computeConclusionDatesFromInspection shifts weekend dates to previous workday', () => {
+    const inspection = '2026-02-07T12:00:00.000Z';
+    const dates = AktUtils.computeConclusionDatesFromInspection(inspection);
+    expect(AktUtils.toDateInputValue(dates.actustranenDate)).toBe('2026-03-06');
+    expect(AktUtils.toDateInputValue(dates.actPredostavlenDate)).toBe('2026-03-06');
+    expect(AktUtils.toDateInputValue(dates.actUtverzdenDate)).toBe('2026-02-13');
+  });
+
+  it('applyInspectionDateChange recalculates all dates when inspection day changes', () => {
     const akt = {
       date: '2026-01-10T12:00:00.000Z',
       actustranenDate: '2026-05-01T12:00:00.000Z',
       actPredostavlenDate: '2026-05-01T12:00:00.000Z',
       actUtverzdenDate: '2026-01-20T12:00:00.000Z',
-      conclusionDatesManual: { elim: true, pred: false, utver: false },
+      conclusionDatesManual: { elim: true, pred: true, utver: true },
+      conclusionDatesInspectionBasis: '2026-01-10T12:00:00.000Z',
     };
-    AktUtils.syncConclusionDatesFromInspection(akt);
-    expect(AktUtils.toDateInputValue(akt.actustranenDate)).toBe('2026-05-01');
-    expect(AktUtils.toDateInputValue(akt.actPredostavlenDate)).toBe('2026-02-10');
-    expect(AktUtils.toDateInputValue(akt.actUtverzdenDate)).toBe('2026-01-17');
+    AktUtils.applyInspectionDateChange(akt, '2026-02-01T12:00:00.000Z');
+    expect(AktUtils.toDateInputValue(akt.actustranenDate)).toBe('2026-02-27');
+    expect(AktUtils.toDateInputValue(akt.actPredostavlenDate)).toBe('2026-02-27');
+    expect(AktUtils.toDateInputValue(akt.actUtverzdenDate)).toBe('2026-02-06');
+    expect(akt.conclusionDatesManual).toEqual({ elim: false, pred: false, utver: false });
   });
 
-  it('syncConclusionDatesFromInspection preserves legacy acts without manual flags', () => {
+  it('applyInspectionDateChange preserves manual dates when inspection day unchanged', () => {
+    const akt = {
+      date: '2026-01-10T12:00:00.000Z',
+      actustranenDate: '2026-05-01T12:00:00.000Z',
+      actPredostavlenDate: '2026-05-01T12:00:00.000Z',
+      actUtverzdenDate: '2026-01-20T12:00:00.000Z',
+      conclusionDatesManual: { elim: true, pred: true, utver: true },
+      conclusionDatesInspectionBasis: '2026-01-10T12:00:00.000Z',
+    };
+    AktUtils.applyInspectionDateChange(akt, '2026-01-10T15:00:00.000Z');
+    expect(AktUtils.toDateInputValue(akt.actustranenDate)).toBe('2026-05-01');
+    expect(AktUtils.toDateInputValue(akt.actPredostavlenDate)).toBe('2026-05-01');
+    expect(AktUtils.toDateInputValue(akt.actUtverzdenDate)).toBe('2026-01-20');
+    expect(akt.conclusionDatesManual).toEqual({ elim: true, pred: true, utver: true });
+  });
+
+  it('ensureConclusionDateTracking preserves legacy acts without manual flags', () => {
     const akt = {
       date: '2026-06-01T12:00:00.000Z',
       actustranenDate: '2026-08-01T12:00:00.000Z',
       actPredostavlenDate: '2026-08-01T12:00:00.000Z',
       actUtverzdenDate: '2026-06-10T12:00:00.000Z',
     };
-    AktUtils.syncConclusionDatesFromInspection(akt);
+    AktUtils.ensureConclusionDateTracking(akt);
+    expect(akt.conclusionDatesInspectionBasis).toBe('2026-06-01T12:00:00.000Z');
+    expect(akt.conclusionDatesManual).toEqual({ elim: true, pred: true, utver: true });
+    AktUtils.applyInspectionDateChange(akt, '2026-06-01T12:00:00.000Z');
     expect(AktUtils.toDateInputValue(akt.actustranenDate)).toBe('2026-08-01');
-    expect(AktUtils.toDateInputValue(akt.actPredostavlenDate)).toBe('2026-08-01');
-    expect(AktUtils.toDateInputValue(akt.actUtverzdenDate)).toBe('2026-06-10');
   });
 
   it('createEmptyDraft sets iOS-style conclusion dates', () => {
     const draft = AktUtils.createEmptyDraft({ akts: [], organizations: [] });
     expect(draft.conclusionDatesManual).toEqual({ elim: false, pred: false, utver: false });
+    expect(draft.conclusionDatesInspectionBasis).toBe(draft.date);
     const expected = AktUtils.computeConclusionDatesFromInspection(draft.date);
     expect(AktUtils.toDateInputValue(draft.actustranenDate)).toBe(
       AktUtils.toDateInputValue(expected.actustranenDate)

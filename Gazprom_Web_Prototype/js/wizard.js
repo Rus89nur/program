@@ -65,6 +65,7 @@ const WizardController = (() => {
   function initDraft() {
     const editable = AktUtils.getFullEditableAkt(catalog);
     draft = editable ? AktUtils.clone(editable) : AktUtils.createEmptyDraft(catalog);
+    AktUtils.ensureConclusionDateTracking(draft);
     violSearchQuery = '';
   }
 
@@ -148,6 +149,7 @@ const WizardController = (() => {
           return;
         }
         draft = AktUtils.clone(akt);
+        AktUtils.ensureConclusionDateTracking(draft);
         AktUtils.applyCurrentEditable(catalog, draft);
         await CatalogService.rememberLastOpenedAkt(draft);
       } else {
@@ -172,9 +174,6 @@ const WizardController = (() => {
     predOrgFilters = new Set();
     step = Math.max(0, Math.min(TOTAL_STEPS - 1, newStep));
     if (step === 2) normalizeObjectsCheck();
-    if (step === 4 && draft) {
-      AktUtils.syncConclusionDatesFromInspection(draft);
-    }
     syncStepperUI();
     render({ skipLayoutSync: true });
     updateSummary();
@@ -1102,7 +1101,8 @@ const WizardController = (() => {
       const dateEl = document.getElementById('wDate');
       const numEl = document.getElementById('wNumber');
       if (!dateEl?.value || !numEl) return;
-      draft.date = new Date(dateEl.value + 'T12:00:00').toISOString();
+      const inspectionIso = new Date(dateEl.value + 'T12:00:00').toISOString();
+      AktUtils.applyInspectionDateChange(draft, inspectionIso);
       const year = new Date(draft.date).getFullYear();
       const occupied = AktUtils.occupiedNumbers(catalog.akts, draft.id, year);
       let selected = numEl.value;
@@ -1115,7 +1115,6 @@ const WizardController = (() => {
       numEl.innerHTML = opts
         .map((n) => `<option value="${n}" ${String(selected) === String(n) ? 'selected' : ''}>${n}</option>`)
         .join('');
-      AktUtils.syncConclusionDatesFromInspection(draft);
       if (step === 4) render();
       scheduleAutosave();
     });
@@ -1574,8 +1573,8 @@ const WizardController = (() => {
       const dateEl = document.getElementById('wDate');
       const numEl = document.getElementById('wNumber');
       if (dateEl?.value) {
-        draft.date = new Date(dateEl.value + 'T12:00:00').toISOString();
-        AktUtils.syncConclusionDatesFromInspection(draft);
+        const inspectionIso = new Date(dateEl.value + 'T12:00:00').toISOString();
+        AktUtils.applyInspectionDateChange(draft, inspectionIso);
       }
       if (numEl?.value) draft.number = numEl.value;
     }
