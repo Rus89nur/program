@@ -418,6 +418,19 @@ const AktUtils = (() => {
     return val.slice(0, idx) + m[2].toLocaleLowerCase('ru-RU') + val.slice(idx + 1);
   }
 
+  /** Убирает кавычки в начале/конце строки (шаблон акта добавляет свои). */
+  function stripSurroundingQuotes(text) {
+    const QUOTE_CHARS = new Set(['«', '»', '"', '"', '"', "'", "'", '„', '‹', '›']);
+    let val = String(text ?? '').trim();
+    while (val.length && QUOTE_CHARS.has(val[0])) {
+      val = val.slice(1).trimStart();
+    }
+    while (val.length && QUOTE_CHARS.has(val[val.length - 1])) {
+      val = val.slice(0, -1).trimEnd();
+    }
+    return val;
+  }
+
   function isAutoCapitalizeField(el) {
     if (!el || !(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return false;
     if (el.readOnly || el.disabled) return false;
@@ -490,6 +503,7 @@ const AktUtils = (() => {
     defaultOrg,
     capitalizeFirstLetter,
     lowercaseFirstLetter,
+    stripSurroundingQuotes,
     isAutoCapitalizeField,
     applyAutoCapitalize,
     bindAutoCapitalize,

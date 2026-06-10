@@ -226,6 +226,13 @@ describe('AktUtils', () => {
     expect(AktUtils.toDateInputValue(akt.actustranenDate)).toBe('2026-08-01');
   });
 
+  it('stripSurroundingQuotes removes paired and lone edge quotes', () => {
+    expect(AktUtils.stripSurroundingQuotes('«Котельная №2»')).toBe('Котельная №2');
+    expect(AktUtils.stripSurroundingQuotes('"Котельная №2"')).toBe('Котельная №2');
+    expect(AktUtils.stripSurroundingQuotes('«Котельная №2')).toBe('Котельная №2');
+    expect(AktUtils.stripSurroundingQuotes('Котельная №2»')).toBe('Котельная №2');
+  });
+
   it('createEmptyDraft sets iOS-style conclusion dates', () => {
     const draft = AktUtils.createEmptyDraft({ akts: [], organizations: [] });
     expect(draft.conclusionDatesManual).toEqual({ elim: false, pred: false, utver: false });
