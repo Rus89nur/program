@@ -90,13 +90,21 @@ const WizardModals = (() => {
     GazpromMobileOverlay.syncWizardModalViewport?.();
   }
 
+  function readFieldRaw(id) {
+    return document.getElementById(id)?.value ?? '';
+  }
+
+  function isBlankText(text) {
+    return !String(text ?? '').trim();
+  }
+
   function readViolationFormSnapshot() {
     return {
-      title: document.getElementById('mvTitle')?.value?.trim() || '',
-      mesto: document.getElementById('mvMesto')?.value?.trim() || '',
-      subTitle: document.getElementById('mvUrl')?.value?.trim() || '',
+      title: readFieldRaw('mvTitle'),
+      mesto: readFieldRaw('mvMesto'),
+      subTitle: readFieldRaw('mvUrl'),
       vid: document.getElementById('mvVid')?.value || '',
-      formulaFromRules: document.getElementById('mvFormula')?.value?.trim() || '',
+      formulaFromRules: readFieldRaw('mvFormula'),
       photoCount: modalPhotos.length,
     };
   }
@@ -310,17 +318,8 @@ const WizardModals = (() => {
     ).join('');
 
     function renderRegistryResults(query) {
-      const q = query.trim().toLowerCase();
-      let items = registryItems;
-      if (q) {
-        items = items.filter(
-          (r) =>
-            (r.title || '').toLowerCase().includes(q) ||
-            (r.subTitle || '').toLowerCase().includes(q) ||
-            (r.vid || '').toLowerCase().includes(q) ||
-            (r.formulaFromRules || '').toLowerCase().includes(q)
-        );
-      }
+      const q = query.trim();
+      const items = ViolationSearch.filterRegistry(registryItems, q);
       if (!items.length && !q) {
         return `<div class="viol-registry-empty">Реестр нарушений пуст</div>`;
       }
@@ -378,7 +377,7 @@ const WizardModals = (() => {
 
       <div class="form-group">
         <label class="form-label">Формулировка нарушения <span style="color:var(--danger)">*</span></label>
-        <textarea class="form-control mv-auto-textarea" id="mvTitle" rows="1" placeholder="Не проведён инструктаж по охране труда…">${AktUtils.escapeHtml(v?.title || '')}</textarea>
+        <textarea class="form-control mv-auto-textarea" id="mvTitle" rows="1" data-no-capitalize placeholder="Не проведён инструктаж по охране труда…">${AktUtils.escapeHtml(v?.title || '')}</textarea>
       </div>
       <div class="form-group">
         <label class="form-label">Вид нарушения</label>
@@ -390,7 +389,7 @@ const WizardModals = (() => {
       </div>
       <div class="form-group">
         <label class="form-label">Формулировка из правил</label>
-        <textarea class="form-control mv-auto-textarea" id="mvFormula" rows="1" placeholder="Согласно п. …">${AktUtils.escapeHtml(v?.formulaFromRules || '')}</textarea>
+        <textarea class="form-control mv-auto-textarea" id="mvFormula" rows="1" data-no-capitalize placeholder="Согласно п. …">${AktUtils.escapeHtml(v?.formulaFromRules || '')}</textarea>
       </div>
       <div class="form-group">
         <label class="form-label">Фотофиксация</label>
@@ -413,10 +412,10 @@ const WizardModals = (() => {
 
     function getFormSnapshot() {
       return {
-        title:            document.getElementById('mvTitle')?.value?.trim() || '',
-        subTitle:         document.getElementById('mvUrl')?.value?.trim() || '',
+        title:            readFieldRaw('mvTitle'),
+        subTitle:         readFieldRaw('mvUrl'),
         vid:              document.getElementById('mvVid')?.value || '',
-        formulaFromRules: document.getElementById('mvFormula')?.value?.trim() || '',
+        formulaFromRules: readFieldRaw('mvFormula'),
       };
     }
 
@@ -686,8 +685,8 @@ const WizardModals = (() => {
       return;
     }
 
-    const title = document.getElementById('mvTitle')?.value?.trim();
-    if (!title) {
+    const title = readFieldRaw('mvTitle');
+    if (isBlankText(title)) {
       GazpromToast.error('Укажите формулировку нарушения');
       return;
     }
@@ -707,10 +706,11 @@ const WizardModals = (() => {
 
     try {
       await withSaveTimeout((async () => {
-        const mesto = document.getElementById('mvMesto')?.value?.trim() || '';
+        const mesto = readFieldRaw('mvMesto');
         const vid = document.getElementById('mvVid')?.value || '';
-        const urlToPravilo = document.getElementById('mvUrl')?.value?.trim() || '';
-        const formulaFromRules = document.getElementById('mvFormula')?.value?.trim() || null;
+        const urlToPravilo = readFieldRaw('mvUrl');
+        const formulaRaw = readFieldRaw('mvFormula');
+        const formulaFromRules = formulaRaw !== '' ? formulaRaw : null;
 
         const photoRefs = await finalizePhotoRefs(modalPhotos);
 

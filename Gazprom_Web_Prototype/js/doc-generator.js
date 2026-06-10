@@ -101,7 +101,7 @@ const DocGenerator = (() => {
     function formatSignerLine(p) {
       const fioShort = formatFioForSign(p.fio);
       const jobTitle = jobTitleForSign(p.jobTitle);
-      return `${jobTitle || ''}${jobTitle && fioShort ? ' — ' : ''}${fioShort || ''}`;
+      return `${jobTitle || ''}${jobTitle && fioShort ? ' ' : ''}${fioShort || ''}`.trim();
     }
 
     const commissionList = (akt.comission || []);
@@ -110,11 +110,11 @@ const DocGenerator = (() => {
     const commissionText = commissionList.map(formatJobFioInText).join(', ');
 
     const predsAll = (akt.predstavitelyComission || []);
-    const pedstavText = predsAll.map(formatJobFioInText).join('; ');
+    const pedstavText = predsAll.map(formatJobFioInText).join(', ');
 
     const pred = predsAll[0];
     const mainObject = (akt.objectsCheck || [])[0];
-    const nameObject = mainObject?.title || '';
+    const nameObject = AktUtils.stripSurroundingQuotes(mainObject?.title || '');
     const predVoiceLines = commissionList.map(formatSignerLine).filter(Boolean);
     const predVoiceText = predVoiceLines.join('\n\n');
 
@@ -184,10 +184,21 @@ const DocGenerator = (() => {
     };
   }
 
+  /** Текст ячейки Word: переносы строк → w:br, спецсимволы экранируются. */
   function toWordMultilineTextXml(text) {
-    const lines = String(text || '').split(/\r?\n/).map((s) => xmlEscape(s));
+    const lines = String(text ?? '').split(/\r?\n/).map((s) => xmlEscape(s));
+    if (lines.length <= 1) return lines[0] ?? '';
     return lines.join('</w:t><w:br/><w:t>');
   }
+
+  /** Поля нарушений в таблице акта — вставляются как в форме, с переносами. */
+  const VIOLATION_TABLE_MULTILINE_MARKERS = new Set([
+    'TitleViolatation',
+    'ddescrVi',
+    'ddescpitVi',
+    'urlDoc',
+    'formula',
+  ]);
 
   function buildSignatureTableXml(lines) {
     const signers = (lines || []).filter(Boolean);
@@ -416,7 +427,10 @@ const DocGenerator = (() => {
     const expandedRows = rows.map((item) => {
       let row = templateRow;
       for (const [marker, valueKey] of Object.entries(fieldMap)) {
-        const val = xmlEscape(String(item[valueKey] ?? ''));
+        const raw = String(item[valueKey] ?? '');
+        const val = VIOLATION_TABLE_MULTILINE_MARKERS.has(marker)
+          ? toWordMultilineTextXml(raw)
+          : xmlEscape(raw);
         row = row.split(marker).join(val);
       }
       return row;
@@ -651,7 +665,13 @@ const DocGenerator = (() => {
     return xml.split(key).join(val);
   }
 
-  const MULTILINE_SCALAR_KEYS = new Set(['PredVoice', 'PedstavVoice', 'Conclusion']);
+  const MULTILINE_SCALAR_KEYS = new Set([
+    'PredVoice',
+    'PedstavVoice',
+    'Conclusion',
+    'ddescrVi',
+    'ddescpitVi',
+  ]);
 
   /** Заменяет скалярные маркеры в XML их значениями */
   function replaceScalarMarkers(xml, data, markerKeys) {
@@ -707,6 +727,7 @@ const DocGenerator = (() => {
         ddescrVi:         'ddescrVi',
         ddescpitVi:       'ddescpitVi',   // FIX 4: алиас на опечатку в шаблоне
         urlDoc:           'urlDoc',
+        formula:          'formula',
       });
 
       // 2. Фототаблица (tempOne / tempTwo / tempThree)
@@ -755,5 +776,13 @@ const DocGenerator = (() => {
     return c?.wordTemplateName || null;
   }
 
-  return { saveTemplate, generateFromAkt, hasTemplate, getTemplateName, buildTemplateData, TEMPLATE_KEY };
+  return {
+    saveTemplate,
+    generateFromAkt,
+    hasTemplate,
+    getTemplateName,
+    buildTemplateData,
+    toWordMultilineTextXml,
+    TEMPLATE_KEY,
+  };
 })();

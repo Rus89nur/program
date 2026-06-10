@@ -373,7 +373,7 @@ const ViolationRegistry = (() => {
         <h3>${item ? 'Изменить нарушение' : 'Добавить нарушение'}</h3>
         <div class="form-group">
           <label class="form-label">Формулировка несоответствия <span style="color:var(--danger)">*</span></label>
-          <textarea class="form-control" data-field="title" rows="3" placeholder="Не проведён инструктаж по охране труда…">${escHtml(item?.title || '')}</textarea>
+          <textarea class="form-control" data-field="title" rows="3" data-no-capitalize placeholder="Не проведён инструктаж по охране труда…">${escHtml(item?.title || '')}</textarea>
         </div>
         <div class="form-group">
           <label class="form-label">Ссылка на нормативный документ</label>
@@ -392,7 +392,7 @@ const ViolationRegistry = (() => {
         </div>
         <div class="form-group">
           <label class="form-label">Формулировка из правил</label>
-          <textarea class="form-control" data-field="formulaFromRules" rows="2" placeholder="Согласно п. …">${escHtml(item?.formulaFromRules || '')}</textarea>
+          <textarea class="form-control" data-field="formulaFromRules" rows="2" data-no-capitalize placeholder="Согласно п. …">${escHtml(item?.formulaFromRules || '')}</textarea>
         </div>
         <div class="catalog-form-actions">
           <button type="button" class="btn-ghost" data-cancel>Отмена</button>
@@ -432,15 +432,16 @@ const ViolationRegistry = (() => {
     saveBtn.onclick = async () => {
       if (saveBtn.disabled) return;
 
-      const title = form.querySelector('[data-field="title"]')?.value?.trim();
-      if (!title) { GazpromToast.error('Заполните формулировку несоответствия'); return; }
+      const readRaw = (sel) => form.querySelector(sel)?.value ?? '';
+      const title = readRaw('[data-field="title"]');
+      if (!title.trim()) { GazpromToast.error('Заполните формулировку несоответствия'); return; }
 
       const fields = {
         title,
-        subTitle:         form.querySelector('[data-field="subTitle"]')?.value?.trim() || '',
-        description:      form.querySelector('[data-field="description"]')?.value?.trim() || '',
+        subTitle:         readRaw('[data-field="subTitle"]'),
+        description:      readRaw('[data-field="description"]'),
         vid:              form.querySelector('[data-field="vid"]')?.value || '',
-        formulaFromRules: form.querySelector('[data-field="formulaFromRules"]')?.value?.trim() || '',
+        formulaFromRules: readRaw('[data-field="formulaFromRules"]'),
       };
 
       saveBtn.disabled = true;
