@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gazprom-web-v156';
+const CACHE_NAME = 'gazprom-web-v157';
 const IS_LOCALHOST = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
 const STATIC_ASSETS = [
   './manifest.json',
@@ -9,8 +9,9 @@ const STATIC_ASSETS = [
   './js/akt-utils.js?v=29',
   './js/toast.js',
   './js/mobile-overlay.js?v=33',
+  './js/violation-search.js?v=2',
   './js/violation-templates.js',
-  './js/violation-registry.js?v=6',
+  './js/violation-registry.js?v=7',
   './js/catalog-service.js',
   './js/backup-import.js?v=23',
   './js/akt-search.js',
@@ -19,7 +20,7 @@ const STATIC_ASSETS = [
   './js/schedule-editor.js',
   './js/elimination-editor.js?v=8',
   './js/wizard-modals.js?v=42',
-  './js/wizard.js?v=55',
+  './js/wizard.js?v=56',
   './js/short-akt-form.js',
   './js/doc-generator.js?v=35',
   './js/report-exporter.js?v=2',

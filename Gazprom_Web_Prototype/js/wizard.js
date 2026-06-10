@@ -486,23 +486,7 @@ const WizardController = (() => {
   }
 
   function filterActViolations(violations, query) {
-    const q = String(query).trim().toLowerCase();
-    if (!q) return [...(violations || [])];
-    return (violations || []).filter((v) => {
-      const haystack = [
-        v.title,
-        v.urlToPravilo,
-        v.subTitle,
-        v.mesto,
-        v.vid,
-        v.formulaFromRules,
-        v.description,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(q);
-    });
+    return ViolationSearch.filterActViolations(violations, query);
   }
 
   function isViolFiltering() {

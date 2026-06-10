@@ -473,19 +473,7 @@ const ViolationRegistry = (() => {
   /* ——— Вспомогательные ——— */
 
   function filterItems(list, query, vidFilter) {
-    let result = list;
-    if (vidFilter) result = result.filter((x) => x.vid === vidFilter);
-    if (query) {
-      const q = query.toLowerCase();
-      result = result.filter(
-        (x) =>
-          (x.title || '').toLowerCase().includes(q) ||
-          (x.subTitle || '').toLowerCase().includes(q) ||
-          (x.description || '').toLowerCase().includes(q) ||
-          (x.formulaFromRules || '').toLowerCase().includes(q)
-      );
-    }
-    return result;
+    return ViolationSearch.filterRegistry(list, query, { vidFilter });
   }
 
   function escHtml(s) {
