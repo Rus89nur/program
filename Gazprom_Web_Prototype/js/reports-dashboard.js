@@ -251,9 +251,11 @@ const ReportsDashboard = (() => {
     });
   }
 
-  function collectRows(data, { ignoreContractorFilter = false } = {}) {
+  function collectRows(data, { ignoreContractorFilter = false, ignoreFilters = false } = {}) {
     const eliminations = data.violationEliminations || [];
-    const akts = filterAkts(data.akts || [], data, { ignoreContractorFilter });
+    const akts = ignoreFilters
+      ? data.akts || []
+      : filterAkts(data.akts || [], data, { ignoreContractorFilter });
     const rows = [];
 
     for (const akt of akts) {
@@ -414,40 +416,48 @@ const ReportsDashboard = (() => {
       document.getElementById('reportsContractorGrid');
     if (!wrap) return;
 
-    const { rows } = collectRows(data, { ignoreContractorFilter: true });
+    try {
+      const { rows } = collectRows(data, { ignoreFilters: true });
 
-    if (!rows.length) {
-      wrap.innerHTML = '<p class="reports-chart-empty" role="status">Нет данных для отображения</p>';
-      return;
-    }
-
-    const byOrg = new Map();
-    for (const r of rows) {
-      const org = r.org && r.org !== '—' ? r.org : 'Организация не указана';
-      if (!byOrg.has(org)) {
-        byOrg.set(org, { total: 0, done: 0, overdue: 0, ontime: 0, nodeadline: 0 });
+      if (!rows.length) {
+        wrap.innerHTML =
+          '<p class="reports-chart-empty" role="status">Нет нарушений по подрядчикам</p>';
+        return;
       }
-      const bucket = byOrg.get(org);
-      bucket.total += 1;
-      bucket[r.status] += 1;
+
+      const byOrg = new Map();
+      for (const r of rows) {
+        const org = r.org && r.org !== '—' ? r.org : 'Организация не указана';
+        if (!byOrg.has(org)) {
+          byOrg.set(org, { total: 0, done: 0, overdue: 0, ontime: 0, nodeadline: 0 });
+        }
+        const bucket = byOrg.get(org);
+        bucket.total += 1;
+        bucket[r.status] += 1;
+      }
+
+      const entries = [...byOrg.entries()].sort((a, b) => b[1].total - a[1].total);
+      const max = entries[0][1].total || 1;
+      const totalViolations = entries.reduce((sum, [, c]) => sum + c.total, 0);
+
+      wrap.innerHTML = `<div class="reports-treemap">${entries
+        .map(([org, counts]) => {
+          const filterOrg = org === 'Организация не указана' ? '—' : org;
+          const isActive = isContractorFilterActive(org, filterOrg);
+          const color = orgBlockColor(counts);
+          const widthPct = Math.max(18, Math.round((counts.total / totalViolations) * 100));
+          const grow = Math.max(1, Math.round((counts.total / max) * 100));
+          return `<button type="button" class="reports-treemap__cell${isActive ? ' reports-treemap__cell--active' : ''}" style="flex-grow:${grow};flex-basis:calc(${widthPct}% - 8px);background:${color}" data-reports-org="${AktUtils.escapeHtml(filterOrg)}" title="${AktUtils.escapeHtml(org)} — ${counts.total}" aria-pressed="${isActive}" aria-label="Фильтр: ${AktUtils.escapeHtml(org)}, ${counts.total} нарушений">
+            <span class="reports-treemap__name">${AktUtils.escapeHtml(org)}</span>
+            <span class="reports-treemap__val">${counts.total}</span>
+          </button>`;
+        })
+        .join('')}</div>`;
+    } catch (err) {
+      console.error('ReportsDashboard: renderOrgTreemap', err);
+      wrap.innerHTML =
+        '<p class="reports-chart-empty" role="status">Не удалось построить диаграмму по подрядчикам</p>';
     }
-
-    const entries = [...byOrg.entries()].sort((a, b) => b[1].total - a[1].total);
-    const max = entries[0][1].total || 1;
-
-    wrap.innerHTML = `<div class="reports-treemap">${entries
-      .map(([org, counts]) => {
-        const grow = Math.max(1, counts.total);
-        const minWidth = Math.max(28, Math.round((counts.total / max) * 100));
-        const color = orgBlockColor(counts);
-        const isActive = isContractorFilterActive(org, filterOrg);
-        const filterOrg = org === 'Организация не указана' ? '—' : org;
-        return `<button type="button" class="reports-treemap__cell${isActive ? ' reports-treemap__cell--active' : ''}" style="flex-grow:${grow};flex-basis:${minWidth}%;background:${color}" data-reports-org="${AktUtils.escapeHtml(filterOrg)}" title="${AktUtils.escapeHtml(org)} — ${counts.total}" aria-pressed="${isActive}" aria-label="Фильтр: ${AktUtils.escapeHtml(org)}, ${counts.total} нарушений">
-          <span class="reports-treemap__name">${AktUtils.escapeHtml(org)}</span>
-          <span class="reports-treemap__val">${counts.total}</span>
-        </button>`;
-      })
-      .join('')}</div>`;
   }
 
   function renderBarChart(rows) {
