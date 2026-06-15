@@ -239,7 +239,7 @@ const ViolationTypesEditor = (() => {
             <th>Устаревший вид</th>
             <th style="width:100px;">В данных</th>
             <th>Заменён на</th>
-            <th style="width:160px;"></th>
+            <th style="width:220px;"></th>
           </tr>
         </thead>
         <tbody>
@@ -256,6 +256,7 @@ const ViolationTypesEditor = (() => {
                 <td>${n || '—'}</td>
                 <td>${mapped ? esc(mapped.title) : '—'}</td>
                 <td class="btn-row">
+                  <button type="button" class="btn-secondary btn-sm" data-vt-restore="${esc(t.id)}" title="Вернуть в активные">↩ Активные</button>
                   <button type="button" class="btn-secondary btn-sm" data-vt-goto-map="${esc(t.id)}">Сопоставить</button>
                   <button type="button" class="btn-ghost btn-sm modal-btn-danger" data-vt-delete="${esc(t.id)}" title="Удалить">🗑</button>
                 </td>
@@ -268,7 +269,39 @@ const ViolationTypesEditor = (() => {
     body.querySelectorAll('[data-vt-goto-map]').forEach((btn) => {
       btn.addEventListener('click', () => openSplitModal(btn.dataset.vtGotoMap));
     });
+    body.querySelectorAll('[data-vt-restore]').forEach((btn) => {
+      btn.addEventListener('click', () => handleRestoreType(btn.dataset.vtRestore));
+    });
     bindDeleteButtons(body);
+  }
+
+  async function handleRestoreType(id) {
+    const t = ViolationTypes.findById(catalog, id);
+    if (!t) return;
+
+    const hadMapping = ViolationTypes.isMappedToActive(catalog, t);
+    let message = `Вернуть «${t.title}» в активные виды?`;
+    if (hadMapping) {
+      message += ' Соответствие с новым видом будет снято.';
+    }
+
+    const ok = await GazpromToast.confirm(message);
+    if (!ok) return;
+
+    const result = ViolationTypes.restoreType(catalog, id);
+    if (!result.ok) {
+      if (result.reason === 'duplicate') {
+        GazpromToast.error(`Активный вид «${result.title}» уже существует`);
+      } else {
+        GazpromToast.error('Не удалось восстановить вид');
+      }
+      return;
+    }
+
+    if (mapSelectedFrom === id) mapSelectedFrom = null;
+    await saveCatalog('Вид возвращён в активные');
+    currentTab = 'active';
+    renderScreen();
   }
 
   function renderMapTab(body) {

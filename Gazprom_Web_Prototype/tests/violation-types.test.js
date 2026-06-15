@@ -119,4 +119,19 @@ describe('ViolationTypes', () => {
     expect(r.ok).toBe(true);
     expect(catalog.violationTypes).toHaveLength(0);
   });
+
+  it('restoreType возвращает вид из архива в активные', () => {
+    const catalog = {
+      akts: [],
+      violationTypes: [
+        { id: 'a1', title: 'Старый', status: 'archived', replacedBy: 'a2' },
+        { id: 'a2', title: 'Новый', status: 'active' },
+      ],
+      typeMappings: { a1: 'a2' },
+    };
+    const r = VT.restoreType(catalog, 'a1');
+    expect(r.ok).toBe(true);
+    expect(VT.findById(catalog, 'a1').status).toBe('active');
+    expect(VT.getMappings(catalog).a1).toBeUndefined();
+  });
 });

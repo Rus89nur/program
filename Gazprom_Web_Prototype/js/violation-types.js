@@ -255,6 +255,29 @@ const ViolationTypes = (() => {
     return true;
   }
 
+  function restoreType(catalog, id) {
+    const t = findById(catalog, id);
+    if (!t || t.status !== STATUS_ARCHIVED) {
+      return { ok: false, reason: 'not_archived' };
+    }
+
+    const duplicate = getActiveTypes(catalog).find(
+      (x) => x.id !== t.id && x.title === t.title
+    );
+    if (duplicate) {
+      return { ok: false, reason: 'duplicate', title: t.title };
+    }
+
+    t.status = STATUS_ACTIVE;
+    delete t.replacedBy;
+
+    const mappings = { ...getMappings(catalog) };
+    delete mappings[id];
+    catalog.typeMappings = mappings;
+
+    return { ok: true };
+  }
+
   function setMapping(catalog, fromId, toId) {
     if (!fromId || !toId || fromId === toId) return false;
     ensureCatalog(catalog);
@@ -363,6 +386,7 @@ const ViolationTypes = (() => {
     activateType,
     deleteType,
     archiveType,
+    restoreType,
     setMapping,
     clearMapping,
     isMappedToActive,
