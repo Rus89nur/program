@@ -177,9 +177,19 @@ const ViolationRegistry = (() => {
   /* ——— Вход в экран ——— */
 
   function open() {
-    // Переключить экран через goTo (определено в app.js)
-    if (typeof goTo === 'function') goTo('violations');
-    renderScreen();
+    if (typeof goTo === 'function') goTo('violation-registry-picker');
+    renderPickerScreen();
+  }
+
+  async function renderPickerScreen() {
+    const catalog = await GazpromStore.get();
+    if (typeof DefaultsBootstrap !== 'undefined') {
+      await DefaultsBootstrap.renderRegistryPicker(
+        document.getElementById('vrRegistryPresetPicker'),
+        { navigateOnSelect: true }
+      );
+      await DefaultsBootstrap.renderSettingsTilePreviews(catalog);
+    }
   }
 
   /* ——— Рендер экрана #screen-violations ——— */
@@ -228,13 +238,8 @@ const ViolationRegistry = (() => {
       const count = all.length;
       sourceEl.textContent = count
         ? `${count} записей · ${label}`
-        : 'Выберите реестр ниже';
+        : 'Реестр пуст — вернитесь к выбору';
       sourceEl.className = `vr-screen-source defaults-source defaults-source--${catalog?.violationRegistrySource || 'empty'}`;
-    }
-
-    if (typeof DefaultsBootstrap !== 'undefined') {
-      await DefaultsBootstrap.renderRegistryPicker(document.getElementById('vrRegistryPresetPicker'));
-      await DefaultsBootstrap.renderSettingsTilePreviews(catalog);
     }
 
     if (all.length === 0) {
@@ -245,10 +250,8 @@ const ViolationRegistry = (() => {
               <div style="font-size:40px;margin-bottom:12px;">⚠️</div>
               <p>Реестр нарушений пуст</p>
               <p style="font-size:13px;color:var(--text-muted);margin-top:8px;max-width:400px;">
-                Нажмите «↩️ Стандартный реестр» для загрузки встроенного справочника,<br>
-                «+ Добавить» — внести вручную,<br>
-                или «📂 Импорт Excel» — загрузить свой файл.<br><br>
-                Формат Excel: колонки «№», «Формулировка несоответствия», «Ссылка на нормативный документ», «Примечание», «Вид нарушения», «Формулировка из правил».
+                Вернитесь к <strong>«Выбор реестра»</strong> и выберите карточку,<br>
+                или нажмите «+ Добавить» для ручного ввода.
               </p>
             </div>
           </td>
@@ -327,6 +330,38 @@ const ViolationRegistry = (() => {
     });
   }
 
+  /* ——— Экран выбора реестра ——— */
+
+  let pickerBound = false;
+
+  function bindPickerScreen() {
+    if (pickerBound) return;
+    pickerBound = true;
+
+    const importInput = document.getElementById('vrPickerImportInput');
+    const importOptions = document.getElementById('vrPickerImportOptions');
+
+    importInput?.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const merge = document.getElementById('vrPickerMergeCheckbox')?.checked ?? false;
+      if (importOptions) importOptions.hidden = true;
+
+      try {
+        GazpromToast.info('Читаю файл…');
+        const count = await importFromExcel(file, { replace: !merge });
+        GazpromToast.success(`Импортировано нарушений: ${count}`);
+        await renderPickerScreen();
+        if (typeof goTo === 'function') goTo('violations');
+      } catch (err) {
+        console.error('[ViolationRegistry] import error:', err);
+        GazpromToast.error('Ошибка импорта: ' + (err.message || String(err)));
+      } finally {
+        e.target.value = '';
+      }
+    });
+  }
+
   /* ——— Привязка событий экрана (один раз при init) ——— */
 
   function bindScreen() {
@@ -347,39 +382,6 @@ const ViolationRegistry = (() => {
 
     // + Добавить
     document.getElementById('vrScreenAddBtn')?.addEventListener('click', () => openForm(null));
-
-    // Импорт — кнопка открывает сначала опции, потом диалог файла
-    const importInput = document.getElementById('vrScreenImportInput');
-    const importBtn   = document.getElementById('vrScreenImportBtn');
-    const importOptions = document.getElementById('vrScreenImportOptions');
-
-    importBtn?.addEventListener('click', () => {
-      // Диалог ДОЛЖЕН открываться синхронно внутри обработчика пользовательского жеста
-      importInput?.click();
-      // Показываем опции после открытия диалога
-      if (importOptions) importOptions.hidden = false;
-    });
-
-    importInput?.addEventListener('change', async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const merge = document.getElementById('vrScreenMergeCheckbox')?.checked ?? false;
-
-      // Сразу скрываем опции
-      if (importOptions) importOptions.hidden = true;
-
-      try {
-        GazpromToast.info('Читаю файл…');
-        const count = await importFromExcel(file, { replace: !merge });
-        GazpromToast.success(`Импортировано нарушений: ${count}`);
-        renderScreen('', '');
-      } catch (err) {
-        console.error('[ViolationRegistry] import error:', err);
-        GazpromToast.error('Ошибка импорта: ' + (err.message || String(err)));
-      } finally {
-        e.target.value = ''; // сброс, чтобы можно было выбрать тот же файл снова
-      }
-    });
 
     // Экспорт
     document.getElementById('vrScreenExportBtn')?.addEventListener('click', async () => {
@@ -534,6 +536,8 @@ const ViolationRegistry = (() => {
   return {
     open,
     bindScreen,
+    bindPickerScreen,
+    renderPickerScreen,
     renderScreen,
     getAll,
     addItem,

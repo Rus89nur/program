@@ -366,22 +366,28 @@ const DefaultsBootstrap = (() => {
   function renderPresetCard(preset, type) {
     const thumb = type === 'template' ? renderDocThumb() : renderRegistryThumb(preset);
     const meta = type === 'registry' && preset.count ? `${preset.count} зап.` : preset.subtitle;
+    const deleteBtn = preset.kind === 'custom'
+      ? `<button type="button" class="preset-card__delete" data-preset-delete="${escHtml(preset.id)}" data-preset-type="${type}" title="Удалить" aria-label="Удалить ${escHtml(preset.name)}">×</button>`
+      : '';
     return `
-      <button
-        type="button"
-        class="preset-card preset-card--${type}${preset.active ? ' preset-card--active' : ''}"
-        data-preset-id="${escHtml(preset.id)}"
-        data-preset-kind="${escHtml(preset.kind)}"
-        aria-pressed="${preset.active ? 'true' : 'false'}"
-        aria-label="${escHtml(preset.label)}: ${escHtml(preset.name)}"
-      >
-        ${thumb}
-        <span class="preset-card__label">${escHtml(preset.label)}</span>
-        <span class="preset-card__name">${escHtml(preset.name)}</span>
-        <span class="preset-card__meta">${escHtml(meta)}</span>
-        ${preset.active ? '<span class="preset-card__check" aria-hidden="true">✓</span>' : ''}
-        ${preset.kind === 'custom' ? '<span class="preset-card__tag">свой</span>' : '<span class="preset-card__tag preset-card__tag--builtin">встроенный</span>'}
-      </button>`;
+      <div class="preset-card-wrap">
+        <button
+          type="button"
+          class="preset-card preset-card--${type}${preset.active ? ' preset-card--active' : ''}"
+          data-preset-id="${escHtml(preset.id)}"
+          data-preset-kind="${escHtml(preset.kind)}"
+          aria-pressed="${preset.active ? 'true' : 'false'}"
+          aria-label="${escHtml(preset.label)}: ${escHtml(preset.name)}"
+        >
+          ${thumb}
+          <span class="preset-card__label">${escHtml(preset.label)}</span>
+          <span class="preset-card__name">${escHtml(preset.name)}</span>
+          <span class="preset-card__meta">${escHtml(meta)}</span>
+          ${preset.active ? '<span class="preset-card__check" aria-hidden="true">✓</span>' : ''}
+          ${preset.kind === 'custom' ? '<span class="preset-card__tag">свой</span>' : '<span class="preset-card__tag preset-card__tag--builtin">встроенный</span>'}
+        </button>
+        ${deleteBtn}
+      </div>`;
   }
 
   function renderAddCard(type, label) {
@@ -390,6 +396,78 @@ const DefaultsBootstrap = (() => {
         <span class="preset-card__add-icon" aria-hidden="true">+</span>
         <span class="preset-card__name">${escHtml(label)}</span>
       </button>`;
+  }
+
+  async function deleteTemplatePreset(id) {
+    const catalog = ensureLibraries(await GazpromStore.get());
+    const idx = catalog.savedTemplates.findIndex((t) => t.id === id);
+    if (idx < 0) throw new Error('Свой шаблон не найден');
+    const name = catalog.savedTemplates[idx].name;
+    const wasActive = catalog.activeTemplatePresetId === id;
+    catalog.savedTemplates.splice(idx, 1);
+
+    if (wasActive) {
+      const defaultId = manifestCache?.templates?.[0]?.id || 'builtin-template-v1';
+      const builtin = manifestCache?.templates?.find((t) => t.id === defaultId);
+      const b64 = await fetchTemplateBase64(builtin?.docx || LEGACY_TEMPLATE_DOCX);
+      await writeTemplateToCatalog(catalog, b64, builtin?.name || 'Шаблон', { presetId: defaultId, source: 'builtin' });
+    }
+
+    await GazpromStore.set(catalog, { skipPhotoIngest: true });
+    GazpromStore.invalidateCache();
+    await GazpromUI?.refreshAll?.();
+    return name;
+  }
+
+  async function deleteRegistryPreset(id) {
+    const catalog = ensureLibraries(await GazpromStore.get());
+    const idx = catalog.savedRegistries.findIndex((r) => r.id === id);
+    if (idx < 0) throw new Error('Свой реестр не найден');
+    const name = catalog.savedRegistries[idx].name;
+    const wasActive = catalog.activeRegistryPresetId === id;
+    catalog.savedRegistries.splice(idx, 1);
+
+    if (wasActive) {
+      const defaultId = manifestCache?.registries?.[0]?.id || 'builtin-registry-v1';
+      const items = await loadBuiltinRegistryItems(defaultId);
+      catalog.violationRegistry = items;
+      catalog.violationRegistrySource = 'builtin';
+      catalog.violationRegistryLabel = manifestCache?.registries?.[0]?.name || name;
+      catalog.activeRegistryPresetId = defaultId;
+      catalog.violationRegistryPreset = defaultId;
+    }
+
+    await GazpromStore.set(catalog, { skipPhotoIngest: true });
+    GazpromStore.invalidateCache();
+    await GazpromUI?.refreshAll?.();
+    return name;
+  }
+
+  function bindPresetDeleteHandlers(container, type, { onDeleted } = {}) {
+    if (!container) return;
+    container.querySelectorAll('[data-preset-delete]').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const id = btn.dataset.presetDelete;
+        const presetType = btn.dataset.presetType || type;
+        const label = presetType === 'template' ? 'шаблон' : 'реестр';
+        const ok = await GazpromToast.confirm(
+          `Удалить свой ${label} из списка?\nФайл останется только в уже созданных актах.`,
+          { confirmLabel: 'Удалить', danger: true }
+        );
+        if (!ok) return;
+        try {
+          const deletedName = presetType === 'template'
+            ? await deleteTemplatePreset(id)
+            : await deleteRegistryPreset(id);
+          GazpromToast.success(`Удалено: ${deletedName}`);
+          if (typeof onDeleted === 'function') await onDeleted();
+        } catch (err) {
+          GazpromToast.error(err.message);
+        }
+      });
+    });
   }
 
   async function renderTemplatePicker(container) {
@@ -416,12 +494,19 @@ const DefaultsBootstrap = (() => {
       });
     });
 
+    bindPresetDeleteHandlers(container, 'template', {
+      onDeleted: async () => {
+        await renderTemplatePicker(container);
+        await refreshTemplateModal();
+      },
+    });
+
     container.querySelector('[data-preset-add="template"]')?.addEventListener('click', () => {
       document.getElementById('wordTemplateInput')?.click();
     });
   }
 
-  async function renderRegistryPicker(container) {
+  async function renderRegistryPicker(container, { navigateOnSelect = false } = {}) {
     if (!container) return;
     const presets = await listRegistryPresets();
     container.innerHTML = `
@@ -430,34 +515,63 @@ const DefaultsBootstrap = (() => {
         ${renderAddCard('registry', 'Импорт Excel')}
       </div>`;
 
+    const openViolations = () => {
+      if (typeof goTo === 'function') goTo('violations');
+    };
+
     container.querySelectorAll('[data-preset-id]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        if (btn.classList.contains('preset-card--active')) return;
-        const merge = document.getElementById('vrScreenMergeCheckbox')?.checked ?? false;
+        const presetId = btn.dataset.presetId;
+        const presetName = btn.querySelector('.preset-card__name')?.textContent || 'реестр';
+
+        if (btn.classList.contains('preset-card--active')) {
+          if (navigateOnSelect) openViolations();
+          return;
+        }
+
+        const mergeEl = document.getElementById('vrPickerMergeCheckbox')
+          || document.getElementById('vrScreenMergeCheckbox');
+        const merge = mergeEl?.checked ?? false;
         const ok = await GazpromToast.confirm(
           merge
-            ? `Добавить записи из «${btn.querySelector('.preset-card__name')?.textContent || 'реестра'}» к текущим?`
-            : `Переключиться на реестр «${btn.querySelector('.preset-card__name')?.textContent || ''}»?\nТекущие записи будут заменены.`,
-          { confirmLabel: merge ? 'Объединить' : 'Выбрать' }
+            ? `Добавить записи из «${presetName}» к текущим?`
+            : `Открыть реестр «${presetName}»?\nТекущие несохранённые правки в таблице будут заменены.`,
+          { confirmLabel: merge ? 'Объединить' : 'Открыть' }
         );
         if (!ok) return;
+
         try {
           GazpromToast.info('Загрузка реестра…');
-          await applyRegistryPreset(btn.dataset.presetId, { merge });
-          await renderRegistryPicker(container);
-          if (typeof ViolationRegistry !== 'undefined') {
+          await applyRegistryPreset(presetId, { merge });
+          await renderRegistryPicker(container, { navigateOnSelect });
+          if (navigateOnSelect) {
+            openViolations();
+          } else if (typeof ViolationRegistry !== 'undefined') {
             await ViolationRegistry.renderScreen('', '');
           }
-          GazpromToast.success('Реестр выбран');
+          GazpromToast.success(navigateOnSelect ? 'Реестр открыт' : 'Реестр выбран');
         } catch (err) {
           GazpromToast.error(err.message);
         }
       });
     });
 
+    bindPresetDeleteHandlers(container, 'registry', {
+      onDeleted: async () => {
+        await renderRegistryPicker(container, { navigateOnSelect });
+        if (typeof ViolationRegistry !== 'undefined') {
+          await ViolationRegistry.renderPickerScreen?.();
+          await ViolationRegistry.renderScreen?.('', '');
+        }
+      },
+    });
+
     container.querySelector('[data-preset-add="registry"]')?.addEventListener('click', () => {
-      document.getElementById('vrScreenImportInput')?.click();
-      const opts = document.getElementById('vrScreenImportOptions');
+      const input = document.getElementById('vrPickerImportInput')
+        || document.getElementById('vrScreenImportInput');
+      input?.click();
+      const opts = document.getElementById('vrPickerImportOptions')
+        || document.getElementById('vrScreenImportOptions');
       if (opts) opts.hidden = false;
     });
   }
@@ -625,6 +739,8 @@ const DefaultsBootstrap = (() => {
     hasWordTemplate,
     openTemplateModal,
     bindTemplateModal,
+    deleteTemplatePreset,
+    deleteRegistryPreset,
     renderRegistryPicker,
     renderSettingsTilePreviews,
     listTemplatePresets,

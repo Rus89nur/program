@@ -20,6 +20,7 @@ const titles = {
   settings: 'Настройки',
   trash: 'Корзина',
   violations: 'Реестр нарушений',
+  'violation-registry-picker': 'Выбор реестра',
   'violation-types': 'Виды нарушений',
 };
 
@@ -51,6 +52,9 @@ function goTo(screenId, options = {}) {
       preserveDraft: options.preserveDraft ?? wasWizard,
       forceNew: options.forceNew,
     });
+  }
+  if (screenId === 'violation-registry-picker') {
+    ViolationRegistry.renderPickerScreen();
   }
   if (screenId === 'violations') {
     ViolationRegistry.renderScreen();
@@ -136,7 +140,7 @@ function registerServiceWorker() {
       });
       return;
     }
-    navigator.serviceWorker.register('./sw.js?v=165')
+    navigator.serviceWorker.register('./sw.js?v=166')
       .then((reg) => {
         reg.update();
         document.addEventListener('visibilitychange', () => {
@@ -600,6 +604,7 @@ function init() {
   CatalogEditor.bindSettingsTiles();
   ViolationTypesEditor.init();
   ViolationRegistry.bindScreen();
+  ViolationRegistry.bindPickerScreen();
   EliminationEditor.bindFilters();
   EliminationEditor.bindBulkActions();
   EliminationEditor.bindTableActions();

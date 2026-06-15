@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '165';</script>
+  <script>window.GAZPROM_ASSET_V = '166';</script>
   <style id="appShellCritical">
     @media (max-width:900px),(max-width:1280px) and (max-height:520px) and (hover:none){
       .sidebar{display:none!important}
@@ -58,7 +58,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=149" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=150" id="appCss">
   <script>
   (function () {
     var css = document.getElementById('appCss');
@@ -116,7 +116,7 @@
       </button>
       <div class="sidebar-footer" id="sidebarAppBuild" aria-label="Версия веб-приложения">
         <span class="sidebar-footer__brand">программа НЕТ</span>
-        Сборка: <span data-app-build>web-165</span> · PWA
+        Сборка: <span data-app-build>web-166</span> · PWA
       </div>
     </aside>
 
@@ -183,7 +183,7 @@
             <div class="stat-label">Черновиков</div>
           </div>
         </div>
-        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-165</p>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-166</p>
       </section>
 
       <section class="screen" id="screen-wizard">
@@ -486,17 +486,33 @@
         </div>
       </section>
 
-      <!-- ——— Экран: Реестр нарушений ——— -->
-      <section class="screen" id="screen-violations">
+      <!-- ——— Экран: выбор реестра (шаг 1) ——— -->
+      <section class="screen" id="screen-violation-registry-picker">
         <div class="violations-screen-header card">
           <div class="violations-screen-nav">
             <button class="btn-ghost btn-sm" type="button" data-go="settings">← Настройки</button>
-            <span class="violations-screen-breadcrumb">/ Реестр нарушений</span>
+            <span class="violations-screen-breadcrumb">/ Нарушения / Выбор реестра</span>
           </div>
           <div class="preset-picker-section">
-            <h4 class="preset-picker-section__title">Выбор реестра</h4>
-            <p class="preset-picker-section__hint">Нажмите на карточку, чтобы переключить реестр. Свой файл — «+ Импорт Excel».</p>
+            <h4 class="preset-picker-section__title">Выберите реестр</h4>
+            <p class="preset-picker-section__hint">Нажмите на карточку, чтобы открыть реестр и работать с формулировками. Свой файл — «+ Импорт Excel».</p>
             <div id="vrRegistryPresetPicker" class="preset-picker-host"></div>
+          </div>
+          <div id="vrPickerImportOptions" class="vr-import-options" hidden>
+            <label class="vr-import-options__label">
+              <input type="checkbox" id="vrPickerMergeCheckbox"> Объединить с существующими (иначе — заменить все данные)
+            </label>
+          </div>
+          <input type="file" id="vrPickerImportInput" accept=".xlsx,.xls,.xls" hidden>
+        </div>
+      </section>
+
+      <!-- ——— Экран: работа с реестром (шаг 2) ——— -->
+      <section class="screen" id="screen-violations">
+        <div class="violations-screen-header card">
+          <div class="violations-screen-nav">
+            <button class="btn-ghost btn-sm" type="button" data-go="violation-registry-picker">← Выбор реестра</button>
+            <span class="violations-screen-breadcrumb">/ Работа с реестром</span>
           </div>
           <div class="violations-screen-toolbar">
             <input type="search" class="form-control" id="vrScreenSearch" placeholder="🔍 Поиск по формулировке, документу, примечанию…" autocomplete="off">
@@ -505,16 +521,9 @@
             </select>
             <div class="violations-screen-actions">
               <button class="btn-primary btn-sm" type="button" id="vrScreenAddBtn">+ Добавить</button>
-              <button class="btn-secondary btn-sm" type="button" id="vrScreenImportBtn">📂 Импорт Excel</button>
               <button class="btn-secondary btn-sm" type="button" id="vrScreenExportBtn">📊 Экспорт Excel</button>
             </div>
             <p class="vr-screen-source defaults-source" id="vrScreenSourceMeta" aria-live="polite"></p>
-            <input type="file" id="vrScreenImportInput" accept=".xlsx,.xls,.xls" style="position:absolute;left:-9999px;opacity:0;pointer-events:none;">
-          </div>
-          <div id="vrScreenImportOptions" style="margin-top:10px;padding:10px 12px;background:var(--primary-soft);border-radius:var(--radius);font-size:13px;" hidden>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-              <input type="checkbox" id="vrScreenMergeCheckbox"> Объединить с существующими (иначе — заменить все данные)
-            </label>
           </div>
         </div>
 
@@ -659,8 +668,8 @@
   <script src="js/violation-templates.js?v=20"></script>
   <script src="js/violation-types.js?v=1"></script>
   <script src="js/violation-types-editor.js?v=4"></script>
-  <script src="js/defaults-bootstrap.js?v=2"></script>
-  <script src="js/violation-registry.js?v=10"></script>
+  <script src="js/defaults-bootstrap.js?v=3"></script>
+  <script src="js/violation-registry.js?v=11"></script>
   <script src="js/catalog-service.js"></script>
   <script src="js/backup-import.js?v=30"></script>
   <script src="js/akt-search.js"></script>
@@ -674,6 +683,6 @@
   <script src="js/wizard.js?v=56"></script>
   <script src="js/short-akt-form.js?v=3"></script>
   <script src="js/doc-generator.js?v=36"></script>
-  <script src="js/app.js?v=133"></script>
+  <script src="js/app.js?v=134"></script>
 </body>
 </html>
