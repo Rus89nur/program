@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '158';</script>
+  <script>window.GAZPROM_ASSET_V = '159';</script>
   <style id="appShellCritical">
     @media (max-width:900px),(max-width:1280px) and (max-height:520px) and (hover:none){
       .sidebar{display:none!important}
@@ -58,7 +58,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=143" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=144" id="appCss">
   <script>
   (function () {
     var css = document.getElementById('appCss');
@@ -116,7 +116,7 @@
       </button>
       <div class="sidebar-footer" id="sidebarAppBuild" aria-label="Версия веб-приложения">
         <span class="sidebar-footer__brand">программа НЕТ</span>
-        Сборка: <span data-app-build>web-158</span> · PWA
+        Сборка: <span data-app-build>web-159</span> · PWA
       </div>
     </aside>
 
@@ -183,7 +183,7 @@
             <div class="stat-label">Черновиков</div>
           </div>
         </div>
-        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-158</p>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-159</p>
       </section>
 
       <section class="screen" id="screen-wizard">
@@ -310,7 +310,12 @@
                 <button type="button" class="btn-ghost btn-sm" id="reportsResetFilters" title="Сбросить все фильтры">✕ Сброс фильтров</button>
               </div>
             </div>
-            <div class="reports-filter-bar" id="reportsFilterGroups" role="toolbar" aria-label="Фильтры отчётов"></div>
+            <div class="reports-filter-toolbar">
+              <div class="toolbar-filters reports-filter-groups" id="reportsFilterGroups" role="toolbar" aria-label="Группы фильтров"></div>
+              <div class="reports-filter-panel-row" id="reportsFilterPanelRow" hidden>
+                <div class="toolbar-filters toolbar-filters--pills" id="reportsFilterPills" role="group" aria-label="Значения фильтра"></div>
+              </div>
+            </div>
           </div>
 
           <div class="reports-kpi-grid" aria-label="Ключевые показатели">
@@ -332,7 +337,7 @@
             </div>
           </div>
 
-          <div class="reports-charts-row">
+          <div class="reports-charts-row reports-charts-row--donut">
             <div class="card reports-chart-card">
               <h4 class="reports-chart-card__title">Количество нарушений</h4>
               <div class="reports-donut-wrap">
@@ -344,16 +349,51 @@
               </div>
               <ul class="reports-legend" id="reportsDonutLegend" aria-label="Распределение по статусу"></ul>
             </div>
-            <div class="card reports-chart-card reports-chart-card--treemap">
-              <h4 class="reports-chart-card__title">Нарушения по подрядчикам</h4>
-              <div class="reports-treemap-wrap" id="reportsOrgTreemap"></div>
-              <div class="reports-treemap-legend" id="reportsTreemapLegend" aria-label="Легенда"></div>
-            </div>
+          </div>
+
+          <div class="card reports-chart-card reports-chart-card--wide">
+            <h4 class="reports-chart-card__title">Нарушения по подрядчикам</h4>
+            <div class="reports-contractor-grid" id="reportsContractorGrid" role="list"></div>
+            <div class="reports-treemap-legend" id="reportsTreemapLegend" aria-label="Легенда"></div>
           </div>
 
           <div class="card reports-chart-card reports-chart-card--wide">
             <h4 class="reports-chart-card__title">Виды выявленных нарушений</h4>
             <div class="reports-bar-chart" id="reportsBarChart" role="img" aria-label="Горизонтальная диаграмма видов нарушений"></div>
+          </div>
+
+          <div class="card reports-chart-card reports-chart-card--wide reports-chart-card--schedule">
+            <h4 class="reports-chart-card__title">Выполнение графика проверок</h4>
+            <div class="reports-schedule-dashboard">
+              <div class="reports-schedule-kpi" aria-label="Показатели графика">
+                <div class="card reports-kpi-card">
+                  <div class="reports-kpi-card__value" id="reportsSchedulePlan">0</div>
+                  <div class="reports-kpi-card__label">запланировано</div>
+                </div>
+                <div class="card reports-kpi-card reports-kpi-card--done">
+                  <div class="reports-kpi-card__value" id="reportsScheduleDone">0</div>
+                  <div class="reports-kpi-card__label">выполнено</div>
+                </div>
+                <div class="card reports-kpi-card reports-kpi-card--open">
+                  <div class="reports-kpi-card__value" id="reportsSchedulePending">0</div>
+                  <div class="reports-kpi-card__label">не выполнено</div>
+                </div>
+                <div class="card reports-kpi-card reports-kpi-card--overdue">
+                  <div class="reports-kpi-card__value" id="reportsScheduleOverdue">0</div>
+                  <div class="reports-kpi-card__label">просрочено</div>
+                </div>
+              </div>
+              <div class="reports-schedule-progress-wrap">
+                <div class="reports-schedule-progress-head">
+                  <span id="reportsScheduleProgressLabel">Выполнение: 0%</span>
+                  <span class="reports-schedule-progress-sub" id="reportsScheduleProgressSub">0 из 0</span>
+                </div>
+                <div class="reports-schedule-progress-track" aria-hidden="true">
+                  <div class="reports-schedule-progress-fill" id="reportsScheduleProgressFill"></div>
+                </div>
+              </div>
+              <div class="reports-schedule-months" id="reportsScheduleMonths" aria-label="Выполнение по месяцам"></div>
+            </div>
           </div>
 
           <div class="reports-export-grid">
@@ -588,11 +628,11 @@
   <script src="js/schedule-editor.js?v=2"></script>
   <script src="js/elimination-editor.js?v=8"></script>
   <script src="js/report-exporter.js?v=2"></script>
-  <script src="js/reports-dashboard.js?v=1"></script>
+  <script src="js/reports-dashboard.js?v=2"></script>
   <script src="js/wizard-modals.js?v=42"></script>
   <script src="js/wizard.js?v=56"></script>
   <script src="js/short-akt-form.js?v=3"></script>
   <script src="js/doc-generator.js?v=35"></script>
-  <script src="js/app.js?v=129"></script>
+  <script src="js/app.js?v=130"></script>
 </body>
 </html>

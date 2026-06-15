@@ -9,6 +9,11 @@ const ReportsDashboard = (() => {
     { key: 'contractors', label: 'Подрядчики' },
   ];
 
+  const MONTH_SHORT = [
+    'янв', 'фев', 'мар', 'апр', 'май', 'июн',
+    'июл', 'авг', 'сен', 'окт', 'ноя', 'дек',
+  ];
+
   const STATUS_META = {
     done: { label: 'Устранено', color: 'var(--success)', cls: 'done' },
     overdue: { label: 'Срок устранения истёк', color: 'var(--danger)', cls: 'overdue' },
@@ -81,6 +86,48 @@ const ReportsDashboard = (() => {
     return title.length > 80 ? `${title.slice(0, 77)}…` : title;
   }
 
+  function getSchedulePlanDate(item) {
+    return item?.scheduledDate || item?.plannedDate || null;
+  }
+
+  function getScheduleYear(item) {
+    if (item?.year != null && item.year !== '') return Number(item.year);
+    const d = getSchedulePlanDate(item);
+    if (!d) return null;
+    const y = new Date(d).getFullYear();
+    return Number.isNaN(y) ? null : y;
+  }
+
+  function getScheduleMonth(item) {
+    if (item?.month != null && item.month !== '') return Number(item.month);
+    const d = getSchedulePlanDate(item);
+    if (!d) return null;
+    const m = new Date(d).getMonth() + 1;
+    return Number.isNaN(m) ? null : m;
+  }
+
+  function getScheduleOrgTitle(item, data) {
+    if (item?.organizationTitle) return item.organizationTitle;
+    const org = (data.organizations || []).find((o) => o.id === item?.organizationId);
+    return org?.shortTitle || org?.title || '—';
+  }
+
+  function getScheduleObjectTitle(item) {
+    return item?.objectCheck?.title || '—';
+  }
+
+  function isScheduleOverdue(item) {
+    if (item?.actualDate) return false;
+    const plan = getSchedulePlanDate(item);
+    if (!plan) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const d = new Date(plan);
+    if (Number.isNaN(d.getTime())) return false;
+    d.setHours(0, 0, 0, 0);
+    return today > d;
+  }
+
   function buildFilterOptions(data) {
     const acts = new Set();
     const years = new Set();
@@ -96,6 +143,15 @@ const ReportsDashboard = (() => {
       const obj = getObjectTitle(akt);
       if (obj && obj !== '—') objects.add(obj);
       const org = getOrgTitle(akt);
+      if (org && org !== '—') contractors.add(org);
+    });
+
+    (data.scheduleItems || []).forEach((item) => {
+      const y = getScheduleYear(item);
+      if (y) years.add(y);
+      const obj = getScheduleObjectTitle(item);
+      if (obj && obj !== '—') objects.add(obj);
+      const org = getScheduleOrgTitle(item, data);
       if (org && org !== '—') contractors.add(org);
     });
 
@@ -129,6 +185,20 @@ const ReportsDashboard = (() => {
       }
       if (filters.objects.size && !filters.objects.has(getObjectTitle(akt))) return false;
       if (filters.contractors.size && !filters.contractors.has(getOrgTitle(akt))) return false;
+      return true;
+    });
+  }
+
+  function filterScheduleItems(items, data) {
+    return (items || []).filter((item) => {
+      if (filters.years.size) {
+        const y = getScheduleYear(item);
+        if (!y || !filters.years.has(y)) return false;
+      }
+      if (filters.objects.size && !filters.objects.has(getScheduleObjectTitle(item))) return false;
+      if (filters.contractors.size && !filters.contractors.has(getScheduleOrgTitle(item, data))) {
+        return false;
+      }
       return true;
     });
   }
@@ -169,35 +239,52 @@ const ReportsDashboard = (() => {
   }
 
   function renderFilterGroups(options) {
-    const wrap = document.getElementById('reportsFilterGroups');
-    if (!wrap) return;
+    const groupsWrap = document.getElementById('reportsFilterGroups');
+    const pillsWrap = document.getElementById('reportsFilterPills');
+    const panelRow = document.getElementById('reportsFilterPanelRow');
+    if (!groupsWrap) return;
 
-    wrap.innerHTML = FILTER_GROUPS.map(({ key, label }) => {
+    groupsWrap.innerHTML = FILTER_GROUPS.map(({ key, label }) => {
       const activeCount = filters[key].size;
       const isOpen = openGroup === key;
-      const items = options[key] || [];
-      const chips = items.length
-        ? items
-            .map((item) => {
-              const val = key === 'years' ? item : String(item);
-              const active =
-                key === 'years' ? filters.years.has(item) : filters[key].has(String(item));
-              return `<button type="button" class="btn-org-filter${active ? ' btn-org-filter-active' : ''}" data-reports-filter="${key}" data-reports-value="${AktUtils.escapeHtml(String(val))}">${AktUtils.escapeHtml(String(item))}</button>`;
-            })
-            .join('')
-        : '<p class="reports-filter-empty">Нет данных</p>';
-
-      return `<div class="reports-filter-group${isOpen ? ' reports-filter-group--open' : ''}" data-filter-group="${key}">
-        <button type="button" class="reports-filter-trigger" aria-expanded="${isOpen}" aria-controls="reportsFilterPanel-${key}">
-          <span>${AktUtils.escapeHtml(label)}</span>
-          <span class="reports-filter-badge${activeCount ? '' : ' reports-filter-badge--hidden'}">${activeCount || ''}</span>
-          <span class="reports-filter-chevron" aria-hidden="true">▾</span>
-        </button>
-        <div class="reports-filter-panel" id="reportsFilterPanel-${key}" role="region" aria-label="Фильтр: ${AktUtils.escapeHtml(label)}"${isOpen ? '' : ' hidden'}>
-          <div class="reports-filter-chips">${chips}</div>
-        </div>
-      </div>`;
+      const cls = [
+        'filter-pill',
+        'reports-filter-group-btn',
+        isOpen ? 'active' : '',
+        activeCount ? 'reports-filter-group-btn--selected' : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
+      const badge = activeCount
+        ? `<span class="reports-filter-count">${activeCount}</span>`
+        : '';
+      return `<button type="button" class="${cls}" data-reports-group="${key}" aria-expanded="${isOpen}">
+        ${AktUtils.escapeHtml(label)}${badge}
+      </button>`;
     }).join('');
+
+    if (!pillsWrap || !panelRow) return;
+
+    if (!openGroup) {
+      panelRow.hidden = true;
+      pillsWrap.innerHTML = '';
+      return;
+    }
+
+    panelRow.hidden = false;
+    const items = options[openGroup] || [];
+    pillsWrap.innerHTML = items.length
+      ? items
+          .map((item) => {
+            const val = openGroup === 'years' ? item : String(item);
+            const active =
+              openGroup === 'years'
+                ? filters.years.has(item)
+                : filters[openGroup].has(String(item));
+            return `<button type="button" class="filter-pill${active ? ' active' : ''}" data-reports-filter="${openGroup}" data-reports-value="${AktUtils.escapeHtml(String(val))}">${AktUtils.escapeHtml(String(item))}</button>`;
+          })
+          .join('')
+      : '<span class="reports-filter-empty">Нет данных</span>';
   }
 
   function renderKpi(rows, akts) {
@@ -260,15 +347,15 @@ const ReportsDashboard = (() => {
     }
   }
 
-  function orgBlockColor(counts) {
-    if (counts.overdue > 0) return STATUS_META.overdue.color;
-    if (counts.ontime > 0) return STATUS_META.ontime.color;
-    if (counts.done > 0) return STATUS_META.done.color;
-    return STATUS_META.nodeadline.color;
+  function contractorAccentClass(counts) {
+    if (counts.overdue > 0) return 'reports-contractor-card--overdue';
+    if (counts.ontime > 0) return 'reports-contractor-card--ontime';
+    if (counts.done > 0) return 'reports-contractor-card--done';
+    return 'reports-contractor-card--muted';
   }
 
-  function renderOrgTreemap(rows) {
-    const wrap = document.getElementById('reportsOrgTreemap');
+  function renderContractorDashboard(rows) {
+    const wrap = document.getElementById('reportsContractorGrid');
     if (!wrap) return;
 
     if (!rows.length) {
@@ -287,18 +374,23 @@ const ReportsDashboard = (() => {
     }
 
     const entries = [...byOrg.entries()].sort((a, b) => b[1].total - a[1].total);
-    const max = entries[0][1].total || 1;
 
-    wrap.innerHTML = `<div class="reports-treemap">${entries
+    wrap.innerHTML = entries
       .map(([org, counts]) => {
-        const flex = Math.max(1, Math.round((counts.total / max) * 100));
-        const color = orgBlockColor(counts);
-        return `<div class="reports-treemap__cell" style="flex:${flex};background:${color}" title="${AktUtils.escapeHtml(org)} — ${counts.total}">
-          <span class="reports-treemap__name">${AktUtils.escapeHtml(org)}</span>
-          <span class="reports-treemap__val">${counts.total}</span>
+        const open = counts.total - counts.done;
+        const accent = contractorAccentClass(counts);
+        return `<div class="card reports-contractor-card ${accent}" role="listitem">
+          <div class="reports-contractor-card__name" title="${AktUtils.escapeHtml(org)}">${AktUtils.escapeHtml(org)}</div>
+          <div class="reports-contractor-card__value">${counts.total}</div>
+          <div class="reports-contractor-card__label">нарушений</div>
+          <div class="reports-contractor-card__stats">
+            <span class="reports-contractor-card__stat reports-contractor-card__stat--done">✓ ${counts.done}</span>
+            <span class="reports-contractor-card__stat reports-contractor-card__stat--open">⏳ ${open}</span>
+            ${counts.overdue > 0 ? `<span class="reports-contractor-card__stat reports-contractor-card__stat--overdue">⚠ ${counts.overdue}</span>` : ''}
+          </div>
         </div>`;
       })
-      .join('')}</div>`;
+      .join('');
   }
 
   function renderBarChart(rows) {
@@ -344,6 +436,77 @@ const ReportsDashboard = (() => {
       .join('');
   }
 
+  function renderScheduleDashboard(data) {
+    const items = filterScheduleItems(data.scheduleItems || [], data);
+    const total = items.length;
+    const done = items.filter((i) => i.actualDate).length;
+    const pending = total - done;
+    const overdue = items.filter((i) => isScheduleOverdue(i)).length;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    const set = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = String(val);
+    };
+    set('reportsSchedulePlan', total);
+    set('reportsScheduleDone', done);
+    set('reportsSchedulePending', pending);
+    set('reportsScheduleOverdue', overdue);
+
+    const label = document.getElementById('reportsScheduleProgressLabel');
+    const sub = document.getElementById('reportsScheduleProgressSub');
+    const fill = document.getElementById('reportsScheduleProgressFill');
+    if (label) {
+      label.textContent = total > 0 ? `Выполнение: ${pct}%` : 'График не задан';
+    }
+    if (sub) {
+      sub.textContent = total > 0 ? `${done} из ${total} проверок` : '—';
+    }
+    if (fill) fill.style.width = `${pct}%`;
+
+    const monthsWrap = document.getElementById('reportsScheduleMonths');
+    if (!monthsWrap) return;
+
+    if (!total) {
+      monthsWrap.innerHTML = '<p class="reports-chart-empty" role="status">Нет запланированных проверок</p>';
+      return;
+    }
+
+    const byMonth = Array.from({ length: 12 }, (_, i) => ({
+      month: i + 1,
+      plan: 0,
+      done: 0,
+    }));
+    for (const item of items) {
+      const m = getScheduleMonth(item);
+      if (!m || m < 1 || m > 12) continue;
+      const bucket = byMonth[m - 1];
+      bucket.plan += 1;
+      if (item.actualDate) bucket.done += 1;
+    }
+
+    const activeMonths = byMonth.filter((b) => b.plan > 0);
+    const maxPlan = Math.max(...activeMonths.map((b) => b.plan), 1);
+
+    monthsWrap.innerHTML = activeMonths
+      .map((b) => {
+        const monthPct = b.plan > 0 ? Math.round((b.done / b.plan) * 100) : 0;
+        const width = Math.max(8, Math.round((b.plan / maxPlan) * 100));
+        return `<div class="reports-schedule-month">
+          <div class="reports-schedule-month__head">
+            <span class="reports-schedule-month__name">${MONTH_SHORT[b.month - 1]}</span>
+            <span class="reports-schedule-month__val">${b.done}/${b.plan}</span>
+          </div>
+          <div class="reports-schedule-month__track" aria-hidden="true">
+            <div class="reports-schedule-month__fill" style="width:${width}%">
+              <span class="reports-schedule-month__fill-inner" style="width:${monthPct}%"></span>
+            </div>
+          </div>
+        </div>`;
+      })
+      .join('');
+  }
+
   function toggleFilter(group, rawValue) {
     const set = filters[group];
     if (!set) return;
@@ -364,13 +527,8 @@ const ReportsDashboard = (() => {
 
   function closePanels() {
     openGroup = null;
-    document.querySelectorAll('.reports-filter-group').forEach((g) => {
-      g.classList.remove('reports-filter-group--open');
-      const panel = g.querySelector('.reports-filter-panel');
-      const trigger = g.querySelector('.reports-filter-trigger');
-      if (panel) panel.hidden = true;
-      if (trigger) trigger.setAttribute('aria-expanded', 'false');
-    });
+    const panelRow = document.getElementById('reportsFilterPanelRow');
+    if (panelRow) panelRow.hidden = true;
   }
 
   function render(data) {
@@ -385,8 +543,9 @@ const ReportsDashboard = (() => {
 
     renderKpi(rows, akts);
     renderDonut(stats);
-    renderOrgTreemap(rows);
+    renderContractorDashboard(rows);
     renderBarChart(rows);
+    renderScheduleDashboard(data);
   }
 
   function bind() {
@@ -396,16 +555,16 @@ const ReportsDashboard = (() => {
     if (!screen) return;
 
     screen.addEventListener('click', async (e) => {
-      const trigger = e.target.closest('.reports-filter-trigger');
-      if (trigger) {
-        const group = trigger.closest('[data-filter-group]')?.dataset.filterGroup;
+      const groupBtn = e.target.closest('[data-reports-group]');
+      if (groupBtn) {
+        const group = groupBtn.dataset.reportsGroup;
         if (!group) return;
         if (openGroup === group) {
           closePanels();
         } else {
           openGroup = group;
-          render(await GazpromStore.get());
         }
+        render(await GazpromStore.get());
         return;
       }
 
@@ -451,7 +610,7 @@ const ReportsDashboard = (() => {
 
     document.addEventListener('click', (e) => {
       if (!openGroup) return;
-      if (e.target.closest('.reports-filter-group')) return;
+      if (e.target.closest('.reports-filter-toolbar')) return;
       closePanels();
       void GazpromStore.get().then(render);
     });

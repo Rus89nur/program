@@ -4226,96 +4226,61 @@
       gap: 8px;
     }
 
-    .reports-filter-bar {
+    .reports-filter-toolbar {
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column;
       gap: 10px;
-      position: relative;
-      z-index: 20;
     }
 
-    .reports-filter-group {
-      position: relative;
+    .reports-filter-groups {
+      flex-wrap: wrap;
     }
 
-    .reports-filter-trigger {
+    .reports-filter-group-btn {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 14px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: var(--surface);
-      color: var(--text);
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
+      gap: 6px;
     }
 
-    .reports-filter-trigger:hover {
+    .reports-filter-group-btn--selected:not(.active) {
       border-color: var(--primary);
-      background: rgba(13, 71, 161, 0.04);
-    }
-
-    .reports-filter-group--open .reports-filter-trigger {
-      border-color: var(--primary);
-      background: rgba(13, 71, 161, 0.08);
       color: var(--primary);
     }
 
-    .reports-filter-badge {
+    .reports-filter-count {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 20px;
-      height: 20px;
-      padding: 0 6px;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
       border-radius: 999px;
       background: var(--primary);
       color: #fff;
-      font-size: 11px;
-      font-weight: 700;
-    }
-
-    .reports-filter-badge--hidden {
-      display: none;
-    }
-
-    .reports-filter-chevron {
       font-size: 10px;
-      opacity: 0.6;
-      transition: transform 0.15s;
+      font-weight: 700;
+      line-height: 1;
     }
 
-    .reports-filter-group--open .reports-filter-chevron {
-      transform: rotate(180deg);
+    .reports-filter-group-btn.active .reports-filter-count {
+      background: rgba(255, 255, 255, 0.25);
+      color: #fff;
     }
 
-    .reports-filter-panel {
-      position: absolute;
-      top: calc(100% + 6px);
-      left: 0;
-      min-width: 260px;
-      max-width: min(420px, 92vw);
-      max-height: 280px;
-      overflow: auto;
-      padding: 12px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: var(--surface);
-      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
-      z-index: 30;
+    .reports-filter-panel-row {
+      padding-top: 2px;
     }
 
-    .reports-filter-chips {
-      display: flex;
+    #screen-reports .reports-filter-panel-row .toolbar-filters--pills {
       flex-wrap: wrap;
       gap: 8px;
     }
 
+    #screen-reports .reports-filter-panel-row .filter-pill {
+      flex-shrink: 0;
+    }
+
     .reports-filter-empty {
-      margin: 0;
       font-size: 13px;
       color: var(--text-muted);
     }
@@ -4363,11 +4328,24 @@
       color: var(--success);
     }
 
+    .reports-kpi-card--overdue {
+      background: rgba(245, 158, 11, 0.1);
+      border-color: rgba(245, 158, 11, 0.35);
+    }
+
+    .reports-kpi-card--overdue .reports-kpi-card__value {
+      color: #d97706;
+    }
+
     .reports-charts-row {
       display: grid;
       grid-template-columns: minmax(260px, 340px) 1fr;
       gap: 16px;
       align-items: stretch;
+    }
+
+    .reports-charts-row--donut {
+      grid-template-columns: minmax(260px, 360px);
     }
 
     .reports-chart-card {
@@ -4466,52 +4444,85 @@
     .reports-legend__dot--nodeadline { background: #94a3b8; }
     .reports-legend__dot--muted { background: #cbd5e1; }
 
-    .reports-treemap-wrap {
-      min-height: 180px;
+    .reports-contractor-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
     }
 
-    .reports-treemap {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      min-height: 180px;
-      align-content: stretch;
-    }
-
-    .reports-treemap__cell {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-width: 120px;
-      min-height: 120px;
-      padding: 12px;
-      border-radius: 10px;
-      color: #fff;
+    .reports-contractor-card {
+      padding: 16px;
       text-align: center;
-      transition: transform 0.15s;
+      border-top: 4px solid var(--border);
+      transition: box-shadow 0.15s, transform 0.15s;
     }
 
-    .reports-treemap__cell:hover {
-      transform: scale(1.02);
+    .reports-contractor-card:hover {
+      box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+      transform: translateY(-1px);
     }
 
-    .reports-treemap__name {
+    .reports-contractor-card--done { border-top-color: var(--success); }
+    .reports-contractor-card--overdue { border-top-color: var(--danger); }
+    .reports-contractor-card--ontime { border-top-color: #f59e0b; }
+    .reports-contractor-card--muted { border-top-color: #94a3b8; }
+
+    .reports-contractor-card__name {
       font-size: 12px;
       font-weight: 600;
-      line-height: 1.3;
-      margin-bottom: 8px;
+      line-height: 1.35;
+      color: var(--text);
+      margin-bottom: 10px;
+      min-height: 32px;
       overflow: hidden;
       display: -webkit-box;
-      -webkit-line-clamp: 3;
+      -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
     }
 
-    .reports-treemap__val {
+    .reports-contractor-card__value {
       font-size: 32px;
       font-weight: 800;
       line-height: 1;
       font-family: var(--font-display, 'Montserrat', sans-serif);
+      color: var(--text);
+    }
+
+    .reports-contractor-card__label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin: 4px 0 10px;
+    }
+
+    .reports-contractor-card__stats {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .reports-contractor-card__stat {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: var(--text-muted);
+    }
+
+    .reports-contractor-card__stat--done {
+      background: rgba(34, 197, 94, 0.12);
+      color: var(--success);
+    }
+
+    .reports-contractor-card__stat--open {
+      background: rgba(13, 71, 161, 0.08);
+      color: var(--primary);
+    }
+
+    .reports-contractor-card__stat--overdue {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
     }
 
     .reports-treemap-legend {
@@ -4584,6 +4595,103 @@
       font-size: 14px;
     }
 
+    .reports-schedule-dashboard {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .reports-schedule-kpi {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .reports-schedule-progress-wrap {
+      padding: 4px 0;
+    }
+
+    .reports-schedule-progress-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .reports-schedule-progress-sub {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .reports-schedule-progress-track {
+      height: 14px;
+      background: #e8eef5;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .reports-schedule-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--success), #16a34a);
+      border-radius: 999px;
+      width: 0;
+      transition: width 0.35s ease;
+      min-width: 0;
+    }
+
+    .reports-schedule-months {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .reports-schedule-month__head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .reports-schedule-month__name {
+      font-weight: 600;
+      color: var(--text);
+      text-transform: capitalize;
+    }
+
+    .reports-schedule-month__val {
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .reports-schedule-month__track {
+      height: 10px;
+      background: #e8eef5;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .reports-schedule-month__fill {
+      height: 100%;
+      background: rgba(13, 71, 161, 0.15);
+      border-radius: 999px;
+      min-width: 8%;
+      transition: width 0.3s ease;
+    }
+
+    .reports-schedule-month__fill-inner {
+      display: block;
+      height: 100%;
+      background: var(--primary);
+      border-radius: 999px;
+      min-width: 0;
+      transition: width 0.3s ease;
+    }
+
     .reports-export-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4617,7 +4725,8 @@
     }
 
     @media (max-width: 960px) {
-      .reports-kpi-grid {
+      .reports-kpi-grid,
+      .reports-schedule-kpi {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
       .reports-charts-row {
@@ -4626,8 +4735,12 @@
     }
 
     @media (max-width: 560px) {
-      .reports-kpi-grid {
+      .reports-kpi-grid,
+      .reports-schedule-kpi {
         grid-template-columns: 1fr;
+      }
+      .reports-contractor-grid {
+        grid-template-columns: 1fr 1fr;
       }
       .reports-bar-row {
         grid-template-columns: 1fr;
@@ -4639,10 +4752,11 @@
       .reports-export-grid {
         grid-template-columns: 1fr;
       }
-      .reports-filter-panel {
-        left: 0;
-        right: 0;
-        max-width: none;
+      #screen-reports .reports-filter-panel-row .toolbar-filters--pills {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
       }
     }
 
