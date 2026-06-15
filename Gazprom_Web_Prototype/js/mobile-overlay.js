@@ -63,20 +63,19 @@ const GazpromMobileOverlay = (() => {
 
   const syncVisualViewport = () => {
     const root = document.documentElement;
-    if (!mq.matches || !window.visualViewport) {
-      root.style.removeProperty('--vv-height');
-      root.style.removeProperty('--vv-offset-top');
-      root.style.removeProperty('--vv-offset-left');
-      root.style.removeProperty('--vv-width');
-      syncWizardModalViewport();
-      return;
-    }
     const vv = window.visualViewport;
-    root.style.setProperty('--vv-height', `${vv.height}px`);
-    root.style.setProperty('--vv-offset-top', `${vv.offsetTop}px`);
-    root.style.setProperty('--vv-offset-left', `${vv.offsetLeft}px`);
-    root.style.setProperty('--vv-width', `${vv.width}px`);
-    if (window.scrollX !== 0) {
+    if (vv) {
+      root.style.setProperty('--vv-height', `${vv.height}px`);
+      root.style.setProperty('--vv-offset-top', `${vv.offsetTop}px`);
+      root.style.setProperty('--vv-offset-left', `${vv.offsetLeft}px`);
+      root.style.setProperty('--vv-width', `${vv.width}px`);
+    } else {
+      root.style.setProperty('--vv-height', `${window.innerHeight}px`);
+      root.style.setProperty('--vv-offset-top', '0px');
+      root.style.setProperty('--vv-offset-left', '0px');
+      root.style.setProperty('--vv-width', `${window.innerWidth}px`);
+    }
+    if (mq.matches && window.scrollX !== 0) {
       window.scrollTo(0, window.scrollY);
     }
     syncWizardModalViewport();
@@ -429,11 +428,7 @@ const GazpromMobileOverlay = (() => {
     document.body.classList.toggle('gazprom-mobile-shell', mq.matches);
     syncVisualViewport();
     syncNavScrollInset();
-    if (mq.matches) {
-      document.documentElement.scrollLeft = 0;
-      document.body.scrollLeft = 0;
-    } else {
-      document.documentElement.style.removeProperty('--vv-height');
+    if (!mq.matches) {
       clearMainScrollPadding();
     }
   };
@@ -587,6 +582,7 @@ const GazpromMobileOverlay = (() => {
   };
 
   syncMobileShellClass();
+  syncVisualViewport();
   applyBaselineScrollClearance(
     document.querySelector('.screen.active')?.id || 'screen-home'
   );
