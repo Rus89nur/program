@@ -29,6 +29,7 @@ const ReportsDashboard = (() => {
   };
 
   let scheduleYears = new Set();
+  let overdueViewMode = 'contractors';
 
   let openGroup = null;
   let bound = false;
@@ -547,6 +548,106 @@ const ReportsDashboard = (() => {
       .join('');
   }
 
+  function getOverdueGroupKey(row, mode) {
+    if (mode === 'objects') {
+      const obj = row.obj && row.obj !== '—' ? row.obj : 'Объект не указан';
+      return obj;
+    }
+    return row.org && row.org !== '—' ? row.org : 'Организация не указана';
+  }
+
+  function aggregateOverdueByGroup(rows, mode) {
+    const byGroup = new Map();
+    for (const row of rows) {
+      const label = getOverdueGroupKey(row, mode);
+      if (!byGroup.has(label)) {
+        byGroup.set(label, { total: 0, overdue: 0 });
+      }
+      const bucket = byGroup.get(label);
+      bucket.total += 1;
+      if (row.status === 'overdue') bucket.overdue += 1;
+    }
+    return [...byGroup.entries()]
+      .map(([label, counts]) => ({
+        label,
+        total: counts.total,
+        overdue: counts.overdue,
+        pct: counts.total > 0 ? Math.round((counts.overdue / counts.total) * 100) : 0,
+      }))
+      .filter((entry) => entry.overdue > 0)
+      .sort((a, b) => b.pct - a.pct || b.overdue - a.overdue || a.label.localeCompare(b.label, 'ru'))
+      .slice(0, 12);
+  }
+
+  function overdueBarFillClass(pct) {
+    if (pct >= 50) return 'reports-bar-row__fill--overdue-high';
+    if (pct >= 25) return 'reports-bar-row__fill--overdue-mid';
+    return 'reports-bar-row__fill--overdue-low';
+  }
+
+  function renderOverdueViewToggle() {
+    const wrap = document.getElementById('reportsOverdueViewFilters');
+    if (!wrap) return;
+    wrap.querySelectorAll('[data-reports-overdue-view]').forEach((btn) => {
+      const active = btn.dataset.reportsOverdueView === overdueViewMode;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', String(active));
+    });
+  }
+
+  function renderOverdueChart(rows) {
+    const wrap = document.getElementById('reportsOverdueChart');
+    const summary = document.getElementById('reportsOverdueSummary');
+    if (!wrap) return;
+
+    renderOverdueViewToggle();
+
+    const total = rows.length;
+    const overdueTotal = rows.filter((r) => r.status === 'overdue').length;
+    const overallPct = total > 0 ? Math.round((overdueTotal / total) * 100) : 0;
+
+    if (summary) {
+      summary.textContent =
+        total > 0
+          ? `Среди отфильтрованных нарушений: ${overallPct}% (${overdueTotal} из ${total}) с истёкшим сроком устранения`
+          : 'Нет нарушений по выбранным фильтрам';
+    }
+
+    if (!total) {
+      wrap.innerHTML = '<p class="reports-chart-empty" role="status">Нет данных для отображения</p>';
+      return;
+    }
+
+    if (!overdueTotal) {
+      wrap.innerHTML =
+        '<p class="reports-chart-empty" role="status">Нет просроченных нарушений — все сроки устранения в норме</p>';
+      return;
+    }
+
+    const entries = aggregateOverdueByGroup(rows, overdueViewMode);
+    if (!entries.length) {
+      wrap.innerHTML =
+        '<p class="reports-chart-empty" role="status">Нет просроченных нарушений в выбранной группировке</p>';
+      return;
+    }
+
+    wrap.innerHTML = entries
+      .map(({ label, total: groupTotal, overdue, pct }) => {
+        const fillCls = overdueBarFillClass(pct);
+        return `<div class="reports-bar-row reports-bar-row--overdue">
+          <div class="reports-bar-row__label" title="${AktUtils.escapeHtml(label)}">
+            <span class="reports-overdue-row__name">${AktUtils.escapeHtml(label)}</span>
+            <span class="reports-overdue-row__sub">${overdue} из ${groupTotal}</span>
+          </div>
+          <div class="reports-bar-row__track" aria-hidden="true">
+            <div class="reports-bar-row__fill ${fillCls}" style="width:${pct}%"></div>
+          </div>
+          <div class="reports-bar-row__val reports-bar-row__val--overdue">${pct}%</div>
+        </div>`;
+      })
+      .join('');
+  }
+
   function buildScheduleYearOptions(data) {
     const years = new Set();
     (data.scheduleItems || []).forEach((item) => {
@@ -717,6 +818,7 @@ const ReportsDashboard = (() => {
     renderDonut(stats);
     renderOrgTreemap(data);
     renderBarChart(rows);
+    renderOverdueChart(rows);
     renderScheduleDashboard(data);
   }
 
@@ -752,6 +854,14 @@ const ReportsDashboard = (() => {
     if (!screen) return;
 
     screen.addEventListener('click', (e) => {
+      const overdueViewBtn = e.target.closest('[data-reports-overdue-view]');
+      if (overdueViewBtn) {
+        e.stopPropagation();
+        overdueViewMode = overdueViewBtn.dataset.reportsOverdueView || 'contractors';
+        requestRender();
+        return;
+      }
+
       const scheduleYearBtn = e.target.closest('[data-reports-schedule-year]');
       if (scheduleYearBtn) {
         e.stopPropagation();

@@ -4982,6 +4982,62 @@
       color: var(--primary);
     }
 
+    .reports-overdue-summary {
+      margin: -4px 0 14px;
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--text-muted);
+    }
+
+    .reports-overdue-chart {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .reports-overdue-view-filters {
+      flex: 0 0 auto;
+      justify-content: flex-end;
+    }
+
+    .reports-bar-row--overdue .reports-bar-row__label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .reports-overdue-row__name {
+      font-size: 12px;
+      line-height: 1.35;
+      color: var(--text);
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .reports-overdue-row__sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .reports-bar-row__val--overdue {
+      color: #c62828;
+      min-width: 40px;
+    }
+
+    .reports-bar-row__fill--overdue-high {
+      background: linear-gradient(90deg, #ef5350, #b71c1c);
+    }
+
+    .reports-bar-row__fill--overdue-mid {
+      background: linear-gradient(90deg, #ff7043, #e65100);
+    }
+
+    .reports-bar-row__fill--overdue-low {
+      background: linear-gradient(90deg, #ffb74d, #f59e0b);
+    }
+
     .reports-chart-empty {
       margin: 24px 0;
       text-align: center;
@@ -5157,6 +5213,10 @@
         justify-content: flex-start;
         width: 100%;
         padding-bottom: 4px;
+      }
+      .reports-overdue-view-filters {
+        width: 100%;
+        justify-content: flex-start;
       }
     }
 

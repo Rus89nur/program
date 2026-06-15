@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '180';</script>
+  <script>window.GAZPROM_ASSET_V = '181';</script>
   <style id="appShellCritical">
     @media (max-width:900px),(max-width:1280px) and (max-height:520px) and (hover:none){
       .sidebar{display:none!important}
@@ -58,7 +58,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=157" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=158" id="appCss">
   <script>
   (function () {
     var css = document.getElementById('appCss');
@@ -116,7 +116,7 @@
       </button>
       <div class="sidebar-footer" id="sidebarAppBuild" aria-label="Версия веб-приложения">
         <span class="sidebar-footer__brand">программа НЕТ</span>
-        Сборка: <span data-app-build>web-180</span> · PWA
+        Сборка: <span data-app-build>web-181</span> · PWA
       </div>
     </aside>
 
@@ -183,7 +183,7 @@
             <div class="stat-label">Черновиков</div>
           </div>
         </div>
-        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-180</p>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-181</p>
       </section>
 
       <section class="screen" id="screen-wizard">
@@ -359,6 +359,18 @@
           <div class="card reports-chart-card reports-chart-card--wide">
             <h4 class="reports-chart-card__title">Виды выявленных нарушений</h4>
             <div class="reports-bar-chart" id="reportsBarChart" role="img" aria-label="Горизонтальная диаграмма видов нарушений"></div>
+          </div>
+
+          <div class="card reports-chart-card reports-chart-card--wide">
+            <div class="reports-chart-card__head">
+              <h4 class="reports-chart-card__title">Просрочка устранения</h4>
+              <div class="toolbar-filters toolbar-filters--pills reports-overdue-view-filters" id="reportsOverdueViewFilters" role="group" aria-label="Группировка просрочки">
+                <button type="button" class="filter-pill active" data-reports-overdue-view="contractors" aria-pressed="true">Подрядчики</button>
+                <button type="button" class="filter-pill" data-reports-overdue-view="objects" aria-pressed="false">Объекты</button>
+              </div>
+            </div>
+            <p class="reports-overdue-summary" id="reportsOverdueSummary" aria-live="polite"></p>
+            <div class="reports-overdue-chart" id="reportsOverdueChart" role="img" aria-label="Доля нарушений с истёкшим сроком устранения"></div>
           </div>
 
           <div class="card reports-chart-card reports-chart-card--wide reports-chart-card--schedule">
@@ -680,7 +692,7 @@
   <script src="js/schedule-editor.js?v=2"></script>
   <script src="js/elimination-editor.js?v=8"></script>
   <script src="js/report-exporter.js?v=2"></script>
-  <script src="js/reports-dashboard.js?v=11"></script>
+  <script src="js/reports-dashboard.js?v=12"></script>
   <script src="js/wizard-modals.js?v=43"></script>
   <script src="js/wizard.js?v=56"></script>
   <script src="js/short-akt-form.js?v=3"></script>
