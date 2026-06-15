@@ -4729,6 +4729,25 @@
       color: var(--text);
     }
 
+    .reports-chart-card__head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px 12px;
+      margin-bottom: 16px;
+    }
+
+    .reports-chart-card__head .reports-chart-card__title {
+      margin: 0;
+    }
+
+    .reports-schedule-year-filters {
+      flex: 1 1 auto;
+      justify-content: flex-end;
+      min-width: 0;
+    }
+
     .reports-donut-wrap {
       position: relative;
       width: 150px;
@@ -5104,6 +5123,14 @@
         flex-wrap: nowrap;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+      }
+      .reports-schedule-year-filters {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        justify-content: flex-start;
+        width: 100%;
         padding-bottom: 4px;
       }
     }

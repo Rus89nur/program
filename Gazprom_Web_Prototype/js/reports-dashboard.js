@@ -28,6 +28,8 @@ const ReportsDashboard = (() => {
     contractors: new Set(),
   };
 
+  let scheduleYears = new Set();
+
   let openGroup = null;
   let bound = false;
   let activeCatalog = null;
@@ -545,6 +547,54 @@ const ReportsDashboard = (() => {
       .join('');
   }
 
+  function buildScheduleYearOptions(data) {
+    const years = new Set();
+    (data.scheduleItems || []).forEach((item) => {
+      const y = getScheduleYear(item);
+      if (y) years.add(y);
+    });
+    return [...years].sort((a, b) => b - a);
+  }
+
+  function pruneScheduleYears(validYears) {
+    const valid = new Set(validYears);
+    for (const year of [...scheduleYears]) {
+      if (!valid.has(year)) scheduleYears.delete(year);
+    }
+  }
+
+  function toggleScheduleYear(rawYear) {
+    const year = parseInt(rawYear, 10);
+    if (Number.isNaN(year)) return;
+    if (scheduleYears.has(year)) scheduleYears.delete(year);
+    else scheduleYears.add(year);
+  }
+
+  function filterScheduleItemsByYear(items) {
+    if (!scheduleYears.size) return items;
+    return (items || []).filter((item) => {
+      const y = getScheduleYear(item);
+      return y && scheduleYears.has(y);
+    });
+  }
+
+  function renderScheduleYearFilters(years) {
+    const wrap = document.getElementById('reportsScheduleYearFilters');
+    if (!wrap) return;
+    if (!years.length) {
+      wrap.innerHTML = '';
+      wrap.hidden = true;
+      return;
+    }
+    wrap.hidden = false;
+    wrap.innerHTML = years
+      .map((year) => {
+        const active = scheduleYears.has(year);
+        return `<button type="button" class="filter-pill${active ? ' active' : ''}" data-reports-schedule-year="${year}" aria-pressed="${active}">${year}</button>`;
+      })
+      .join('');
+  }
+
   function renderTreemapLegend() {
     const el = document.getElementById('reportsTreemapLegend');
     if (!el) return;
@@ -557,7 +607,11 @@ const ReportsDashboard = (() => {
   }
 
   function renderScheduleDashboard(data) {
-    const items = data.scheduleItems || [];
+    const yearOptions = buildScheduleYearOptions(data);
+    pruneScheduleYears(yearOptions);
+    renderScheduleYearFilters(yearOptions);
+
+    const items = filterScheduleItemsByYear(data.scheduleItems || []);
     const total = items.length;
     const done = items.filter((i) => i.actualDate).length;
     const pending = total - done;
@@ -673,6 +727,7 @@ const ReportsDashboard = (() => {
       objects: new Set(),
       contractors: new Set(),
     };
+    scheduleYears = new Set();
     openGroup = null;
   }
 
@@ -697,6 +752,14 @@ const ReportsDashboard = (() => {
     if (!screen) return;
 
     screen.addEventListener('click', (e) => {
+      const scheduleYearBtn = e.target.closest('[data-reports-schedule-year]');
+      if (scheduleYearBtn) {
+        e.stopPropagation();
+        toggleScheduleYear(scheduleYearBtn.dataset.reportsScheduleYear);
+        requestRender();
+        return;
+      }
+
       const orgCell = e.target.closest('[data-reports-org]');
       if (orgCell) {
         e.stopPropagation();
