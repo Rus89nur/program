@@ -26,8 +26,11 @@
       --overlay-safe-bottom: env(safe-area-inset-bottom, 0px);
       --overlay-safe-left: env(safe-area-inset-left, 0px);
       --overlay-safe-right: env(safe-area-inset-right, 0px);
-      --overlay-available-height: calc(
-        var(--vv-height, 100dvh) - var(--overlay-safe-top) - var(--overlay-safe-bottom) - (var(--overlay-gutter) * 2)
+      --overlay-available-height: max(
+        280px,
+        calc(
+          var(--vv-height, 100dvh) - var(--overlay-safe-top) - var(--overlay-safe-bottom) - (var(--overlay-gutter) * 2)
+        )
       );
       --overlay-max-height: min(92dvh, var(--overlay-available-height));
     }
@@ -3754,6 +3757,7 @@
       text-overflow: ellipsis;
     }
     .settings-tile--template,
+    .settings-tile--registry,
     .settings-tile[data-catalog="violations"] {
       position: relative;
     }
@@ -4661,6 +4665,21 @@
       gap: 12px;
     }
 
+    .reports-kpi-grid--aside {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      align-content: stretch;
+    }
+
+    .reports-kpi-grid--aside .reports-kpi-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 108px;
+      height: 100%;
+    }
+
     .reports-kpi-card {
       padding: 16px 18px;
       text-align: center;
@@ -4714,8 +4733,13 @@
       align-items: stretch;
     }
 
-    .reports-charts-row--donut {
-      grid-template-columns: minmax(260px, 360px);
+    .reports-charts-row--overview {
+      grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+    }
+
+    .reports-chart-card--donut {
+      display: flex;
+      flex-direction: column;
     }
 
     .reports-chart-card {
@@ -5095,17 +5119,18 @@
     }
 
     @media (max-width: 960px) {
-      .reports-kpi-grid,
+      .reports-kpi-grid--aside,
       .reports-schedule-kpi {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
-      .reports-charts-row {
+      .reports-charts-row,
+      .reports-charts-row--overview {
         grid-template-columns: 1fr;
       }
     }
 
     @media (max-width: 560px) {
-      .reports-kpi-grid,
+      .reports-kpi-grid--aside,
       .reports-schedule-kpi {
         grid-template-columns: 1fr;
       }

@@ -136,7 +136,7 @@ function registerServiceWorker() {
       });
       return;
     }
-    navigator.serviceWorker.register('./sw.js?v=178')
+    navigator.serviceWorker.register('./sw.js?v=180')
       .then((reg) => {
         reg.update();
         document.addEventListener('visibilitychange', () => {
@@ -465,6 +465,23 @@ function bindTemplateSettings() {
   DefaultsBootstrap.bindTemplateModal();
 }
 
+function bindRegistrySettings() {
+  const open = () => {
+    if (typeof DefaultsBootstrap?.openRegistryModal === 'function') {
+      DefaultsBootstrap.openRegistryModal();
+      return;
+    }
+    ViolationRegistry?.open?.();
+  };
+  document.querySelector('.settings-tile--registry')?.addEventListener('click', open);
+  document.querySelector('.settings-tile--registry')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      open();
+    }
+  });
+}
+
 function init() {
   syncAppBuildLabel();
   bindNavigation();
@@ -593,6 +610,7 @@ function init() {
   bindReports();
   bindTrash();
   bindTemplateSettings();
+  bindRegistrySettings();
   document.getElementById('homeRestoreBackupBtn')?.addEventListener('click', () => {
     goTo('settings');
     requestAnimationFrame(() => openBackupModal());
