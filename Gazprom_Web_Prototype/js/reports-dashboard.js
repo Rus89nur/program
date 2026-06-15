@@ -188,13 +188,17 @@ const ReportsDashboard = (() => {
     return today > d;
   }
 
-  function buildFilterOptions(data) {
+  function buildFilterOptions(data, { forGroup = null } = {}) {
+    const effectiveFilters = getEffectiveFilters(forGroup);
+    const filteredAkts = filterAkts(data.akts || [], data, { effectiveFilters }).filter(aktHasViolations);
+    const filteredSchedule = filterScheduleItems(data.scheduleItems || [], data, effectiveFilters);
+
     const acts = new Set();
     const years = new Set();
     const objects = new Set();
     const contractors = new Set();
 
-    (data.akts || []).forEach((akt) => {
+    filteredAkts.forEach((akt) => {
       if (akt.number != null && akt.number !== '') acts.add(String(akt.number));
       if (akt.date) {
         const y = new Date(akt.date).getFullYear();
@@ -206,7 +210,7 @@ const ReportsDashboard = (() => {
       if (org && org !== '—') contractors.add(org);
     });
 
-    (data.scheduleItems || []).forEach((item) => {
+    filteredSchedule.forEach((item) => {
       const y = getScheduleYear(item);
       if (y) years.add(y);
       const obj = getScheduleObjectTitle(item);
@@ -223,32 +227,80 @@ const ReportsDashboard = (() => {
     };
   }
 
-  function pruneFilters(options) {
+  function pruneFilters(data) {
     const prune = (set, list, asString = true) => {
       const valid = new Set(list.map((v) => (asString ? String(v) : v)));
       for (const val of [...set]) {
         if (!valid.has(asString ? String(val) : val)) set.delete(val);
       }
     };
-    prune(filters.acts, options.acts);
-    prune(filters.years, options.years, false);
-    prune(filters.objects, options.objects);
-    prune(filters.contractors, options.contractors);
+    for (const { key } of FILTER_GROUPS) {
+      const options = buildFilterOptions(data, { forGroup: key });
+      prune(filters[key], options[key], key !== 'years');
+    }
   }
 
-  function filterAkts(akts, data, { ignoreContractorFilter = false } = {}) {
+  function getEffectiveFilters(forGroup) {
+    return {
+      acts: forGroup === 'acts' ? new Set() : filters.acts,
+      years: forGroup === 'years' ? new Set() : filters.years,
+      objects: forGroup === 'objects' ? new Set() : filters.objects,
+      contractors: forGroup === 'contractors' ? new Set() : filters.contractors,
+    };
+  }
+
+  function matchesContractorFilterWith(akt, data, effectiveFilters) {
+    if (!effectiveFilters.contractors.size) return true;
+    const aliases = getOrgAliases(akt, data);
+    return [...effectiveFilters.contractors].some((f) => aliases.has(f));
+  }
+
+  function matchesScheduleContractorFilter(item, data, effectiveFilters) {
+    if (!effectiveFilters.contractors.size) return true;
+    const org = getScheduleOrgTitle(item, data);
+    return effectiveFilters.contractors.has(org);
+  }
+
+  function filterAkts(akts, data, { ignoreContractorFilter = false, effectiveFilters = filters } = {}) {
     return (akts || []).filter((akt) => {
-      if (filters.acts.size && !filters.acts.has(String(akt.number))) return false;
-      if (filters.years.size) {
+      if (effectiveFilters.acts.size && !effectiveFilters.acts.has(String(akt.number))) return false;
+      if (effectiveFilters.years.size) {
         const y = new Date(akt.date).getFullYear();
-        if (!filters.years.has(y)) return false;
+        if (!effectiveFilters.years.has(y)) return false;
       }
-      if (filters.objects.size && !filters.objects.has(getObjectTitle(akt))) return false;
-      if (!ignoreContractorFilter && filters.contractors.size && !matchesContractorFilter(akt, data)) {
+      if (effectiveFilters.objects.size && !effectiveFilters.objects.has(getObjectTitle(akt))) return false;
+      if (
+        !ignoreContractorFilter &&
+        effectiveFilters.contractors.size &&
+        !matchesContractorFilterWith(akt, data, effectiveFilters)
+      ) {
         return false;
       }
       return true;
     });
+  }
+
+  function filterScheduleItems(items, data, effectiveFilters = filters) {
+    return (items || []).filter((item) => {
+      if (effectiveFilters.years.size) {
+        const y = getScheduleYear(item);
+        if (!y || !effectiveFilters.years.has(y)) return false;
+      }
+      if (effectiveFilters.objects.size && !effectiveFilters.objects.has(getScheduleObjectTitle(item))) {
+        return false;
+      }
+      if (
+        effectiveFilters.contractors.size &&
+        !matchesScheduleContractorFilter(item, data, effectiveFilters)
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  function aktHasViolations(akt) {
+    return (akt.violations || []).length > 0;
   }
 
   function collectRows(data, { ignoreContractorFilter = false, ignoreFilters = false } = {}) {
@@ -595,18 +647,21 @@ const ReportsDashboard = (() => {
       console.warn('ReportsDashboard: ViolationTypes', err);
     }
     const options = buildFilterOptions(data);
-    pruneFilters(options);
-    renderFilterGroups(options);
+    pruneFilters(data);
+    const displayOptions = { ...options };
+    if (openGroup) {
+      displayOptions[openGroup] = buildFilterOptions(data, { forGroup: openGroup })[openGroup];
+    }
+    renderFilterGroups(displayOptions);
     renderTreemapLegend();
 
     const { rows, akts } = collectRows(data);
-    const { rows: barRows } = collectRows(data, { ignoreContractorFilter: true });
     const stats = countByStatus(rows);
 
     renderKpi(rows, akts);
     renderDonut(stats);
     renderOrgTreemap(data);
-    renderBarChart(barRows);
+    renderBarChart(rows);
     renderScheduleDashboard(data);
   }
 
