@@ -506,7 +506,7 @@ const DefaultsBootstrap = (() => {
     });
   }
 
-  async function renderRegistryPicker(container, { navigateOnSelect = false } = {}) {
+  async function renderRegistryPicker(container, { onSelected = null } = {}) {
     if (!container) return;
     const presets = await listRegistryPresets();
     container.innerHTML = `
@@ -515,8 +515,8 @@ const DefaultsBootstrap = (() => {
         ${renderAddCard('registry', 'Импорт Excel')}
       </div>`;
 
-    const openViolations = () => {
-      if (typeof goTo === 'function') goTo('violations');
+    const finishSelect = () => {
+      if (typeof onSelected === 'function') onSelected();
     };
 
     container.querySelectorAll('[data-preset-id]').forEach((btn) => {
@@ -525,17 +525,15 @@ const DefaultsBootstrap = (() => {
         const presetName = btn.querySelector('.preset-card__name')?.textContent || 'реестр';
 
         if (btn.classList.contains('preset-card--active')) {
-          if (navigateOnSelect) openViolations();
+          finishSelect();
           return;
         }
 
-        const mergeEl = document.getElementById('vrPickerMergeCheckbox')
-          || document.getElementById('vrScreenMergeCheckbox');
-        const merge = mergeEl?.checked ?? false;
+        const merge = document.getElementById('vrPickerMergeCheckbox')?.checked ?? false;
         const ok = await GazpromToast.confirm(
           merge
             ? `Добавить записи из «${presetName}» к текущим?`
-            : `Открыть реестр «${presetName}»?\nТекущие несохранённые правки в таблице будут заменены.`,
+            : `Открыть реестр «${presetName}»?\nТекущие записи в таблице будут заменены.`,
           { confirmLabel: merge ? 'Объединить' : 'Открыть' }
         );
         if (!ok) return;
@@ -543,13 +541,9 @@ const DefaultsBootstrap = (() => {
         try {
           GazpromToast.info('Загрузка реестра…');
           await applyRegistryPreset(presetId, { merge });
-          await renderRegistryPicker(container, { navigateOnSelect });
-          if (navigateOnSelect) {
-            openViolations();
-          } else if (typeof ViolationRegistry !== 'undefined') {
-            await ViolationRegistry.renderScreen('', '');
-          }
-          GazpromToast.success(navigateOnSelect ? 'Реестр открыт' : 'Реестр выбран');
+          await refreshRegistryModal();
+          GazpromToast.success('Реестр выбран');
+          finishSelect();
         } catch (err) {
           GazpromToast.error(err.message);
         }
@@ -558,20 +552,16 @@ const DefaultsBootstrap = (() => {
 
     bindPresetDeleteHandlers(container, 'registry', {
       onDeleted: async () => {
-        await renderRegistryPicker(container, { navigateOnSelect });
+        await refreshRegistryModal();
         if (typeof ViolationRegistry !== 'undefined') {
-          await ViolationRegistry.renderPickerScreen?.();
           await ViolationRegistry.renderScreen?.('', '');
         }
       },
     });
 
     container.querySelector('[data-preset-add="registry"]')?.addEventListener('click', () => {
-      const input = document.getElementById('vrPickerImportInput')
-        || document.getElementById('vrScreenImportInput');
-      input?.click();
-      const opts = document.getElementById('vrPickerImportOptions')
-        || document.getElementById('vrScreenImportOptions');
+      document.getElementById('vrPickerImportInput')?.click();
+      const opts = document.getElementById('vrPickerImportOptions');
       if (opts) opts.hidden = false;
     });
   }
@@ -656,6 +646,88 @@ const DefaultsBootstrap = (() => {
     return catalog?.wordTemplateName ? catalog.wordTemplateName : 'Не загружен';
   }
 
+  function closeRegistryModal() {
+    const modal = document.getElementById('registryModal');
+    if (!modal) return;
+    modal.hidden = true;
+    GazpromMobileOverlay?.unlock?.();
+    const opts = document.getElementById('vrPickerImportOptions');
+    if (opts) opts.hidden = true;
+  }
+
+  function afterRegistrySelected() {
+    closeRegistryModal();
+    const onViolations = document.getElementById('screen-violations')?.classList.contains('active');
+    if (onViolations) {
+      void ViolationRegistry?.renderScreen?.('', '');
+    } else if (typeof goTo === 'function') {
+      goTo('violations');
+    }
+  }
+
+  async function refreshRegistryModal() {
+    const catalog = await GazpromStore.get();
+    const statusEl = document.getElementById('registryModalStatus');
+    const count = catalog?.violationRegistry?.length || 0;
+    const label = registrySourceLabel(catalog);
+
+    if (statusEl) {
+      statusEl.textContent = count
+        ? `✅ Активный: ${label} (${count} записей)`
+        : 'Выберите реестр для работы';
+      statusEl.className = `defaults-status ${count ? 'defaults-status--ok' : 'defaults-status--warn'}`;
+    }
+
+    await renderRegistryPicker(document.getElementById('registryPresetPicker'), {
+      onSelected: afterRegistrySelected,
+    });
+  }
+
+  function openRegistryModal() {
+    const modal = document.getElementById('registryModal');
+    if (!modal) return;
+    modal.hidden = false;
+    GazpromMobileOverlay?.lock?.();
+    void refreshRegistryModal();
+  }
+
+  function bindRegistryModal() {
+    const modal = document.getElementById('registryModal');
+    if (!modal || modal.dataset.bound === '1') return;
+    modal.dataset.bound = '1';
+
+    document.getElementById('registryModalClose')?.addEventListener('click', closeRegistryModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeRegistryModal();
+    });
+
+    document.getElementById('vrOpenRegistryModalBtn')?.addEventListener('click', () => {
+      openRegistryModal();
+    });
+
+    document.getElementById('vrPickerImportInput')?.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const merge = document.getElementById('vrPickerMergeCheckbox')?.checked ?? false;
+      const opts = document.getElementById('vrPickerImportOptions');
+      if (opts) opts.hidden = true;
+
+      try {
+        if (typeof ViolationRegistry === 'undefined') throw new Error('Модуль реестра недоступен');
+        GazpromToast.info('Читаю файл…');
+        const count = await ViolationRegistry.importFromExcel(file, { replace: !merge });
+        GazpromToast.success(`Импортировано нарушений: ${count}`);
+        await refreshRegistryModal();
+        afterRegistrySelected();
+      } catch (err) {
+        console.error('[RegistryModal] import error:', err);
+        GazpromToast.error('Ошибка импорта: ' + (err.message || String(err)));
+      } finally {
+        e.target.value = '';
+      }
+    });
+  }
+
   function closeTemplateModal() {
     const modal = document.getElementById('templateModal');
     if (!modal) return;
@@ -724,6 +796,9 @@ const DefaultsBootstrap = (() => {
     registrySourceLabel,
     templateSourceLabel,
     hasWordTemplate,
+    openRegistryModal,
+    closeRegistryModal,
+    bindRegistryModal,
     openTemplateModal,
     bindTemplateModal,
     deleteTemplatePreset,

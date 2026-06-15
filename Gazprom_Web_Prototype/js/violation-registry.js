@@ -177,19 +177,13 @@ const ViolationRegistry = (() => {
   /* ——— Вход в экран ——— */
 
   function open() {
-    if (typeof goTo === 'function') goTo('violation-registry-picker');
-    renderPickerScreen();
+    if (typeof DefaultsBootstrap !== 'undefined') {
+      DefaultsBootstrap.openRegistryModal();
+    }
   }
 
-  async function renderPickerScreen() {
-    const catalog = await GazpromStore.get();
-    if (typeof DefaultsBootstrap !== 'undefined') {
-      await DefaultsBootstrap.renderRegistryPicker(
-        document.getElementById('vrRegistryPresetPicker'),
-        { navigateOnSelect: true }
-      );
-      await DefaultsBootstrap.renderSettingsTilePreviews(catalog);
-    }
+  function openRegistryModal() {
+    open();
   }
 
   /* ——— Рендер экрана #screen-violations ——— */
@@ -329,40 +323,6 @@ const ViolationRegistry = (() => {
       });
     });
   }
-
-  /* ——— Экран выбора реестра ——— */
-
-  let pickerBound = false;
-
-  function bindPickerScreen() {
-    if (pickerBound) return;
-    pickerBound = true;
-
-    const importInput = document.getElementById('vrPickerImportInput');
-    const importOptions = document.getElementById('vrPickerImportOptions');
-
-    importInput?.addEventListener('change', async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const merge = document.getElementById('vrPickerMergeCheckbox')?.checked ?? false;
-      if (importOptions) importOptions.hidden = true;
-
-      try {
-        GazpromToast.info('Читаю файл…');
-        const count = await importFromExcel(file, { replace: !merge });
-        GazpromToast.success(`Импортировано нарушений: ${count}`);
-        await renderPickerScreen();
-        if (typeof goTo === 'function') goTo('violations');
-      } catch (err) {
-        console.error('[ViolationRegistry] import error:', err);
-        GazpromToast.error('Ошибка импорта: ' + (err.message || String(err)));
-      } finally {
-        e.target.value = '';
-      }
-    });
-  }
-
-  /* ——— Привязка событий экрана (один раз при init) ——— */
 
   function bindScreen() {
     if (screenBound) return;
@@ -535,9 +495,8 @@ const ViolationRegistry = (() => {
 
   return {
     open,
+    openRegistryModal,
     bindScreen,
-    bindPickerScreen,
-    renderPickerScreen,
     renderScreen,
     getAll,
     addItem,
