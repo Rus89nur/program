@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '157';</script>
+  <script>window.GAZPROM_ASSET_V = '158';</script>
   <style id="appShellCritical">
     @media (max-width:900px),(max-width:1280px) and (max-height:520px) and (hover:none){
       .sidebar{display:none!important}
@@ -58,7 +58,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=142" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=143" id="appCss">
   <script>
   (function () {
     var css = document.getElementById('appCss');
@@ -116,7 +116,7 @@
       </button>
       <div class="sidebar-footer" id="sidebarAppBuild" aria-label="Версия веб-приложения">
         <span class="sidebar-footer__brand">программа НЕТ</span>
-        Сборка: <span data-app-build>web-157</span> · PWA
+        Сборка: <span data-app-build>web-158</span> · PWA
       </div>
     </aside>
 
@@ -183,7 +183,7 @@
             <div class="stat-label">Черновиков</div>
           </div>
         </div>
-        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-157</p>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-158</p>
       </section>
 
       <section class="screen" id="screen-wizard">
@@ -298,22 +298,73 @@
       </section>
 
       <section class="screen" id="screen-reports">
-        <div class="card">
-          <h3>Отчёты и аналитика</h3>
-          <p style="font-size:14px;color:var(--text-muted);margin-bottom:20px;">Сводные отчёты по нарушениям, графику проверок и устранению</p>
-          <div class="home-grid">
-            <div class="card stat-card stat-card--clickable">
-              <div class="stat-card-icon">📊</div>
-              <div class="stat-label">Отчёт по нарушениям</div>
+        <div class="reports-screen">
+          <div class="card reports-header">
+            <div class="reports-header__top">
+              <div>
+                <h3 class="reports-header__title">Результаты проверок</h3>
+                <p class="reports-header__subtitle">Сводная аналитика по нарушениям с автоматическим обновлением графиков</p>
+              </div>
+              <div class="reports-header__actions">
+                <button type="button" class="btn-ghost btn-sm" id="reportsExportBtn" title="Скачать отчёт в Excel">📄 Скачать отчёт</button>
+                <button type="button" class="btn-ghost btn-sm" id="reportsResetFilters" title="Сбросить все фильтры">✕ Сброс фильтров</button>
+              </div>
             </div>
-            <div class="card stat-card stat-card--clickable">
-              <div class="stat-card-icon">📅</div>
-              <div class="stat-label">График проверок</div>
+            <div class="reports-filter-bar" id="reportsFilterGroups" role="toolbar" aria-label="Фильтры отчётов"></div>
+          </div>
+
+          <div class="reports-kpi-grid" aria-label="Ключевые показатели">
+            <div class="card reports-kpi-card">
+              <div class="reports-kpi-card__value" id="reportsKpiOrgs">0</div>
+              <div class="reports-kpi-card__label">количество подрядчиков</div>
             </div>
-            <div class="card stat-card stat-card--clickable">
-              <div class="stat-card-icon">📁</div>
-              <div class="stat-label">Экспорт графика (Excel)</div>
+            <div class="card reports-kpi-card">
+              <div class="reports-kpi-card__value" id="reportsKpiObjects">0</div>
+              <div class="reports-kpi-card__label">количество объектов</div>
             </div>
+            <div class="card reports-kpi-card reports-kpi-card--open">
+              <div class="reports-kpi-card__value" id="reportsKpiOpen">0</div>
+              <div class="reports-kpi-card__label">нарушений в работе</div>
+            </div>
+            <div class="card reports-kpi-card reports-kpi-card--done">
+              <div class="reports-kpi-card__value" id="reportsKpiDone">0</div>
+              <div class="reports-kpi-card__label">устранено нарушений</div>
+            </div>
+          </div>
+
+          <div class="reports-charts-row">
+            <div class="card reports-chart-card">
+              <h4 class="reports-chart-card__title">Количество нарушений</h4>
+              <div class="reports-donut-wrap">
+                <div class="reports-donut" id="reportsDonut" aria-hidden="true"></div>
+                <div class="reports-donut-center">
+                  <span class="reports-donut-center__value" id="reportsDonutTotal">0</span>
+                  <span class="reports-donut-center__label">всего</span>
+                </div>
+              </div>
+              <ul class="reports-legend" id="reportsDonutLegend" aria-label="Распределение по статусу"></ul>
+            </div>
+            <div class="card reports-chart-card reports-chart-card--treemap">
+              <h4 class="reports-chart-card__title">Нарушения по подрядчикам</h4>
+              <div class="reports-treemap-wrap" id="reportsOrgTreemap"></div>
+              <div class="reports-treemap-legend" id="reportsTreemapLegend" aria-label="Легенда"></div>
+            </div>
+          </div>
+
+          <div class="card reports-chart-card reports-chart-card--wide">
+            <h4 class="reports-chart-card__title">Виды выявленных нарушений</h4>
+            <div class="reports-bar-chart" id="reportsBarChart" role="img" aria-label="Горизонтальная диаграмма видов нарушений"></div>
+          </div>
+
+          <div class="reports-export-grid">
+            <button type="button" class="card reports-export-tile" id="reportsScheduleBtn">
+              <span class="reports-export-tile__icon" aria-hidden="true">📅</span>
+              <span class="reports-export-tile__label">График проверок</span>
+            </button>
+            <button type="button" class="card reports-export-tile" id="reportsScheduleExportBtn">
+              <span class="reports-export-tile__icon" aria-hidden="true">📁</span>
+              <span class="reports-export-tile__label">Экспорт графика (Excel)</span>
+            </button>
           </div>
         </div>
       </section>
@@ -532,15 +583,16 @@
   <script src="js/catalog-service.js"></script>
   <script src="js/backup-import.js?v=29"></script>
   <script src="js/akt-search.js"></script>
-  <script src="js/ui-bindings.js?v=27"></script>
+  <script src="js/ui-bindings.js?v=28"></script>
   <script src="js/catalog-editor.js?v=12"></script>
   <script src="js/schedule-editor.js?v=2"></script>
   <script src="js/elimination-editor.js?v=8"></script>
   <script src="js/report-exporter.js?v=2"></script>
+  <script src="js/reports-dashboard.js?v=1"></script>
   <script src="js/wizard-modals.js?v=42"></script>
   <script src="js/wizard.js?v=56"></script>
   <script src="js/short-akt-form.js?v=3"></script>
   <script src="js/doc-generator.js?v=35"></script>
-  <script src="js/app.js?v=128"></script>
+  <script src="js/app.js?v=129"></script>
 </body>
 </html>

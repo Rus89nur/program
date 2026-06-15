@@ -54,6 +54,9 @@ function goTo(screenId, options = {}) {
   if (screenId === 'violations') {
     ViolationRegistry.renderScreen();
   }
+  if (screenId === 'reports') {
+    void GazpromStore.get().then((data) => ReportsDashboard.render(data));
+  }
   requestAnimationFrame(() => {
     GazpromMobileOverlay?.ensureScrollClearance?.('goTo-' + screenId);
   });
@@ -129,7 +132,7 @@ function registerServiceWorker() {
       });
       return;
     }
-    navigator.serviceWorker.register('./sw.js?v=157')
+    navigator.serviceWorker.register('./sw.js?v=158')
       .then((reg) => {
         reg.update();
         document.addEventListener('visibilitychange', () => {
@@ -407,21 +410,7 @@ function bindGlobalSearch() {
 }
 
 function bindReports() {
-  const tiles = document.querySelectorAll('#screen-reports .stat-card--clickable');
-  const actions = [
-    () => ReportExporter.exportViolationsReport(),
-    () => ScheduleEditor.open(),
-    () => ReportExporter.exportSchedule(),
-  ];
-  tiles.forEach((tile, i) => {
-    tile.addEventListener('click', async () => {
-      try {
-        if (actions[i]) await actions[i]();
-      } catch (e) {
-        GazpromToast.error(e.message);
-      }
-    });
-  });
+  ReportsDashboard.init();
 }
 
 function bindTrash() {

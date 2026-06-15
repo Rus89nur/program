@@ -332,6 +332,12 @@ const GazpromUI = (() => {
     }
   }
 
+  function renderReports(data) {
+    if (typeof ReportsDashboard?.render === 'function') {
+      ReportsDashboard.render(data);
+    }
+  }
+
   function renderTrash(data) {
     const tbody = document.querySelector('#trashTableBody');
     if (!tbody) return;
@@ -447,6 +453,7 @@ const GazpromUI = (() => {
       renderHome(data);
       renderHistory(data);
       renderElimination(data);
+      renderReports(data);
       renderTrash(data);
       renderSettingsTilesSync(data);
       if (document.getElementById('screen-wizard')?.classList.contains('active')) {
