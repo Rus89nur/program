@@ -15,8 +15,8 @@ const ReportsDashboard = (() => {
   ];
 
   const STATUS_META = {
-    done: { label: 'Устранено', color: 'var(--success)', cls: 'done' },
-    overdue: { label: 'Срок устранения истёк', color: 'var(--danger)', cls: 'overdue' },
+    done: { label: 'Устранено', color: '#2e7d32', cls: 'done' },
+    overdue: { label: 'Срок устранения истёк', color: '#c62828', cls: 'overdue' },
     ontime: { label: 'Срок устранения не истёк', color: '#f59e0b', cls: 'ontime' },
     nodeadline: { label: 'Отсутствует срок исполнения', color: '#94a3b8', cls: 'nodeadline' },
   };
@@ -71,8 +71,19 @@ const ReportsDashboard = (() => {
     return 'ontime';
   }
 
-  function getOrgTitle(akt) {
-    return akt.organization?.shortTitle || akt.organization?.title || '—';
+  function getOrgTitle(akt, data) {
+    const embedded = akt?.organization?.shortTitle || akt?.organization?.title;
+    if (embedded) return embedded;
+    const orgId = akt?.organization?.id;
+    if (orgId && data) {
+      const org = (data.organizations || []).find((o) => o.id === orgId);
+      if (org) return org.shortTitle || org.title || '—';
+    }
+    if (typeof AktSearch !== 'undefined') {
+      const fromSearch = AktSearch.getOrgTitle(akt);
+      if (fromSearch) return fromSearch;
+    }
+    return '—';
   }
 
   function getObjectTitle(akt) {
@@ -150,7 +161,7 @@ const ReportsDashboard = (() => {
       }
       const obj = getObjectTitle(akt);
       if (obj && obj !== '—') objects.add(obj);
-      const org = getOrgTitle(akt);
+      const org = getOrgTitle(akt, data);
       if (org && org !== '—') contractors.add(org);
     });
 
@@ -184,7 +195,7 @@ const ReportsDashboard = (() => {
     prune(filters.contractors, options.contractors);
   }
 
-  function filterAkts(akts) {
+  function filterAkts(akts, data, { ignoreContractorFilter = false } = {}) {
     return (akts || []).filter((akt) => {
       if (filters.acts.size && !filters.acts.has(String(akt.number))) return false;
       if (filters.years.size) {
@@ -192,7 +203,13 @@ const ReportsDashboard = (() => {
         if (!filters.years.has(y)) return false;
       }
       if (filters.objects.size && !filters.objects.has(getObjectTitle(akt))) return false;
-      if (filters.contractors.size && !filters.contractors.has(getOrgTitle(akt))) return false;
+      if (
+        !ignoreContractorFilter &&
+        filters.contractors.size &&
+        !filters.contractors.has(getOrgTitle(akt, data))
+      ) {
+        return false;
+      }
       return true;
     });
   }
@@ -211,13 +228,13 @@ const ReportsDashboard = (() => {
     });
   }
 
-  function collectRows(data) {
+  function collectRows(data, { ignoreContractorFilter = false } = {}) {
     const eliminations = data.violationEliminations || [];
-    const akts = filterAkts(data.akts || []);
+    const akts = filterAkts(data.akts || [], data, { ignoreContractorFilter });
     const rows = [];
 
     for (const akt of akts) {
-      const org = getOrgTitle(akt);
+      const org = getOrgTitle(akt, data);
       const obj = getObjectTitle(akt);
       for (const v of akt.violations || []) {
         const el = eliminations.find(
@@ -297,7 +314,7 @@ const ReportsDashboard = (() => {
 
   function renderKpi(rows, akts) {
     const stats = countByStatus(rows);
-    const orgs = new Set(akts.map((a) => getOrgTitle(a)).filter((o) => o && o !== '—'));
+    const orgs = new Set(akts.map((a) => getOrgTitle(a, activeCatalog)).filter((o) => o && o !== '—'));
     const objs = new Set(akts.map((a) => getObjectTitle(a)).filter((o) => o && o !== '—'));
     const open = stats.total - stats.done;
 
@@ -355,16 +372,26 @@ const ReportsDashboard = (() => {
     }
   }
 
-  function contractorAccentClass(counts) {
-    if (counts.overdue > 0) return 'reports-contractor-card--overdue';
-    if (counts.ontime > 0) return 'reports-contractor-card--ontime';
-    if (counts.done > 0) return 'reports-contractor-card--done';
-    return 'reports-contractor-card--muted';
+  function orgBlockColor(counts) {
+    if (counts.overdue > 0) return STATUS_META.overdue.color;
+    if (counts.ontime > 0) return STATUS_META.ontime.color;
+    if (counts.done > 0) return STATUS_META.done.color;
+    return STATUS_META.nodeadline.color;
   }
 
-  function renderContractorDashboard(rows) {
-    const wrap = document.getElementById('reportsContractorGrid');
+  function toggleContractorFilter(org) {
+    if (!org || org === '—') return;
+    if (filters.contractors.has(org)) filters.contractors.delete(org);
+    else filters.contractors.add(org);
+  }
+
+  function renderOrgTreemap(data) {
+    const wrap =
+      document.getElementById('reportsOrgTreemap') ||
+      document.getElementById('reportsContractorGrid');
     if (!wrap) return;
+
+    const { rows } = collectRows(data, { ignoreContractorFilter: true });
 
     if (!rows.length) {
       wrap.innerHTML = '<p class="reports-chart-empty" role="status">Нет данных для отображения</p>';
@@ -373,32 +400,31 @@ const ReportsDashboard = (() => {
 
     const byOrg = new Map();
     for (const r of rows) {
-      if (!byOrg.has(r.org)) {
-        byOrg.set(r.org, { total: 0, done: 0, overdue: 0, ontime: 0, nodeadline: 0 });
+      const org = r.org && r.org !== '—' ? r.org : 'Организация не указана';
+      if (!byOrg.has(org)) {
+        byOrg.set(org, { total: 0, done: 0, overdue: 0, ontime: 0, nodeadline: 0 });
       }
-      const bucket = byOrg.get(r.org);
+      const bucket = byOrg.get(org);
       bucket.total += 1;
       bucket[r.status] += 1;
     }
 
     const entries = [...byOrg.entries()].sort((a, b) => b[1].total - a[1].total);
+    const max = entries[0][1].total || 1;
 
-    wrap.innerHTML = entries
+    wrap.innerHTML = `<div class="reports-treemap">${entries
       .map(([org, counts]) => {
-        const open = counts.total - counts.done;
-        const accent = contractorAccentClass(counts);
-        return `<div class="card reports-contractor-card ${accent}" role="listitem">
-          <div class="reports-contractor-card__name" title="${AktUtils.escapeHtml(org)}">${AktUtils.escapeHtml(org)}</div>
-          <div class="reports-contractor-card__value">${counts.total}</div>
-          <div class="reports-contractor-card__label">нарушений</div>
-          <div class="reports-contractor-card__stats">
-            <span class="reports-contractor-card__stat reports-contractor-card__stat--done">✓ ${counts.done}</span>
-            <span class="reports-contractor-card__stat reports-contractor-card__stat--open">⏳ ${open}</span>
-            ${counts.overdue > 0 ? `<span class="reports-contractor-card__stat reports-contractor-card__stat--overdue">⚠ ${counts.overdue}</span>` : ''}
-          </div>
-        </div>`;
+        const grow = Math.max(1, counts.total);
+        const minWidth = Math.max(28, Math.round((counts.total / max) * 100));
+        const color = orgBlockColor(counts);
+        const isActive = filters.contractors.has(org);
+        const filterOrg = org === 'Организация не указана' ? '—' : org;
+        return `<button type="button" class="reports-treemap__cell${isActive ? ' reports-treemap__cell--active' : ''}" style="flex-grow:${grow};flex-basis:${minWidth}%;background:${color}" data-reports-org="${AktUtils.escapeHtml(filterOrg)}" title="${AktUtils.escapeHtml(org)} — ${counts.total}" aria-pressed="${isActive}" aria-label="Фильтр: ${AktUtils.escapeHtml(org)}, ${counts.total} нарушений">
+          <span class="reports-treemap__name">${AktUtils.escapeHtml(org)}</span>
+          <span class="reports-treemap__val">${counts.total}</span>
+        </button>`;
       })
-      .join('');
+      .join('')}</div>`;
   }
 
   function renderBarChart(rows) {
@@ -518,9 +544,36 @@ const ReportsDashboard = (() => {
   function toggleFilter(group, rawValue) {
     const set = filters[group];
     if (!set) return;
-    const value = group === 'years' ? parseInt(rawValue, 10) : rawValue;
+    let value = rawValue;
+    if (group === 'years') {
+      value = parseInt(rawValue, 10);
+      if (Number.isNaN(value)) return;
+    }
     if (set.has(value)) set.delete(value);
     else set.add(value);
+  }
+
+  function applyRender(data) {
+    if (!data) return;
+    activeCatalog = data;
+    try {
+      if (typeof ViolationTypes !== 'undefined') ViolationTypes.ensureCatalog(activeCatalog);
+    } catch (err) {
+      console.warn('ReportsDashboard: ViolationTypes', err);
+    }
+    const options = buildFilterOptions(data);
+    pruneFilters(options);
+    renderFilterGroups(options);
+    renderTreemapLegend();
+
+    const { rows, akts } = collectRows(data);
+    const stats = countByStatus(rows);
+
+    renderKpi(rows, akts);
+    renderDonut(stats);
+    renderOrgTreemap(data);
+    renderBarChart(rows);
+    renderScheduleDashboard(data);
   }
 
   function resetFilters() {
@@ -540,22 +593,11 @@ const ReportsDashboard = (() => {
   }
 
   function render(data) {
-    if (!data) return;
-    activeCatalog = data;
-    if (typeof ViolationTypes !== 'undefined') ViolationTypes.ensureCatalog(activeCatalog);
-    const options = buildFilterOptions(data);
-    pruneFilters(options);
-    renderFilterGroups(options);
-    renderTreemapLegend();
+    applyRender(data);
+  }
 
-    const { rows, akts } = collectRows(data);
-    const stats = countByStatus(rows);
-
-    renderKpi(rows, akts);
-    renderDonut(stats);
-    renderContractorDashboard(rows);
-    renderBarChart(rows);
-    renderScheduleDashboard(data);
+  function requestRender() {
+    void GazpromStore.get().then(applyRender);
   }
 
   function bind() {
@@ -564,39 +606,44 @@ const ReportsDashboard = (() => {
     const screen = document.getElementById('screen-reports');
     if (!screen) return;
 
-    screen.addEventListener('click', async (e) => {
+    screen.addEventListener('click', (e) => {
+      const orgCell = e.target.closest('[data-reports-org]');
+      if (orgCell) {
+        e.stopPropagation();
+        toggleContractorFilter(orgCell.dataset.reportsOrg);
+        requestRender();
+        return;
+      }
+
       const groupBtn = e.target.closest('[data-reports-group]');
       if (groupBtn) {
+        e.stopPropagation();
         const group = groupBtn.dataset.reportsGroup;
         if (!group) return;
-        if (openGroup === group) {
-          closePanels();
-        } else {
-          openGroup = group;
-        }
-        render(await GazpromStore.get());
+        if (openGroup === group) closePanels();
+        else openGroup = group;
+        requestRender();
         return;
       }
 
       const chip = e.target.closest('[data-reports-filter]');
       if (chip) {
+        e.stopPropagation();
         toggleFilter(chip.dataset.reportsFilter, chip.dataset.reportsValue);
-        render(await GazpromStore.get());
+        requestRender();
         return;
       }
 
       if (e.target.closest('#reportsResetFilters')) {
         resetFilters();
-        render(await GazpromStore.get());
+        requestRender();
         return;
       }
 
       if (e.target.closest('#reportsExportBtn')) {
-        try {
-          await ReportExporter.exportViolationsReport();
-        } catch (err) {
+        void ReportExporter.exportViolationsReport().catch((err) => {
           GazpromToast.error(err.message);
-        }
+        });
         return;
       }
 
@@ -610,25 +657,25 @@ const ReportsDashboard = (() => {
       }
 
       if (e.target.closest('#reportsScheduleExportBtn')) {
-        try {
-          await ReportExporter.exportSchedule();
-        } catch (err) {
+        void ReportExporter.exportSchedule().catch((err) => {
           GazpromToast.error(err.message);
-        }
+        });
       }
     });
 
     document.addEventListener('click', (e) => {
       if (!openGroup) return;
+      const reportsScreen = document.getElementById('screen-reports');
+      if (!reportsScreen?.classList.contains('active')) return;
       if (e.target.closest('.reports-filter-toolbar')) return;
       closePanels();
-      void GazpromStore.get().then(render);
+      requestRender();
     });
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && openGroup) {
         closePanels();
-        void GazpromStore.get().then(render);
+        requestRender();
       }
     });
   }
