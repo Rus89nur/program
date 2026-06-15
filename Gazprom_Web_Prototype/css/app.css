@@ -4665,13 +4665,7 @@
       gap: 12px;
     }
 
-    .reports-kpi-grid--aside {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      grid-template-rows: repeat(2, minmax(0, 1fr));
-      align-content: stretch;
-    }
-
-    .reports-kpi-grid--aside .reports-kpi-card {
+    .reports-kpi-card--aside {
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -4734,12 +4728,37 @@
     }
 
     .reports-charts-row--overview {
-      grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+      grid-template-columns: minmax(220px, 280px) repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(108px, auto));
+      gap: 12px;
+      align-items: stretch;
     }
 
     .reports-chart-card--donut {
+      grid-column: 1;
+      grid-row: 1 / 3;
       display: flex;
       flex-direction: column;
+      min-height: 0;
+    }
+
+    .reports-chart-card--donut .reports-chart-card__title {
+      flex: 0 0 auto;
+      margin-bottom: 12px;
+    }
+
+    .reports-chart-card--donut .reports-donut-wrap {
+      flex: 1 1 auto;
+      margin: 0 auto 12px;
+      width: min(150px, 100%);
+      height: auto;
+      aspect-ratio: 1;
+      max-height: 150px;
+    }
+
+    .reports-chart-card--donut .reports-legend {
+      flex: 0 0 auto;
+      margin-top: auto;
     }
 
     .reports-chart-card {
@@ -5181,13 +5200,28 @@
       }
       .reports-charts-row,
       .reports-charts-row--overview {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-rows: auto;
+      }
+      .reports-chart-card--donut {
+        grid-column: 1 / -1;
+        grid-row: auto;
+      }
+      .reports-chart-card--donut .reports-donut-wrap {
+        flex: 0 0 auto;
+        margin: 0 auto 16px;
+      }
+      .reports-chart-card--donut .reports-legend {
+        margin-top: 0;
       }
     }
 
     @media (max-width: 560px) {
       .reports-kpi-grid--aside,
       .reports-schedule-kpi {
+        grid-template-columns: 1fr;
+      }
+      .reports-charts-row--overview {
         grid-template-columns: 1fr;
       }
       .reports-bar-row {
