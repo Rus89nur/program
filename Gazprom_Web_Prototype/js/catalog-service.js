@@ -98,6 +98,8 @@ const CatalogService = (() => {
       scheduleItems: data.scheduleItems || [],
       violationEliminations: data.violationEliminations || [],
       violationRegistry: data.violationRegistry || [],
+      violationTypes: data.violationTypes || [],
+      typeMappings: data.typeMappings || {},
       descriptionTemplates: data.descriptionTemplates || ['', '', ''],
       [templateKey]: data[templateKey] || null,
       wordTemplateName: data.wordTemplateName || null,

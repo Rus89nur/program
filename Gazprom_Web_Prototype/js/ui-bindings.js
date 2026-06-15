@@ -508,6 +508,14 @@ const GazpromUI = (() => {
       const n = data.trash?.length || 0;
       trashBadge.textContent = n > 0 ? String(n) : '';
     }
+
+    const vtBadge = document.querySelector('[data-vt-unmapped]');
+    if (vtBadge && typeof ViolationTypes !== 'undefined') {
+      ViolationTypes.ensureCatalog(data);
+      const n = ViolationTypes.getUnmappedArchived(data).length;
+      vtBadge.textContent = n > 0 ? String(n) : '';
+      vtBadge.style.color = n > 0 ? 'var(--warning)' : '';
+    }
   }
 
   return {

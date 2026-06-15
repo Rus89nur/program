@@ -20,6 +20,7 @@ const titles = {
   settings: 'Настройки',
   trash: 'Корзина',
   violations: 'Реестр нарушений',
+  'violation-types': 'Виды нарушений',
 };
 
 function goTo(screenId, options = {}) {
@@ -53,6 +54,9 @@ function goTo(screenId, options = {}) {
   }
   if (screenId === 'violations') {
     ViolationRegistry.renderScreen();
+  }
+  if (screenId === 'violation-types') {
+    ViolationTypesEditor.renderScreen();
   }
   if (screenId === 'reports') {
     void GazpromStore.get().then((data) => ReportsDashboard.render(data));
@@ -132,7 +136,7 @@ function registerServiceWorker() {
       });
       return;
     }
-    navigator.serviceWorker.register('./sw.js?v=159')
+    navigator.serviceWorker.register('./sw.js?v=160')
       .then((reg) => {
         reg.update();
         document.addEventListener('visibilitychange', () => {
@@ -252,6 +256,7 @@ async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
     GazpromToast.success(`Резервная копия загружена${toastPhoto}`);
     closeBackupModal();
     goTo('home');
+    void ViolationTypesEditor.maybePromptAfterImport();
   } catch (err) {
     console.error(err);
     setBackupMessage(err.message || 'Ошибка импорта', 'error');
@@ -597,6 +602,7 @@ function init() {
     requestAnimationFrame(() => openBackupModal());
   });
   CatalogEditor.bindSettingsTiles();
+  ViolationTypesEditor.init();
   ViolationRegistry.bindScreen();
   EliminationEditor.bindFilters();
   EliminationEditor.bindBulkActions();

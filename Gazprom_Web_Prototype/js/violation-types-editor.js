@@ -1,0 +1,666 @@
+/**
+ * Редактор видов нарушений: вкладки (B), split-модалка (A), мастер миграции (C).
+ */
+const ViolationTypesEditor = (() => {
+  const TABS = [
+    { key: 'active', label: 'Активные' },
+    { key: 'archive', label: 'Архив' },
+    { key: 'mappings', label: 'Соответствия' },
+  ];
+
+  let catalog = null;
+  let currentTab = 'active';
+  let screenQuery = '';
+  let bound = false;
+  let wizardStep = 0;
+  let wizardMappings = new Map();
+
+  function esc(s) {
+    return AktUtils.escapeHtml(String(s ?? ''));
+  }
+
+  async function loadCatalog() {
+    catalog = await GazpromStore.get();
+    if (!catalog) {
+      GazpromToast.error('Нет данных в базе');
+      return null;
+    }
+    if (ViolationTypes.ensureCatalog(catalog)) {
+      await GazpromStore.set(catalog);
+      GazpromStore.invalidateCache();
+    }
+    return catalog;
+  }
+
+  async function saveCatalog(message) {
+    await GazpromStore.set(catalog);
+    GazpromStore.invalidateCache();
+    await GazpromUI.refreshAll();
+    if (message) GazpromToast.success(message);
+  }
+
+  function activeSelectOptions(selectedId, { includeEmpty = false, emptyLabel = '— выберите новый вид —' } = {}) {
+    const items = ViolationTypes.getActiveTypes(catalog);
+    const opts = includeEmpty
+      ? [`<option value="">${esc(emptyLabel)}</option>`]
+      : [];
+    for (const t of items) {
+      opts.push(
+        `<option value="${esc(t.id)}" ${t.id === selectedId ? 'selected' : ''}>${esc(t.title)}</option>`
+      );
+    }
+    return opts.join('');
+  }
+
+  function renderHeader() {
+    const host = document.getElementById('vtScreenHost');
+    if (!host) return;
+
+    const unmapped = ViolationTypes.getUnmappedArchived(catalog).length;
+    const alert =
+      unmapped > 0
+        ? `<div class="vt-alert vt-alert--warn" role="status">
+            <span>⚠️</span>
+            <span>${unmapped} ${unmapped === 1 ? 'вид' : 'видов'} в архиве без соответствия</span>
+            <button type="button" class="btn-primary btn-sm" id="vtRunWizardBtn">Мастер миграции</button>
+          </div>`
+        : '';
+
+    const tabButtons = TABS.map((tab) => {
+      const count =
+        tab.key === 'active'
+          ? ViolationTypes.getActiveTypes(catalog).length
+          : tab.key === 'archive'
+            ? ViolationTypes.getArchivedTypes(catalog).length
+            : ViolationTypes.getArchivedTypes(catalog).length;
+      return `<button type="button" class="vt-tab ${currentTab === tab.key ? 'active' : ''}" data-vt-tab="${tab.key}">
+        ${esc(tab.label)} (${count})
+      </button>`;
+    }).join('');
+
+    host.innerHTML = `
+      <div class="violations-screen-header card">
+        <div class="violations-screen-nav">
+          <button class="btn-ghost btn-sm" type="button" data-go="settings">← Настройки</button>
+          <span class="violations-screen-breadcrumb">/ Виды нарушений</span>
+        </div>
+        ${alert}
+        <div class="vt-toolbar">
+          <input type="search" class="form-control" id="vtSearch" placeholder="Поиск по названию…" value="${esc(screenQuery)}" autocomplete="off">
+          <button type="button" class="btn-primary btn-sm" id="vtAddTypeBtn">+ Новый вид</button>
+          <button type="button" class="btn-secondary btn-sm" id="vtSplitMapBtn">Сопоставить</button>
+        </div>
+        <div class="vt-tabs" role="tablist">${tabButtons}</div>
+      </div>
+      <div class="card card--flush" id="vtTabBody"></div>
+    `;
+
+    document.getElementById('vtSearch')?.addEventListener('input', (e) => {
+      screenQuery = e.target.value;
+      renderTabBody();
+    });
+    document.getElementById('vtAddTypeBtn')?.addEventListener('click', () => handleAddType());
+    document.getElementById('vtSplitMapBtn')?.addEventListener('click', () => openSplitModal());
+    document.getElementById('vtRunWizardBtn')?.addEventListener('click', () => openWizard());
+    host.querySelectorAll('[data-vt-tab]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        currentTab = btn.dataset.vtTab;
+        renderScreen();
+      });
+    });
+  }
+
+  function filterByQuery(items) {
+    const q = screenQuery.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((t) => t.title.toLowerCase().includes(q));
+  }
+
+  function renderTabBody() {
+    const body = document.getElementById('vtTabBody');
+    if (!body || !catalog) return;
+
+    if (currentTab === 'active') renderActiveTab(body);
+    else if (currentTab === 'archive') renderArchiveTab(body);
+    else renderMappingsTab(body);
+  }
+
+  function renderActiveTab(body) {
+    const items = filterByQuery(ViolationTypes.getActiveTypes(catalog));
+    if (!items.length) {
+      body.innerHTML = `<p class="vt-empty">Нет активных видов. Нажмите «+ Новый вид».</p>`;
+      return;
+    }
+
+    body.innerHTML = `
+      <table class="list-table">
+        <thead>
+          <tr>
+            <th>Название</th>
+            <th style="width:100px;">В данных</th>
+            <th style="width:120px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items
+            .map((t) => {
+              const n = ViolationTypes.usageCount(catalog, t);
+              return `<tr>
+                <td>${esc(t.title)}</td>
+                <td>${n || '—'}</td>
+                <td class="btn-row">
+                  <button type="button" class="btn-ghost btn-sm" data-vt-archive="${esc(t.id)}" title="В архив">📦</button>
+                </td>
+              </tr>`;
+            })
+            .join('')}
+        </tbody>
+      </table>`;
+
+    body.querySelectorAll('[data-vt-archive]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.vtArchive;
+        const t = ViolationTypes.findById(catalog, id);
+        if (!t) return;
+        const n = ViolationTypes.usageCount(catalog, t);
+        if (n > 0) {
+          const ok = await GazpromToast.confirm(
+            `Вид «${t.title}» используется в ${n} записях. Перенести в архив и настроить соответствие?`
+          );
+          if (!ok) return;
+          ViolationTypes.archiveType(catalog, id);
+          await saveCatalog('Вид перенесён в архив');
+          openSplitModal(id);
+          return;
+        }
+        ViolationTypes.archiveType(catalog, id);
+        await saveCatalog('Вид перенесён в архив');
+        renderScreen();
+      });
+    });
+  }
+
+  function renderArchiveTab(body) {
+    const items = filterByQuery(ViolationTypes.getArchivedTypes(catalog));
+    if (!items.length) {
+      body.innerHTML = `<p class="vt-empty">Архив пуст.</p>`;
+      return;
+    }
+
+    body.innerHTML = `
+      <table class="list-table">
+        <thead>
+          <tr>
+            <th>Устаревший вид</th>
+            <th style="width:100px;">В данных</th>
+            <th>Заменён на</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items
+            .map((t) => {
+              const n = ViolationTypes.usageCount(catalog, t);
+              const mappedId = t.replacedBy || ViolationTypes.getMappings(catalog)[t.id] || '';
+              const mapped = ViolationTypes.findById(catalog, mappedId);
+              const status = ViolationTypes.isMappedToActive(catalog, t)
+                ? '<span class="vt-badge vt-badge--ok">настроено</span>'
+                : '<span class="vt-badge vt-badge--warn">требует внимания</span>';
+              return `<tr>
+                <td>${esc(t.title)} ${status}</td>
+                <td>${n || '—'}</td>
+                <td>
+                  <button type="button" class="btn-secondary btn-sm" data-vt-map="${esc(t.id)}">
+                    ${mapped ? esc(mapped.title) : 'Настроить →'}
+                  </button>
+                </td>
+              </tr>`;
+            })
+            .join('')}
+        </tbody>
+      </table>`;
+
+    body.querySelectorAll('[data-vt-map]').forEach((btn) => {
+      btn.addEventListener('click', () => openSplitModal(btn.dataset.vtMap));
+    });
+  }
+
+  function renderMappingsTab(body) {
+    const items = filterByQuery(ViolationTypes.getArchivedTypes(catalog));
+    if (!items.length) {
+      body.innerHTML = `<p class="vt-empty">Нет архивных видов для сопоставления.</p>`;
+      return;
+    }
+
+    body.innerHTML = `
+      <table class="list-table">
+        <thead>
+          <tr>
+            <th style="width:40%;">Устаревший вид</th>
+            <th style="width:80px;">В данных</th>
+            <th style="width:40%;">Заменить на (активный)</th>
+            <th>Статус</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items
+            .map((t) => {
+              const n = ViolationTypes.usageCount(catalog, t);
+              const mappedId = t.replacedBy || ViolationTypes.getMappings(catalog)[t.id] || '';
+              const rowClass = ViolationTypes.isMappedToActive(catalog, t) ? '' : 'vt-row--warn';
+              const status = ViolationTypes.isMappedToActive(catalog, t)
+                ? '<span class="vt-badge vt-badge--ok">настроено</span>'
+                : '<span class="vt-badge vt-badge--warn">не сопоставлено</span>';
+              return `<tr class="${rowClass}">
+                <td>${esc(t.title)}</td>
+                <td>${n || '—'}</td>
+                <td>
+                  <select class="form-control vt-map-select" data-vt-from="${esc(t.id)}">
+                    ${activeSelectOptions(mappedId, { includeEmpty: true })}
+                  </select>
+                </td>
+                <td>${status}</td>
+              </tr>`;
+            })
+            .join('')}
+        </tbody>
+      </table>
+      <div class="vt-footer-actions">
+        <button type="button" class="btn-secondary" id="vtCancelMappings">Отменить</button>
+        <button type="button" class="btn-primary" id="vtApplyMappings">Сохранить соответствия</button>
+        <button type="button" class="btn-secondary" id="vtMigrateData">Применить ко всем данным</button>
+      </div>`;
+
+    document.getElementById('vtCancelMappings')?.addEventListener('click', () => renderScreen());
+    document.getElementById('vtApplyMappings')?.addEventListener('click', () => handleSaveMappings());
+    document.getElementById('vtMigrateData')?.addEventListener('click', () => handleMigrateData());
+  }
+
+  async function handleSaveMappings() {
+    document.querySelectorAll('.vt-map-select').forEach((sel) => {
+      const fromId = sel.dataset.vtFrom;
+      const toId = sel.value;
+      if (toId) ViolationTypes.setMapping(catalog, fromId, toId);
+      else ViolationTypes.clearMapping(catalog, fromId);
+    });
+    await saveCatalog('Соответствия сохранены');
+    renderScreen();
+  }
+
+  async function handleMigrateData() {
+    const unmapped = ViolationTypes.getUnmappedArchived(catalog);
+    if (unmapped.length) {
+      GazpromToast.error('Сначала настройте соответствия для всех архивных видов');
+      return;
+    }
+    const ok = await GazpromToast.confirm(
+      'Обновить поле «вид нарушения» во всех актах и реестре по новым соответствиям? Это необратимо.'
+    );
+    if (!ok) return;
+    const n = ViolationTypes.migrateStoredVids(catalog);
+    await saveCatalog(`Обновлено записей: ${n}`);
+    renderScreen();
+  }
+
+  async function handleAddType() {
+    const title = await GazpromToast.prompt('Название нового вида нарушения', '');
+    if (!title?.trim()) return;
+    ViolationTypes.addType(catalog, title.trim());
+    await saveCatalog('Вид добавлен');
+    renderScreen();
+  }
+
+  function openSplitModal(preselectFromId = null) {
+    const archived = ViolationTypes.getArchivedTypes(catalog);
+    const active = ViolationTypes.getActiveTypes(catalog);
+    if (!archived.length) {
+      GazpromToast.info('Нет архивных видов для сопоставления');
+      return;
+    }
+    if (!active.length) {
+      GazpromToast.error('Сначала создайте активный вид нарушения');
+      return;
+    }
+
+    let selectedFrom = preselectFromId || archived[0].id;
+    let selectedTo =
+      ViolationTypes.findById(catalog, selectedFrom)?.replacedBy ||
+      ViolationTypes.getMappings(catalog)[selectedFrom] ||
+      active[0].id;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'catalog-form-overlay vt-split-overlay';
+    overlay.innerHTML = `
+      <div class="vt-split-panel card">
+        <div class="vt-split-header">
+          <h3>Сопоставление видов нарушений</h3>
+          <button type="button" class="btn-ghost btn-sm vt-split-close" aria-label="Закрыть">✕</button>
+        </div>
+        <div class="vt-split-body">
+          <div class="vt-split-col vt-split-col--old">
+            <h4>Устаревший вид</h4>
+            <div id="vtSplitOldList"></div>
+          </div>
+          <div class="vt-split-arrow" aria-hidden="true">→</div>
+          <div class="vt-split-col vt-split-col--new">
+            <h4>Новый активный вид</h4>
+            <div id="vtSplitNewList"></div>
+            <button type="button" class="btn-secondary btn-sm vt-split-add-new">+ Создать новый вид</button>
+          </div>
+        </div>
+        <div class="vt-split-preview" id="vtSplitPreview"></div>
+        <div class="vt-split-footer">
+          <button type="button" class="btn-ghost vt-split-close">Отмена</button>
+          <button type="button" class="btn-primary" id="vtSplitSave">Сохранить соответствие</button>
+        </div>
+      </div>`;
+
+    const paintLists = () => {
+      const oldList = overlay.querySelector('#vtSplitOldList');
+      const newList = overlay.querySelector('#vtSplitNewList');
+      const fromType = ViolationTypes.findById(catalog, selectedFrom);
+      const toType = ViolationTypes.findById(catalog, selectedTo);
+
+      oldList.innerHTML = ViolationTypes.getArchivedTypes(catalog)
+        .map((t) => {
+          const n = ViolationTypes.usageCount(catalog, t);
+          return `<button type="button" class="vt-type-item ${t.id === selectedFrom ? 'selected' : ''}" data-vt-from-item="${esc(t.id)}">
+            <div>${esc(t.title)}</div>
+            <div class="vt-type-item__meta">
+              <span class="vt-badge vt-badge--archived">архив</span>
+              ${n ? `<span class="vt-badge vt-badge--count">${n} зап.</span>` : ''}
+            </div>
+          </button>`;
+        })
+        .join('');
+
+      newList.innerHTML = ViolationTypes.getActiveTypes(catalog)
+        .map(
+          (t) => `<button type="button" class="vt-type-item ${t.id === selectedTo ? 'selected' : ''}" data-vt-to-item="${esc(t.id)}">
+            <div>${esc(t.title)}</div>
+            <div class="vt-type-item__meta"><span class="vt-badge vt-badge--active">активен</span></div>
+          </button>`
+        )
+        .join('');
+
+      const preview = overlay.querySelector('#vtSplitPreview');
+      if (fromType && toType) {
+        const n = ViolationTypes.usageCount(catalog, fromType);
+        preview.textContent =
+          n > 0
+            ? `Отчёт «Виды выявленных нарушений»: +${n} к «${toType.title}»`
+            : 'В данных нет записей с этим видом';
+      } else {
+        preview.textContent = '';
+      }
+
+      oldList.querySelectorAll('[data-vt-from-item]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          selectedFrom = btn.dataset.vtFromItem;
+          const mapped =
+            ViolationTypes.findById(catalog, selectedFrom)?.replacedBy ||
+            ViolationTypes.getMappings(catalog)[selectedFrom];
+          if (mapped) selectedTo = mapped;
+          paintLists();
+        });
+      });
+      newList.querySelectorAll('[data-vt-to-item]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          selectedTo = btn.dataset.vtToItem;
+          paintLists();
+        });
+      });
+    };
+
+    const close = () => {
+      overlay.remove();
+      GazpromMobileOverlay.unlock();
+    };
+
+    overlay.querySelectorAll('.vt-split-close').forEach((b) => b.addEventListener('click', close));
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close();
+    });
+    overlay.querySelector('.vt-split-add-new')?.addEventListener('click', async () => {
+      const title = await GazpromToast.prompt('Название нового вида', '');
+      if (!title?.trim()) return;
+      const created = ViolationTypes.addType(catalog, title.trim());
+      selectedTo = created.id;
+      paintLists();
+    });
+    overlay.querySelector('#vtSplitSave')?.addEventListener('click', async () => {
+      if (!selectedFrom || !selectedTo) return;
+      ViolationTypes.setMapping(catalog, selectedFrom, selectedTo);
+      await saveCatalog('Соответствие сохранено');
+      close();
+      renderScreen();
+    });
+
+    document.body.appendChild(overlay);
+    GazpromMobileOverlay.lock();
+    paintLists();
+  }
+
+  function renderWizardChart(stats, title, highlightKinds = []) {
+    const entries = [...stats.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+    const max = Math.max(1, ...entries.map((e) => e[1]));
+    const rows = entries
+      .map(([label, val]) => {
+        const pct = Math.round((val / max) * 100);
+        const hl = highlightKinds.includes(label) ? ' vt-bar-row--highlight' : '';
+        return `<div class="vt-bar-row${hl}">
+          <span class="vt-bar-label">${esc(label.length > 42 ? label.slice(0, 39) + '…' : label)}</span>
+          <div class="vt-bar-track"><span style="width:${pct}%"></span></div>
+          <span class="vt-bar-val">${val}</span>
+        </div>`;
+      })
+      .join('');
+    return `<div class="vt-chart-mock"><h5>${esc(title)}</h5>${rows || '<p class="vt-empty">Нет данных</p>'}</div>`;
+  }
+
+  function openWizard() {
+    const unmapped = ViolationTypes.getUnmappedArchived(catalog);
+    if (!unmapped.length) {
+      GazpromToast.info('Все архивные виды уже сопоставлены');
+      return;
+    }
+
+    wizardStep = 0;
+    wizardMappings = new Map();
+    for (const t of unmapped) {
+      const existing = t.replacedBy || ViolationTypes.getMappings(catalog)[t.id];
+      if (existing) wizardMappings.set(t.id, existing);
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'catalog-form-overlay vt-wizard-overlay';
+    overlay.innerHTML = `
+      <div class="vt-wizard-panel card">
+        <div class="vt-split-header">
+          <h3>Мастер миграции видов нарушений</h3>
+          <button type="button" class="btn-ghost btn-sm vt-wizard-close" aria-label="Закрыть">✕</button>
+        </div>
+        <div class="vt-wizard-steps" id="vtWizardSteps"></div>
+        <div class="vt-wizard-body" id="vtWizardBody"></div>
+        <div class="vt-wizard-footer" id="vtWizardFooter"></div>
+      </div>`;
+
+    const close = () => {
+      overlay.remove();
+      GazpromMobileOverlay.unlock();
+    };
+
+    overlay.querySelector('.vt-wizard-close')?.addEventListener('click', close);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close();
+    });
+
+    const paintStep = () => {
+      const stepsEl = overlay.querySelector('#vtWizardSteps');
+      const bodyEl = overlay.querySelector('#vtWizardBody');
+      const footEl = overlay.querySelector('#vtWizardFooter');
+      const labels = ['Обзор', 'Сопоставление', 'Превью отчётов', 'Применить'];
+
+      stepsEl.innerHTML = labels
+        .map((label, i) => {
+          let cls = 'vt-wizard-step';
+          if (i < wizardStep) cls += ' done';
+          if (i === wizardStep) cls += ' active';
+          const num = i < wizardStep ? '✓' : String(i + 1);
+          return `<div class="${cls}"><div class="vt-wizard-step__num">${num}</div>${esc(label)}</div>`;
+        })
+        .join('');
+
+      if (wizardStep === 0) {
+        bodyEl.innerHTML = `
+          <p class="vt-wizard-intro">Обнаружено <strong>${unmapped.length}</strong> устаревших видов без полного соответствия. Настройте замену — отчёты и дашборды будут группировать исторические нарушения под новыми видами.</p>
+          <ul class="vt-wizard-list">
+            ${unmapped
+              .map((t) => {
+                const n = ViolationTypes.usageCount(catalog, t);
+                return `<li><strong>${esc(t.title)}</strong> — ${n} в данных</li>`;
+              })
+              .join('')}
+          </ul>`;
+        footEl.innerHTML = `<button type="button" class="btn-ghost vt-wizard-close">Отмена</button>
+          <button type="button" class="btn-primary" id="vtWizardNext">Далее →</button>`;
+        footEl.querySelector('#vtWizardNext')?.addEventListener('click', () => {
+          wizardStep = 1;
+          paintStep();
+        });
+      } else if (wizardStep === 1) {
+        bodyEl.innerHTML = unmapped
+          .map((t) => {
+            const sel = wizardMappings.get(t.id) || '';
+            return `<div class="vt-wizard-pair">
+              <div class="vt-wizard-pair__old"><span class="vt-badge vt-badge--archived">было</span> ${esc(t.title)}</div>
+              <div class="vt-wizard-pair__arrow">→</div>
+              <select class="form-control vt-wizard-pair__select" data-vt-wiz-from="${esc(t.id)}">
+                ${activeSelectOptions(sel, { includeEmpty: true })}
+              </select>
+            </div>`;
+          })
+          .join('');
+        footEl.innerHTML = `<button type="button" class="btn-secondary" id="vtWizardBack">← Назад</button>
+          <button type="button" class="btn-primary" id="vtWizardNext">Далее →</button>`;
+        footEl.querySelector('#vtWizardBack')?.addEventListener('click', () => {
+          wizardStep = 0;
+          paintStep();
+        });
+        footEl.querySelector('#vtWizardNext')?.addEventListener('click', () => {
+          bodyEl.querySelectorAll('.vt-wizard-pair__select').forEach((sel) => {
+            if (sel.value) wizardMappings.set(sel.dataset.vtWizFrom, sel.value);
+          });
+          const missing = unmapped.filter((t) => !wizardMappings.get(t.id));
+          if (missing.length) {
+            GazpromToast.error('Выберите новый вид для каждого устаревшего');
+            return;
+          }
+          wizardStep = 2;
+          paintStep();
+        });
+      } else if (wizardStep === 2) {
+        const before = ViolationTypes.buildKindStats(catalog, { resolve: false });
+        const afterCatalog = JSON.parse(JSON.stringify(catalog));
+        for (const [fromId, toId] of wizardMappings) {
+          ViolationTypes.setMapping(afterCatalog, fromId, toId);
+        }
+        const after = ViolationTypes.buildKindStats(afterCatalog, { resolve: true });
+        const highlight = [...after.keys()].slice(0, 3);
+        bodyEl.innerHTML = `<p class="vt-wizard-intro">Как изменятся диаграммы после переноса.</p>
+          <div class="vt-wizard-charts">
+            ${renderWizardChart(before, 'До миграции')}
+            ${renderWizardChart(after, 'После миграции', highlight)}
+          </div>`;
+        footEl.innerHTML = `<button type="button" class="btn-secondary" id="vtWizardBack">← Назад</button>
+          <button type="button" class="btn-primary" id="vtWizardNext">Далее →</button>`;
+        footEl.querySelector('#vtWizardBack')?.addEventListener('click', () => {
+          wizardStep = 1;
+          paintStep();
+        });
+        footEl.querySelector('#vtWizardNext')?.addEventListener('click', () => {
+          wizardStep = 3;
+          paintStep();
+        });
+      } else {
+        bodyEl.innerHTML = `<p class="vt-wizard-intro">Сохранить ${wizardMappings.size} соответствий? Отчёты начнут группировать нарушения по новым видам.</p>
+          <label class="vt-wizard-check">
+            <input type="checkbox" id="vtWizardAlsoMigrate">
+            Также обновить «вид нарушения» во всех актах и реестре
+          </label>`;
+        footEl.innerHTML = `<button type="button" class="btn-secondary" id="vtWizardBack">← Назад</button>
+          <button type="button" class="btn-primary" id="vtWizardApply">Сохранить</button>`;
+        footEl.querySelector('#vtWizardBack')?.addEventListener('click', () => {
+          wizardStep = 2;
+          paintStep();
+        });
+        footEl.querySelector('#vtWizardApply')?.addEventListener('click', async () => {
+          for (const [fromId, toId] of wizardMappings) {
+            ViolationTypes.setMapping(catalog, fromId, toId);
+          }
+          if (overlay.querySelector('#vtWizardAlsoMigrate')?.checked) {
+            ViolationTypes.migrateStoredVids(catalog);
+          }
+          await saveCatalog('Миграция видов сохранена');
+          close();
+          renderScreen();
+        });
+      }
+
+      footEl.querySelectorAll('.vt-wizard-close').forEach((b) =>
+        b.addEventListener('click', close)
+      );
+    };
+
+    document.body.appendChild(overlay);
+    GazpromMobileOverlay.lock();
+    paintStep();
+  }
+
+  async function renderScreen() {
+    if (!(await loadCatalog())) return;
+    renderHeader();
+    renderTabBody();
+  }
+
+  function bindScreen() {
+    if (bound) return;
+    bound = true;
+    document.querySelector('.settings-tile--violation-types')?.addEventListener('click', () => {
+      if (typeof goTo === 'function') goTo('violation-types');
+    });
+    document.querySelector('.settings-tile--violation-types')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (typeof goTo === 'function') goTo('violation-types');
+      }
+    });
+  }
+
+  async function maybePromptAfterImport() {
+    const cat = await GazpromStore.get();
+    if (!cat || !GazpromStore.hasData(cat)) return;
+    ViolationTypes.ensureCatalog(cat);
+    await GazpromStore.set(cat);
+    const unmapped = ViolationTypes.getUnmappedArchived(cat);
+    if (!unmapped.length) return;
+    const run = await GazpromToast.confirm(
+      `Обнаружено ${unmapped.length} устаревших видов нарушений без соответствия. Открыть мастер миграции?`
+    );
+    if (!run) return;
+    catalog = cat;
+    if (typeof goTo === 'function') goTo('violation-types');
+    openWizard();
+  }
+
+  function init() {
+    bindScreen();
+  }
+
+  return {
+    init,
+    renderScreen,
+    openWizard,
+    openSplitModal,
+    maybePromptAfterImport,
+  };
+})();

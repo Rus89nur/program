@@ -74,6 +74,8 @@ const GazpromBackup = (() => {
       scheduleItems: raw.scheduleItems || [],
       violationEliminations: raw.violationEliminations || [],
       violationRegistry: raw.violationRegistry || [],
+      violationTypes: raw.violationTypes || [],
+      typeMappings: raw.typeMappings || {},
       descriptionTemplates,
       [templateKey]: raw[templateKey] || raw.wordTemplate || null,
       wordTemplateName: raw.wordTemplateName || null,
@@ -281,6 +283,12 @@ const GazpromBackup = (() => {
 
     await GazpromStore.set(merged, { skipPhotoIngest: true, verifyWrite: true });
 
+    if (typeof ViolationTypes !== 'undefined') {
+      if (ViolationTypes.ensureCatalog(merged)) {
+        await GazpromStore.set(merged, { skipPhotoIngest: true });
+      }
+    }
+
     const ingest = merged.photoIngestStats;
     const storedIds =
       typeof PhotoStore !== 'undefined' && PhotoStore.countStoredPhotoIds
@@ -389,6 +397,10 @@ const GazpromBackup = (() => {
     const violationRegistry = [...(current.violationRegistry || [])];
     (incoming.violationRegistry || []).forEach((x) => byId(violationRegistry, x));
 
+    const violationTypes = [...(current.violationTypes || [])];
+    (incoming.violationTypes || []).forEach((x) => byId(violationTypes, x));
+    const typeMappings = { ...(current.typeMappings || {}), ...(incoming.typeMappings || {}) };
+
     const templateKey =
       typeof DocGenerator !== 'undefined' && DocGenerator.TEMPLATE_KEY
         ? DocGenerator.TEMPLATE_KEY
@@ -414,6 +426,8 @@ const GazpromBackup = (() => {
       scheduleItems,
       violationEliminations,
       violationRegistry,
+      violationTypes,
+      typeMappings,
       descriptionTemplates: mergedTemplates,
       [templateKey]: wordTemplate,
       wordTemplateName,

@@ -38,19 +38,24 @@ const ReportExporter = (() => {
     await ensureXlsx();
     const data = await GazpromStore.get();
     if (!GazpromStore.hasData(data)) throw new Error('Нет данных');
+    if (typeof ViolationTypes !== 'undefined') ViolationTypes.ensureCatalog(data);
 
     const rows = [['Акт №', 'Дата', 'Организация', 'Объект', 'Нарушение', 'Вид', 'Место']];
     for (const akt of data.akts || []) {
       const org = akt.organization?.title || '';
       const date = AktUtils.formatDateShort(akt.date);
       for (const v of akt.violations || []) {
+        const vid =
+          typeof ViolationTypes !== 'undefined'
+            ? ViolationTypes.resolveVid(data, v.vid) || v.vid || ''
+            : v.vid || '';
         rows.push([
           akt.number,
           date,
           org,
           v.mesto || '',
           v.title || '',
-          v.vid || '',
+          vid,
           v.mesto || '',
         ]);
       }

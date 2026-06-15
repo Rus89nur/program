@@ -64,5 +64,44 @@ const GazpromToast = (() => {
     });
   }
 
-  return { show, success, error, info, confirm };
+  function prompt(message, defaultValue = '', { title = 'Ввод', confirmLabel = 'OK', cancelLabel = 'Отмена' } = {}) {
+    return new Promise((resolve) => {
+      const root = document.createElement('div');
+      root.className = 'confirm-overlay';
+      root.innerHTML = `
+        <div class="confirm-dialog" role="dialog" aria-modal="true">
+          <h3>${title}</h3>
+          <p>${message}</p>
+          <input type="text" class="form-control" data-prompt-input value="${String(defaultValue).replace(/"/g, '&quot;')}" style="margin-top:12px;">
+          <div class="confirm-actions">
+            <button type="button" class="btn-ghost" data-cancel>${cancelLabel}</button>
+            <button type="button" class="btn-primary" data-ok>${confirmLabel}</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(root);
+      GazpromMobileOverlay.lock();
+      const input = root.querySelector('[data-prompt-input]');
+      const close = (val) => {
+        root.remove();
+        GazpromMobileOverlay.unlock();
+        resolve(val);
+      };
+      input?.focus();
+      input?.select();
+      root.querySelector('[data-cancel]').onclick = () => close(null);
+      root.querySelector('[data-ok]').onclick = () => close(input?.value ?? '');
+      input?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          close(input.value);
+        }
+      });
+      root.addEventListener('click', (e) => {
+        if (e.target === root) close(null);
+      });
+    });
+  }
+
+  return { show, success, error, info, confirm, prompt };
 })();

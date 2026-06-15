@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Макеты — Виды нарушений и миграция</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0d47a1;
+      --primary-hover: #1565c0;
+      --primary-soft: #e3f2fd;
+      --accent: #00838f;
+      --accent-soft: #e0f7fa;
+      --success: #2e7d32;
+      --success-soft: #e8f5e9;
+      --warning: #ed6c02;
+      --warning-soft: #fff3e0;
+      --danger: #c62828;
+      --danger-soft: #ffebee;
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --sidebar: #0a1929;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --shadow: 0 1px 3px rgba(15,23,42,0.08), 0 8px 24px rgba(13,71,161,0.06);
+      --radius: 12px;
+      --radius-lg: 16px;
+      --sidebar-w: 220px;
+      --header-h: 52px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #dde3ea;
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px 64px;
+    }
+
+    .page-head {
+      max-width: 1480px;
+      margin: 0 auto 20px;
+    }
+
+    .page-head h1 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+
+    .page-head p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-width: 960px;
+    }
+
+    .page-head .context {
+      margin-top: 14px;
+      padding: 12px 16px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .page-head .context strong { color: var(--primary); }
+
+    .preview-tabs {
+      max-width: 1480px;
+      margin: 0 auto 16px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .preview-tab {
+      border: 2px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+    }
+
+    .preview-tab:hover { border-color: var(--primary); color: var(--primary); }
+    .preview-tab.active {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .variant-panel { display: none; max-width: 1480px; margin: 0 auto; }
+    .variant-panel.visible { display: block; }
+
+    .variant-meta {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin-bottom: 16px;
+    }
+
+    .variant-meta h2 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .variant-meta p {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    .pros-cons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 700px) {
+      .pros-cons { grid-template-columns: 1fr; }
+    }
+
+    .pros-cons div {
+      font-size: 12px;
+      line-height: 1.5;
+      padding: 8px 10px;
+      border-radius: 8px;
+    }
+
+    .pros-cons .pro { background: var(--success-soft); color: #1b5e20; }
+    .pros-cons .con { background: var(--warning-soft); color: #e65100; }
+
+    .browser-frame {
+      background: #fff;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(15,23,42,0.14);
+      border: 1px solid #c5cdd8;
+    }
+
+    .browser-chrome {
+      background: #e8eaed;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #dadce0;
+    }
+
+    .browser-dots { display: flex; gap: 6px; }
+    .browser-dots span { width: 12px; height: 12px; border-radius: 50%; }
+    .browser-dots span:nth-child(1) { background: #ff5f57; }
+    .browser-dots span:nth-child(2) { background: #febc2e; }
+    .browser-dots span:nth-child(3) { background: #28c840; }
+
+    .browser-url {
+      flex: 1;
+      margin: 0 10px;
+      background: #fff;
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 12px;
+      color: var(--text-muted);
+      border: 1px solid #dadce0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .browser-url strong { color: var(--primary); }
+
+  /* ——— Shared mock UI ——— */
+    .mock-app {
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr;
+      grid-template-rows: var(--header-h) 1fr;
+      min-height: 640px;
+      background: var(--bg);
+    }
+
+    .mock-sidebar {
+      grid-row: 1 / -1;
+      background: var(--sidebar);
+      color: #fff;
+      padding: 16px 12px;
+      font-size: 13px;
+    }
+
+    .mock-sidebar .logo {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 800;
+      font-size: 13px;
+      padding: 8px 10px 20px;
+      color: #90caf9;
+    }
+
+    .mock-nav-item {
+      padding: 10px 12px;
+      border-radius: 8px;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 4px;
+    }
+
+    .mock-nav-item.active {
+      background: rgba(21, 101, 192, 0.45);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .mock-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    .mock-main {
+      padding: 20px;
+      overflow: auto;
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 14px;
+    }
+
+    .settings-tile {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 14px;
+      text-align: center;
+      cursor: pointer;
+      transition: box-shadow 0.15s, transform 0.15s;
+    }
+
+    .settings-tile:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+    .settings-tile.highlight {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+
+    .settings-tile .icon { font-size: 28px; margin-bottom: 8px; }
+    .settings-tile h4 { font-size: 14px; margin-bottom: 4px; }
+    .settings-tile p { font-size: 11px; color: var(--text-muted); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost { background: transparent; color: var(--text-muted); border: none; }
+    .btn-sm { padding: 6px 10px; font-size: 12px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-active { background: var(--success-soft); color: var(--success); }
+    .badge-archived { background: var(--warning-soft); color: var(--warning); }
+    .badge-mapped { background: var(--primary-soft); color: var(--primary); }
+    .badge-count { background: var(--bg); color: var(--text-muted); }
+
+    .form-control {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 13px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    /* Variant A — Split modal */
+    .modal-overlay {
+      position: relative;
+      background: rgba(15,23,42,0.45);
+      border-radius: var(--radius);
+      padding: 24px;
+      min-height: 520px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-panel {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 900px;
+      box-shadow: 0 20px 60px rgba(15,23,42,0.2);
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h3 { font-size: 16px; }
+
+    .modal-body { padding: 0; }
+
+    .split-map {
+      display: grid;
+      grid-template-columns: 1fr 48px 1fr;
+      min-height: 340px;
+    }
+
+    .split-col {
+      padding: 16px;
+      overflow: auto;
+    }
+
+    .split-col h4 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .split-col--old { background: var(--warning-soft); border-right: 1px solid var(--border); }
+    .split-col--new { background: var(--success-soft); border-left: 1px solid var(--border); }
+
+    .split-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      font-size: 20px;
+      color: var(--primary);
+    }
+
+    .type-item {
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      margin-bottom: 8px;
+      cursor: pointer;
+      background: var(--surface);
+      font-size: 12px;
+      line-height: 1.4;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .type-item:hover { border-color: var(--border); }
+    .type-item.selected { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+    .type-item .meta { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .modal-footer {
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .preview-strip {
+      flex: 1;
+      font-size: 12px;
+      color: var(--text-muted);
+      padding: 8px 12px;
+      background: var(--bg);
+      border-radius: 8px;
+      min-width: 200px;
+    }
+
+    .preview-strip strong { color: var(--primary); }
+
+    /* Variant B — Tabs */
+    .editor-tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+
+    .editor-tab {
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border: none;
+      background: none;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      font-family: inherit;
+    }
+
+    .editor-tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .editor-toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .editor-toolbar .search { flex: 1; min-width: 180px; }
+
+    .list-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .list-table th, .list-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .list-table th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      background: var(--bg);
+    }
+
+    .map-select {
+      min-width: 220px;
+      font-size: 12px;
+    }
+
+    /* Variant C — Wizard */
+    .wizard-steps {
+      display: flex;
+      gap: 0;
+      margin-bottom: 20px;
+    }
+
+    .wizard-step {
+      flex: 1;
+      text-align: center;
+      padding: 10px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      position: relative;
+    }
+
+    .wizard-step::after {
+      content: '';
+      position: absolute;
+      top: 18px;
+      right: -50%;
+      width: 100%;
+      height: 2px;
+      background: var(--border);
+      z-index: 0;
+    }
+
+    .wizard-step:last-child::after { display: none; }
+
+    .wizard-step .num {
+      display: inline-flex;
+      width: 28px;
+      height: 28px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      margin-bottom: 6px;
+      position: relative;
+      z-index: 1;
+      font-size: 12px;
+    }
+
+    .wizard-step.done .num { background: var(--success-soft); border-color: var(--success); color: var(--success); }
+    .wizard-step.active .num { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .wizard-step.active { color: var(--primary); }
+
+    .wizard-pair-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .pair-card {
+      padding: 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .pair-card--old { background: #fff8f0; }
+    .pair-card--new { background: #f0faf0; }
+
+    .pair-arrow {
+      display: flex;
+      align-items: center;
+      font-size: 24px;
+      color: var(--accent);
+    }
+
+    .dashboard-preview {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .chart-mock {
+      padding: 14px;
+      background: var(--bg);
+      border-radius: var(--radius);
+    }
+
+    .chart-mock h5 {
+      font-size: 12px;
+      margin-bottom: 10px;
+      color: var(--text-muted);
+    }
+
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      font-size: 11px;
+    }
+
+    .bar-row .label { width: 42%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar-row .bar { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .bar-row .bar span { display: block; height: 100%; background: var(--primary); border-radius: 4px; }
+    .bar-row .val { width: 24px; text-align: right; color: var(--text-muted); }
+
+    .bar-row.strikethrough .label { text-decoration: line-through; opacity: 0.5; }
+    .bar-row.highlight .bar span { background: var(--accent); }
+
+    /* Variant D — Inline expandable */
+    .type-list-item {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+
+    .type-list-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      cursor: pointer;
+      background: var(--surface);
+    }
+
+    .type-list-head:hover { background: var(--bg); }
+
+    .type-list-head .title { flex: 1; font-size: 13px; font-weight: 500; }
+    .type-list-head .chevron { color: var(--text-muted); transition: transform 0.2s; }
+    .type-list-item.expanded .chevron { transform: rotate(180deg); }
+
+    .type-list-body {
+      display: none;
+      padding: 14px;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .type-list-item.expanded .type-list-body { display: block; }
+
+    .alert-banner {
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .alert-banner--warn {
+      background: var(--warning-soft);
+      border: 1px solid #ffcc80;
+      color: #e65100;
+    }
+
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    @media (max-width: 900px) {
+      .compare-grid { grid-template-columns: 1fr; }
+      .split-map { grid-template-columns: 1fr; }
+      .split-arrow { padding: 8px; transform: rotate(90deg); }
+      .wizard-pair-grid { grid-template-columns: 1fr; }
+      .pair-arrow { justify-content: center; transform: rotate(90deg); }
+      .dashboard-preview { grid-template-columns: 1fr; }
+      .mock-app { grid-template-columns: 1fr; }
+      .mock-sidebar { display: none; }
+    }
+
+    .recommend {
+      margin-top: 24px;
+      max-width: 1480px;
+      margin-left: auto;
+      margin-right: auto;
+      padding: 18px 20px;
+      background: linear-gradient(135deg, var(--primary-soft), var(--accent-soft));
+      border-radius: var(--radius-lg);
+      border: 1px solid #90caf9;
+    }
+
+    .recommend h3 {
+      font-size: 15px;
+      margin-bottom: 8px;
+      color: var(--primary);
+    }
+
+    .recommend p {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+
+  <header class="page-head">
+    <h1>Виды нарушений — визуальные варианты</h1>
+    <p>
+      Демо-страница для выбора UX перед реализацией. Задача: хранить устаревшие виды,
+      создавать новые и задавать соответствие «старый → новый», чтобы отчёты и дашборды
+      автоматически группировали исторические нарушения под актуальными видами.
+    </p>
+    <div class="context">
+      <strong>Сейчас в коде:</strong> 17 видов зашиты в <code>ViolationTemplates.VIOLATION_TYPES</code>,
+      поле <code>vid</code> у нарушений в актах и реестре. При смене классификатора старые значения
+      «ломают» фильтры и диаграммы. <strong>Нужно:</strong> отдельная плитка в настройках + механизм миграции.
+    </div>
+  </header>
+
+  <nav class="preview-tabs" aria-label="Варианты макетов">
+    <button class="preview-tab active" type="button" data-variant="a">A — Split-модалка</button>
+    <button class="preview-tab" type="button" data-variant="b">B — Редактор с вкладками</button>
+    <button class="preview-tab" type="button" data-variant="c">C — Мастер миграции</button>
+    <button class="preview-tab" type="button" data-variant="d">D — Раскрывающийся список</button>
+    <button class="preview-tab" type="button" data-variant="compare">Сравнение</button>
+  </nav>
+
+  <!-- ===== VARIANT A ===== -->
+  <section class="variant-panel visible" id="variant-a">
+    <div class="variant-meta">
+      <h2>Вариант A — Split-модалка «Сопоставить виды»</h2>
+      <p>
+        В настройках новая плитка «Виды нарушений». По кнопке «Сопоставить» открывается модалка:
+        слева архивные виды (с количеством нарушений в базе), справа активные. Выбрал пару → стрелка → сохранить.
+        Внизу превью: как изменится столбец в отчёте.
+      </p>
+      <div class="pros-cons">
+        <div class="pro"><strong>+</strong> Наглядно, быстро для 1–3 замен. Знакомый паттерн (как выбор в модалках визарда).</div>
+        <div class="con"><strong>−</strong> Неудобно при массовой перестройке всего классификатора (17+ видов).</div>
+      </div>
+    </div>
+
+    <div class="browser-frame">
+      <div class="browser-chrome">
+        <div class="browser-dots"><span></span><span></span><span></span></div>
+        <div class="browser-url"><strong>Настройки</strong> → Виды нарушений → Сопоставить</div>
+      </div>
+      <div class="mock-app">
+        <aside class="mock-sidebar">
+          <div class="logo">Газпром · ОТиПБ</div>
+          <div class="mock-nav-item">Главная</div>
+          <div class="mock-nav-item">Отчёты</div>
+          <div class="mock-nav-item active">Настройки</div>
+        </aside>
+        <header class="mock-header">Виды нарушений</header>
+        <main class="mock-main">
+          <div class="modal-overlay">
+            <div class="modal-panel">
+              <div class="modal-header">
+                <h3>Сопоставление видов нарушений</h3>
+                <button class="btn-ghost btn-sm" type="button">✕</button>
+              </div>
+              <div class="modal-body">
+                <div class="split-map">
+                  <div class="split-col split-col--old">
+                    <h4>Устаревший вид</h4>
+                    <div class="type-item">
+                      <div>Пожароопасные работы</div>
+                      <div class="meta"><span class="badge badge-archived">архив</span><span class="badge badge-count">47 наруш.</span></div>
+                    </div>
+                    <div class="type-item selected">
+                      <div>Обеспечение работников СИЗ, применении работниками СИЗ</div>
+                      <div class="meta"><span class="badge badge-archived">архив</span><span class="badge badge-count">23 наруш.</span></div>
+                    </div>
+                    <div class="type-item">
+                      <div>Прочие работы</div>
+                      <div class="meta"><span class="badge badge-archived">архив</span><span class="badge badge-count">8 наруш.</span></div>
+                    </div>
+                  </div>
+                  <div class="split-arrow" aria-hidden="true">→</div>
+                  <div class="split-col split-col--new">
+                    <h4>Новый активный вид</h4>
+                    <div class="type-item">
+                      <div>Пожарная безопасность</div>
+                      <div class="meta"><span class="badge badge-active">активен</span></div>
+                    </div>
+                    <div class="type-item selected">
+                      <div>Обеспечение работников средствами индивидуальной защиты (СИЗ)</div>
+                      <div class="meta"><span class="badge badge-active">активен</span><span class="badge badge-mapped">новый</span></div>
+                    </div>
+                    <div class="type-item">
+                      <div>Прочие виды нарушений</div>
+                      <div class="meta"><span class="badge badge-active">активен</span></div>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" type="button" style="margin-top:8px;width:100%;">+ Создать новый вид</button>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <div class="preview-strip">
+                  Отчёт «Виды выявленных нарушений»: <strong>+23</strong> к «СИЗ (нов.)», столбец «СИЗ (стар.)» исчезнет
+                </div>
+                <button class="btn btn-secondary" type="button">Отмена</button>
+                <button class="btn btn-primary" type="button">Сохранить соответствие</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== VARIANT B ===== -->
+  <section class="variant-panel" id="variant-b">
+    <div class="variant-meta">
+      <h2>Вариант B — Полноэкранный редактор с вкладками</h2>
+      <p>
+        Отдельный экран (как реестр нарушений): вкладки «Активные», «Архив», «Соответствия».
+        На вкладке соответствий — таблица: каждая строка = старый вид, выпадающий список = новый.
+        Удобно для пакетного редактирования всего классификатора.
+      </p>
+      <div class="pros-cons">
+        <div class="pro"><strong>+</strong> Всё в одном месте, видна полная картина. Хорошо для администратора.</div>
+        <div class="con"><strong>−</strong> Менее наглядна связь «слева-справа», чем split-модалка.</div>
+      </div>
+    </div>
+
+    <div class="browser-frame">
+      <div class="browser-chrome">
+        <div class="browser-dots"><span></span><span></span><span></span></div>
+        <div class="browser-url"><strong>Настройки</strong> / Виды нарушений</div>
+      </div>
+      <div class="mock-app">
+        <aside class="mock-sidebar">
+          <div class="logo">Газпром · ОТиПБ</div>
+          <div class="mock-nav-item active">Настройки</div>
+        </aside>
+        <header class="mock-header">
+          <button class="btn-ghost btn-sm" type="button">← Настройки</button>
+          &nbsp; Виды нарушений
+        </header>
+        <main class="mock-main">
+          <div class="card">
+            <div class="editor-tabs">
+              <button class="editor-tab" type="button">Активные (14)</button>
+              <button class="editor-tab" type="button">Архив (5)</button>
+              <button class="editor-tab active" type="button">Соответствия (3)</button>
+            </div>
+            <div class="editor-toolbar">
+              <input class="form-control search" type="search" placeholder="Поиск по названию…" value="">
+              <button class="btn btn-primary btn-sm" type="button">+ Новый вид</button>
+              <button class="btn btn-secondary btn-sm" type="button">Импорт классификатора</button>
+            </div>
+            <table class="list-table">
+              <thead>
+                <tr>
+                  <th style="width:38%;">Устаревший вид</th>
+                  <th style="width:80px;">В актах</th>
+                  <th style="width:38%;">Заменить на (активный)</th>
+                  <th>Статус</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Пожароопасные работы</td>
+                  <td>47</td>
+                  <td>
+                    <select class="form-control map-select">
+                      <option>Пожарная безопасность</option>
+                      <option>— не сопоставлено —</option>
+                    </select>
+                  </td>
+                  <td><span class="badge badge-mapped">настроено</span></td>
+                </tr>
+                <tr>
+                  <td>Обеспечение работников СИЗ, применении работниками СИЗ</td>
+                  <td>23</td>
+                  <td>
+                    <select class="form-control map-select">
+                      <option selected>Обеспечение работников СИЗ (нов.)</option>
+                    </select>
+                  </td>
+                  <td><span class="badge badge-mapped">настроено</span></td>
+                </tr>
+                <tr>
+                  <td>Прочие работы</td>
+                  <td>8</td>
+                  <td>
+                    <select class="form-control map-select">
+                      <option selected>Прочие виды нарушений</option>
+                    </select>
+                  </td>
+                  <td><span class="badge badge-mapped">настроено</span></td>
+                </tr>
+                <tr style="background:#fff8f0;">
+                  <td>Земляные работы <span class="badge badge-archived">в архиве, нет пары</span></td>
+                  <td>12</td>
+                  <td>
+                    <select class="form-control map-select" style="border-color:var(--warning);">
+                      <option selected>— выберите новый вид —</option>
+                      <option>Земляные и котлованные работы</option>
+                    </select>
+                  </td>
+                  <td><span class="badge badge-archived">требует внимания</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <div style="margin-top:14px;display:flex;justify-content:flex-end;gap:8px;">
+              <button class="btn btn-secondary" type="button">Отменить</button>
+              <button class="btn btn-primary" type="button">Применить ко всем данным</button>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== VARIANT C ===== -->
+  <section class="variant-panel" id="variant-c">
+    <div class="variant-meta">
+      <h2>Вариант C — Пошаговый мастер миграции</h2>
+      <p>
+        Запускается при обнаружении несопоставленных архивных видов или по кнопке «Обновить классификатор».
+        Шаги: обзор → сопоставление пар → превью отчётов до/после → подтверждение.
+        Снижает риск ошибки при крупной смене нормативки.
+      </p>
+      <div class="pros-cons">
+        <div class="pro"><strong>+</strong> Безопасно, с превью влияния на дашборды. Подходит для редких, но важных обновлений.</div>
+        <div class="con"><strong>−</strong> Дольше для простой замены одного вида; лишние шаги при мелких правках.</div>
+      </div>
+    </div>
+
+    <div class="browser-frame">
+      <div class="browser-chrome">
+        <div class="browser-dots"><span></span><span></span><span></span></div>
+        <div class="browser-url"><strong>Мастер</strong> — обновление классификатора видов нарушений</div>
+      </div>
+      <div class="mock-app" style="grid-template-columns:1fr;">
+        <header class="mock-header">Мастер миграции видов нарушений</header>
+        <main class="mock-main">
+          <div class="card">
+            <div class="wizard-steps">
+              <div class="wizard-step done"><div class="num">✓</div>Обзор</div>
+              <div class="wizard-step done"><div class="num">✓</div>Сопоставление</div>
+              <div class="wizard-step active"><div class="num">3</div>Превью отчётов</div>
+              <div class="wizard-step"><div class="num">4</div>Применить</div>
+            </div>
+
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+              Проверьте, как изменятся диаграммы после переноса 78 нарушений из 3 устаревших видов.
+            </p>
+
+            <div class="wizard-pair-grid" style="margin-bottom:16px;">
+              <div class="pair-card pair-card--old">
+                <div class="badge badge-archived" style="margin-bottom:8px;">было</div>
+                Пожароопасные работы <span class="badge badge-count">47</span>
+              </div>
+              <div class="pair-arrow">→</div>
+              <div class="pair-card pair-card--new">
+                <div class="badge badge-active" style="margin-bottom:8px;">стало</div>
+                Пожарная безопасность <span class="badge badge-count">+47</span>
+              </div>
+            </div>
+
+            <div class="dashboard-preview">
+              <div class="chart-mock">
+                <h5>До миграции</h5>
+                <div class="bar-row"><span class="label">Пожароопасные работы</span><div class="bar"><span style="width:70%"></span></div><span class="val">47</span></div>
+                <div class="bar-row"><span class="label">Пожарная безопасность</span><div class="bar"><span style="width:25%"></span></div><span class="val">17</span></div>
+                <div class="bar-row"><span class="label">Электробезопасность</span><div class="bar"><span style="width:40%"></span></div><span class="val">28</span></div>
+              </div>
+              <div class="chart-mock">
+                <h5>После миграции</h5>
+                <div class="bar-row strikethrough"><span class="label">Пожароопасные работы</span><div class="bar"><span style="width:0%"></span></div><span class="val">0</span></div>
+                <div class="bar-row highlight"><span class="label">Пожарная безопасность</span><div class="bar"><span style="width:85%"></span></div><span class="val">64</span></div>
+                <div class="bar-row"><span class="label">Электробезопасность</span><div class="bar"><span style="width:40%"></span></div><span class="val">28</span></div>
+              </div>
+            </div>
+
+            <div style="margin-top:20px;display:flex;justify-content:space-between;">
+              <button class="btn btn-secondary" type="button">← Назад</button>
+              <button class="btn btn-primary" type="button">Далее: применить →</button>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== VARIANT D ===== -->
+  <section class="variant-panel" id="variant-d">
+    <div class="variant-meta">
+      <h2>Вариант D — Единый список с раскрытием</h2>
+      <p>
+        Все виды в одном списке со статусом. Архивные подсвечены; при раскрытии — поле «заменён на» и кнопка создания нового.
+        Компактно, хорошо на мобильном. Предупреждение сверху, если есть несопоставленные.
+      </p>
+      <div class="pros-cons">
+        <div class="pro"><strong>+</strong> Минимум экранов, адаптивно, быстрый доступ к редактированию одного вида.</div>
+        <div class="con"><strong>−</strong> Сложнее увидеть все пары сразу; массовые операции менее удобны.</div>
+      </div>
+    </div>
+
+    <div class="browser-frame">
+      <div class="browser-chrome">
+        <div class="browser-dots"><span></span><span></span><span></span></div>
+        <div class="browser-url"><strong>Настройки</strong> / Виды нарушений</div>
+      </div>
+      <div class="mock-app">
+        <aside class="mock-sidebar">
+          <div class="logo">Газпром · ОТиПБ</div>
+          <div class="mock-nav-item active">Настройки</div>
+        </aside>
+        <header class="mock-header">Виды нарушений</header>
+        <main class="mock-main">
+          <div class="alert-banner alert-banner--warn">
+            <span aria-hidden="true">⚠️</span>
+            <span>1 вид в архиве без соответствия: <strong>Земляные работы</strong> (12 нарушений в актах)</span>
+            <button class="btn btn-primary btn-sm" type="button" style="margin-left:auto;">Настроить</button>
+          </div>
+
+          <div class="editor-toolbar">
+            <input class="form-control search" type="search" placeholder="Поиск…">
+            <button class="btn btn-primary btn-sm" type="button">+ Новый вид</button>
+          </div>
+
+          <div class="type-list-item">
+            <div class="type-list-head">
+              <span class="badge badge-active">активен</span>
+              <span class="title">Пожарная безопасность</span>
+              <span class="badge badge-count">64 в отчётах</span>
+              <span class="chevron">▼</span>
+            </div>
+          </div>
+
+          <div class="type-list-item expanded">
+            <div class="type-list-head">
+              <span class="badge badge-archived">архив</span>
+              <span class="title">Пожароопасные работы</span>
+              <span class="badge badge-count">47 в актах</span>
+              <span class="chevron">▼</span>
+            </div>
+            <div class="type-list-body">
+              <label class="form-label">Заменён на (для отчётов и новых нарушений)</label>
+              <select class="form-control" style="margin-bottom:10px;">
+                <option selected>Пожарная безопасность</option>
+                <option>+ Создать новый вид…</option>
+              </select>
+              <p style="font-size:12px;color:var(--text-muted);">При сохранении 47 нарушений будут учитываться в «Пожарная безопасность» на дашборде.</p>
+              <button class="btn btn-primary btn-sm" type="button">Сохранить</button>
+            </div>
+          </div>
+
+          <div class="type-list-item">
+            <div class="type-list-head">
+              <span class="badge badge-active">активен</span>
+              <span class="title">Электробезопасность</span>
+              <span class="badge badge-count">28</span>
+              <span class="chevron">▼</span>
+            </div>
+          </div>
+
+          <div class="type-list-item expanded">
+            <div class="type-list-head">
+              <span class="badge badge-archived">архив</span>
+              <span class="title">Земляные работы</span>
+              <span class="badge badge-count">12</span>
+              <span class="chevron">▼</span>
+            </div>
+            <div class="type-list-body">
+              <label class="form-label">Заменён на</label>
+              <select class="form-control" style="margin-bottom:10px;border-color:var(--warning);">
+                <option selected>— не выбрано —</option>
+                <option>Земляные и котлованные работы</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" type="button">+ Создать «Земляные и котлованные работы»</button>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== COMPARE ===== -->
+  <section class="variant-panel" id="variant-compare">
+    <div class="variant-meta">
+      <h2>Сравнение и точка входа в настройках</h2>
+      <p>Как будет выглядеть новая плитка рядом с существующим реестром «Нарушения» (формулировки из Excel).</p>
+    </div>
+
+    <div class="compare-grid">
+      <div class="browser-frame">
+        <div class="browser-chrome">
+          <div class="browser-dots"><span></span><span></span><span></span></div>
+          <div class="browser-url"><strong>Настройки</strong> — сетка плиток</div>
+        </div>
+        <div class="mock-main" style="padding:20px;background:var(--bg);">
+          <div class="settings-grid">
+            <div class="settings-tile"><div class="icon">👥</div><h4>Комиссия</h4><p>Члены комиссии</p></div>
+            <div class="settings-tile"><div class="icon">🏢</div><h4>Организации</h4><p>Справочник</p></div>
+            <div class="settings-tile"><div class="icon">📍</div><h4>Объекты</h4><p>Объекты проверки</p></div>
+            <div class="settings-tile"><div class="icon">⚠️</div><h4>Нарушения</h4><p>Реестр формулировок</p></div>
+            <div class="settings-tile highlight"><div class="icon">🏷️</div><h4>Виды нарушений</h4><p>Классификатор и миграция</p></div>
+            <div class="settings-tile"><div class="icon">👤</div><h4>Представители</h4><p>Контактные лица</p></div>
+          </div>
+          <p style="font-size:12px;color:var(--text-muted);margin-top:14px;">
+            «Нарушения» = реестр формулировок (как сейчас). «Виды нарушений» = отдельный классификатор + архив + соответствия.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:14px;margin-bottom:12px;">Логика данных (для реализации)</h3>
+        <ul style="font-size:13px;line-height:1.7;color:var(--text-muted);padding-left:18px;">
+          <li><strong style="color:var(--text)">violationTypes</strong> в каталоге: <code>{ id, title, status: active|archived, replacedBy? }</code></li>
+          <li><strong style="color:var(--text)">typeMappings</strong>: <code>{ fromId → toId }</code> для явных замен</li>
+          <li>При отображении отчётов: <code>resolveVid(v.vid)</code> → актуальный вид</li>
+          <li>В визарде: только <code>active</code> виды в выпадающем списке</li>
+          <li>Старые акты хранят исходный <code>vid</code>; маппинг применяется на чтение (или одноразовая миграция по кнопке)</li>
+        </ul>
+        <table class="list-table" style="margin-top:14px;">
+          <thead>
+            <tr><th>Вариант</th><th>Когда выбирать</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>A Split</strong></td><td>Редкие точечные замены, максимальная наглядность</td></tr>
+            <tr><td><strong>B Вкладки</strong></td><td>Админ, полный контроль над классификатором</td></tr>
+            <tr><td><strong>C Мастер</strong></td><td>Крупное обновление нормативки, нужен превью</td></tr>
+            <tr><td><strong>D Список</strong></td><td>Мобильный приоритет, минимум UI</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <aside class="recommend">
+    <h3>Рекомендация</h3>
+    <p>
+      <strong>Гибрид B + A:</strong> основной экран с вкладками (активные / архив / соответствия) —
+      для повседневного управления; кнопка «Сопоставить» открывает split-модалку для наглядной пары.
+      При первом открытии после импорта бэкапа с устаревшими видами — опционально запускать мастер (C) с превью дашборда.
+      Это покрывает и точечные правки, и массовую миграцию без дублирования логики.
+    </p>
+  </aside>
+
+  <script>
+    const tabs = document.querySelectorAll('.preview-tab');
+    const panels = document.querySelectorAll('.variant-panel');
+
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const id = tab.dataset.variant;
+        tabs.forEach((t) => t.classList.toggle('active', t === tab));
+        panels.forEach((p) => {
+          p.classList.toggle('visible', p.id === `variant-${id}`);
+        });
+      });
+    });
+
+    document.querySelectorAll('.type-list-head').forEach((head) => {
+      head.addEventListener('click', () => {
+        head.closest('.type-list-item')?.classList.toggle('expanded');
+      });
+    });
+  </script>
+</body>
+</html>

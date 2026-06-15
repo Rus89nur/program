@@ -182,22 +182,31 @@ const ViolationRegistry = (() => {
     screenQuery = query;
     screenVidFilter = vidFilter;
 
+    const catalog = await GazpromStore.get();
+    if (catalog && typeof ViolationTypes !== 'undefined') ViolationTypes.ensureCatalog(catalog);
+
     const all = await getAll();
-    const filtered = filterItems(all, query, vidFilter);
+    const filtered = filterItems(all, query, vidFilter, catalog);
     const tbody = document.getElementById('vrScreenTableBody');
     if (!tbody) return;
 
     // Наполнить выпадающий список видов (один раз)
     const vidSelect = document.getElementById('vrScreenVidFilter');
-    if (vidSelect && vidSelect.options.length <= 1) {
-      ViolationTemplates.VIOLATION_TYPES.forEach((v) => {
+    if (vidSelect) {
+      const titles =
+        catalog && typeof ViolationTypes !== 'undefined'
+          ? ViolationTypes.getActiveTitles(catalog)
+          : ViolationTemplates.VIOLATION_TYPES;
+      const current = vidSelect.value;
+      vidSelect.innerHTML = '<option value="">Все виды нарушений</option>';
+      titles.forEach((v) => {
         const opt = document.createElement('option');
         opt.value = v;
         opt.textContent = v;
         vidSelect.appendChild(opt);
       });
+      vidSelect.value = vidFilter || current || '';
     }
-    if (vidSelect) vidSelect.value = vidFilter;
 
     // Синхронизировать поисковую строку
     const searchInput = document.getElementById('vrScreenSearch');
@@ -246,7 +255,14 @@ const ViolationRegistry = (() => {
         </td>
         <td class="vr-col-vid">
           ${item.vid
-            ? `<span class="badge vr-vid-badge">${escHtml(item.vid)}</span>`
+            ? (() => {
+                const fmt =
+                  catalog && typeof ViolationTypes !== 'undefined'
+                    ? ViolationTypes.formatVidDisplay(catalog, item.vid)
+                    : { display: item.vid, original: item.vid, migrated: false };
+                const titleAttr = fmt.migrated ? ` title="Было: ${escHtml(fmt.original)}"` : '';
+                return `<span class="badge vr-vid-badge"${titleAttr}>${escHtml(fmt.display)}</span>`;
+              })()
             : '<span class="vr-cell-empty">—</span>'}
         </td>
         <td class="vr-col-note">
@@ -361,11 +377,20 @@ const ViolationRegistry = (() => {
       GazpromMobileOverlay.unlock();
     }
 
-    const vidTypes = ViolationTemplates.VIOLATION_TYPES;
-    const vidOptions = vidTypes
-      .map((v) => `<option value="${escHtml(v)}" ${item?.vid === v ? 'selected' : ''}>${escHtml(v)}</option>`)
-      .join('');
+    GazpromStore.get().then((catalog) => {
+      if (catalog && typeof ViolationTypes !== 'undefined') ViolationTypes.ensureCatalog(catalog);
+      const vidTypes =
+        catalog && typeof ViolationTypes !== 'undefined'
+          ? ViolationTypes.getActiveTitles(catalog)
+          : ViolationTemplates.VIOLATION_TYPES;
+      const vidOptions = vidTypes
+        .map((v) => `<option value="${escHtml(v)}" ${item?.vid === v ? 'selected' : ''}>${escHtml(v)}</option>`)
+        .join('');
+      renderOpenFormBody(item, vidOptions);
+    });
+  }
 
+  function renderOpenFormBody(item, vidOptions) {
     const form = document.createElement('div');
     form.className = 'vr-form-overlay';
     form.innerHTML = `
@@ -472,8 +497,8 @@ const ViolationRegistry = (() => {
 
   /* ——— Вспомогательные ——— */
 
-  function filterItems(list, query, vidFilter) {
-    return ViolationSearch.filterRegistry(list, query, { vidFilter });
+  function filterItems(list, query, vidFilter, catalog) {
+    return ViolationSearch.filterRegistry(list, query, { vidFilter, catalog });
   }
 
   function escHtml(s) {

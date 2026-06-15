@@ -30,6 +30,7 @@ const ReportsDashboard = (() => {
 
   let openGroup = null;
   let bound = false;
+  let activeCatalog = null;
 
   function aktIdMatch(a, b) {
     return String(a || '').toLowerCase() === String(b || '').toLowerCase();
@@ -80,7 +81,14 @@ const ReportsDashboard = (() => {
 
   function getViolationKind(v) {
     const vid = String(v.vid || '').trim();
-    if (vid) return vid;
+    if (vid) {
+      const resolved =
+        activeCatalog && typeof ViolationTypes !== 'undefined'
+          ? ViolationTypes.resolveVid(activeCatalog, vid)
+          : vid;
+      const out = resolved || vid;
+      return out.length > 80 ? `${out.slice(0, 77)}…` : out;
+    }
     const title = String(v.title || '').trim();
     if (!title) return 'Без названия';
     return title.length > 80 ? `${title.slice(0, 77)}…` : title;
@@ -533,6 +541,8 @@ const ReportsDashboard = (() => {
 
   function render(data) {
     if (!data) return;
+    activeCatalog = data;
+    if (typeof ViolationTypes !== 'undefined') ViolationTypes.ensureCatalog(activeCatalog);
     const options = buildFilterOptions(data);
     pruneFilters(options);
     renderFilterGroups(options);

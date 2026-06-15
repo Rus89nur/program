@@ -312,10 +312,16 @@ const WizardModals = (() => {
         .join('');
     }
 
-    const vidOpts = ViolationTemplates.VIOLATION_TYPES.map(
-      (t) =>
-        `<option value="${AktUtils.escapeHtml(t)}" ${v?.vid === t ? 'selected' : ''}>${AktUtils.escapeHtml(t)}</option>`
-    ).join('');
+    const vidTitles =
+      catalog && typeof ViolationTypes !== 'undefined'
+        ? ViolationTypes.getActiveTitles(catalog)
+        : ViolationTemplates.VIOLATION_TYPES;
+    const vidOpts = vidTitles
+      .map(
+        (t) =>
+          `<option value="${AktUtils.escapeHtml(t)}" ${v?.vid === t ? 'selected' : ''}>${AktUtils.escapeHtml(t)}</option>`
+      )
+      .join('');
 
     function renderRegistryResults(query) {
       const q = query.trim();
@@ -875,9 +881,13 @@ const WizardModals = (() => {
       .map((s) => `<option value="${AktUtils.escapeHtml(s)}">`)
       .join('');
 
-    const vidOpts = ViolationTemplates.VIOLATION_TYPES.map(
-      (t) => `<option value="${AktUtils.escapeHtml(t)}">${AktUtils.escapeHtml(t)}</option>`
-    ).join('');
+    const vidTitles =
+      catalog && typeof ViolationTypes !== 'undefined'
+        ? ViolationTypes.getActiveTitles(catalog)
+        : ViolationTemplates.VIOLATION_TYPES;
+    const vidOpts = vidTitles
+      .map((t) => `<option value="${AktUtils.escapeHtml(t)}">${AktUtils.escapeHtml(t)}</option>`)
+      .join('');
 
     // Registry items for the rule picker — unique subTitle entries, show only пункт правила
     const seenSubTitles = new Set();

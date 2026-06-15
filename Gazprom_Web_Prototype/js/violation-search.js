@@ -177,9 +177,17 @@ const ViolationSearch = (() => {
     return score;
   }
 
-  function filterAndRank(items, query, mapFields, weights, { vidFilter } = {}) {
+  function filterAndRank(items, query, mapFields, weights, { vidFilter, catalog } = {}) {
     let list = [...(items || [])];
-    if (vidFilter) list = list.filter((x) => x.vid === vidFilter);
+    if (vidFilter) {
+      list = list.filter((x) => {
+        if (x.vid === vidFilter) return true;
+        if (catalog && typeof ViolationTypes !== 'undefined') {
+          return ViolationTypes.resolveVid(catalog, x.vid) === vidFilter;
+        }
+        return false;
+      });
+    }
 
     const parsed = parseQuery(query);
     if (parsed.isEmpty) return list;
@@ -195,8 +203,8 @@ const ViolationSearch = (() => {
     return scored.slice(0, MAX_RESULTS).map((x) => x.item);
   }
 
-  function filterRegistry(items, query, { vidFilter } = {}) {
-    return filterAndRank(items, query, registryFields, fieldWeightsRegistry(), { vidFilter });
+  function filterRegistry(items, query, { vidFilter, catalog } = {}) {
+    return filterAndRank(items, query, registryFields, fieldWeightsRegistry(), { vidFilter, catalog });
   }
 
   function filterActViolations(violations, query) {
