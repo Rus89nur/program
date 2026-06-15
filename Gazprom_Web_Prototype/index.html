@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '163';</script>
+  <script>window.GAZPROM_ASSET_V = '164';</script>
   <style id="appShellCritical">
     @media (max-width:900px),(max-width:1280px) and (max-height:520px) and (hover:none){
       .sidebar{display:none!important}
@@ -58,7 +58,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=148" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=149" id="appCss">
   <script>
   (function () {
     var css = document.getElementById('appCss');
@@ -116,7 +116,7 @@
       </button>
       <div class="sidebar-footer" id="sidebarAppBuild" aria-label="Версия веб-приложения">
         <span class="sidebar-footer__brand">программа НЕТ</span>
-        Сборка: <span data-app-build>web-163</span> · PWA
+        Сборка: <span data-app-build>web-164</span> · PWA
       </div>
     </aside>
 
@@ -183,7 +183,7 @@
             <div class="stat-label">Черновиков</div>
           </div>
         </div>
-        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-163</p>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-164</p>
       </section>
 
       <section class="screen" id="screen-wizard">
@@ -453,11 +453,17 @@
           <div class="card settings-tile" data-catalog="commission" role="button" tabindex="0"><div class="icon">👥</div><h4>Комиссия</h4><p>Члены комиссии</p><span class="tile-count"></span></div>
           <div class="card settings-tile" data-catalog="organizations" role="button" tabindex="0"><div class="icon">🏢</div><h4>Организации</h4><p>Справочник</p><span class="tile-count"></span></div>
           <div class="card settings-tile" data-catalog="objects" role="button" tabindex="0"><div class="icon">📍</div><h4>Объекты</h4><p>Объекты проверки</p><span class="tile-count"></span></div>
-          <div class="card settings-tile" data-catalog="violations" role="button" tabindex="0"><div class="icon">⚠️</div><h4>Нарушения</h4><p>Реестр формулировок</p><span class="tile-count"></span></div>
+          <div class="card settings-tile" data-catalog="violations" role="button" tabindex="0">
+            <div class="settings-tile-preview" data-tile-preview="registry" aria-hidden="true"></div>
+            <div class="icon">⚠️</div><h4>Нарушения</h4><p>Реестр формулировок</p><span class="tile-count"></span>
+          </div>
           <div class="card settings-tile settings-tile--violation-types" role="button" tabindex="0"><div class="icon">🏷️</div><h4>Виды нарушений</h4><p>Классификатор и миграция</p><span class="tile-count" data-vt-unmapped></span></div>
           <div class="card settings-tile" data-catalog="predstavitely" role="button" tabindex="0"><div class="icon">👤</div><h4>Представители</h4><p>Контактные лица</p><span class="tile-count"></span></div>
           <div class="card settings-tile settings-tile--schedule" role="button" tabindex="0"><div class="icon">📅</div><h4>График</h4><p>План проверок</p><span class="tile-count"></span></div>
-          <div class="card settings-tile settings-tile--template" role="button" tabindex="0"><div class="icon">📄</div><h4>Шаблон акта</h4><p>Word-шаблон</p><span class="tile-count" data-template-status></span></div>
+          <div class="card settings-tile settings-tile--template" role="button" tabindex="0">
+            <div class="settings-tile-preview" data-tile-preview="template" aria-hidden="true"></div>
+            <div class="icon">📄</div><h4>Шаблон акта</h4><p>Word-шаблон</p><span class="tile-count" data-template-status></span>
+          </div>
           <input type="file" id="wordTemplateInput" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
           <div class="card settings-tile settings-tile--backup" role="button" tabindex="0"><div class="icon">💾</div><h4>Резервные копии</h4><p>Экспорт и управление</p></div>
           <div class="card settings-tile settings-tile--trash" role="button" tabindex="0"><div class="icon">🗑</div><h4>Корзина</h4><p>Удалённые акты</p><span class="tile-count" data-trash-count></span></div>
@@ -487,6 +493,11 @@
             <button class="btn-ghost btn-sm" type="button" data-go="settings">← Настройки</button>
             <span class="violations-screen-breadcrumb">/ Реестр нарушений</span>
           </div>
+          <div class="preset-picker-section">
+            <h4 class="preset-picker-section__title">Выбор реестра</h4>
+            <p class="preset-picker-section__hint">Нажмите на карточку, чтобы переключить реестр. Свой файл — «+ Импорт Excel».</p>
+            <div id="vrRegistryPresetPicker" class="preset-picker-host"></div>
+          </div>
           <div class="violations-screen-toolbar">
             <input type="search" class="form-control" id="vrScreenSearch" placeholder="🔍 Поиск по формулировке, документу, примечанию…" autocomplete="off">
             <select class="form-control" id="vrScreenVidFilter">
@@ -494,7 +505,6 @@
             </select>
             <div class="violations-screen-actions">
               <button class="btn-primary btn-sm" type="button" id="vrScreenAddBtn">+ Добавить</button>
-              <button class="btn-secondary btn-sm" type="button" id="vrScreenRestoreBtn">↩️ Стандартный реестр</button>
               <button class="btn-secondary btn-sm" type="button" id="vrScreenImportBtn">📂 Импорт Excel</button>
               <button class="btn-secondary btn-sm" type="button" id="vrScreenExportBtn">📊 Экспорт Excel</button>
             </div>
@@ -562,24 +572,12 @@
 
       <div class="backup-modal-section">
         <p id="templateModalStatus" class="defaults-status defaults-status--ok">Загрузка…</p>
-        <dl class="defaults-meta">
-          <div><dt>Текущий файл</dt><dd id="templateModalCurrentName">—</dd></div>
-          <div><dt>Источник</dt><dd id="templateModalCurrentSource">—</dd></div>
-        </dl>
       </div>
-
-      <hr class="backup-modal-divider">
 
       <div class="backup-modal-section">
         <h4 class="backup-modal-section-title">Выбор шаблона</h4>
-        <p class="backup-import-hint">
-          По умолчанию используется встроенный шаблон <strong>Шаблон_12.10.25.docx</strong>.
-          Можно загрузить свой файл <strong>.docx</strong> или вернуть стандартный.
-        </p>
-        <div class="backup-import-actions">
-          <button type="button" class="btn-primary" id="templateModalUploadBtn">📂 Загрузить свой .docx</button>
-          <button type="button" class="btn-secondary" id="templateModalRestoreBtn">↩️ Вернуть стандартный</button>
-        </div>
+        <p class="backup-import-hint">Нажмите на карточку, чтобы выбрать шаблон для генерации актов.</p>
+        <div id="templatePresetPicker" class="preset-picker-host"></div>
       </div>
 
       <div class="catalog-form-actions">
@@ -661,12 +659,12 @@
   <script src="js/violation-templates.js?v=20"></script>
   <script src="js/violation-types.js?v=1"></script>
   <script src="js/violation-types-editor.js?v=3"></script>
-  <script src="js/defaults-bootstrap.js?v=1"></script>
-  <script src="js/violation-registry.js?v=9"></script>
+  <script src="js/defaults-bootstrap.js?v=2"></script>
+  <script src="js/violation-registry.js?v=10"></script>
   <script src="js/catalog-service.js"></script>
   <script src="js/backup-import.js?v=30"></script>
   <script src="js/akt-search.js"></script>
-  <script src="js/ui-bindings.js?v=30"></script>
+  <script src="js/ui-bindings.js?v=31"></script>
   <script src="js/catalog-editor.js?v=12"></script>
   <script src="js/schedule-editor.js?v=2"></script>
   <script src="js/elimination-editor.js?v=8"></script>
@@ -676,6 +674,6 @@
   <script src="js/wizard.js?v=56"></script>
   <script src="js/short-akt-form.js?v=3"></script>
   <script src="js/doc-generator.js?v=36"></script>
-  <script src="js/app.js?v=132"></script>
+  <script src="js/app.js?v=133"></script>
 </body>
 </html>

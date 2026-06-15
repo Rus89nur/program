@@ -522,6 +522,10 @@ const GazpromUI = (() => {
       vtBadge.textContent = n > 0 ? String(n) : '';
       vtBadge.style.color = n > 0 ? 'var(--warning)' : '';
     }
+
+    if (typeof DefaultsBootstrap !== 'undefined') {
+      void DefaultsBootstrap.renderSettingsTilePreviews(data);
+    }
   }
 
   return {

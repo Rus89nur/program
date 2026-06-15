@@ -131,12 +131,13 @@ const ViolationRegistry = (() => {
       }
       catalog[LIST_KEY] = merged;
     }
+
     if (typeof DefaultsBootstrap !== 'undefined') {
-      DefaultsBootstrap.markRegistryCustom(catalog);
-      catalog.violationRegistryLabel = file?.name || 'Импорт Excel';
+      await DefaultsBootstrap.saveCustomRegistryPreset(file?.name || 'Импорт Excel', catalog[LIST_KEY]);
+    } else {
+      await GazpromStore.set(catalog);
+      GazpromStore.invalidateCache();
     }
-    await GazpromStore.set(catalog);
-    GazpromStore.invalidateCache();
 
     await GazpromUI.refreshAll();
     return imported.length;
@@ -227,8 +228,13 @@ const ViolationRegistry = (() => {
       const count = all.length;
       sourceEl.textContent = count
         ? `${count} записей · ${label}`
-        : 'Реестр пуст';
+        : 'Выберите реестр ниже';
       sourceEl.className = `vr-screen-source defaults-source defaults-source--${catalog?.violationRegistrySource || 'empty'}`;
+    }
+
+    if (typeof DefaultsBootstrap !== 'undefined') {
+      await DefaultsBootstrap.renderRegistryPicker(document.getElementById('vrRegistryPresetPicker'));
+      await DefaultsBootstrap.renderSettingsTilePreviews(catalog);
     }
 
     if (all.length === 0) {
@@ -372,25 +378,6 @@ const ViolationRegistry = (() => {
         GazpromToast.error('Ошибка импорта: ' + (err.message || String(err)));
       } finally {
         e.target.value = ''; // сброс, чтобы можно было выбрать тот же файл снова
-      }
-    });
-
-    document.getElementById('vrScreenRestoreBtn')?.addEventListener('click', async () => {
-      const merge = document.getElementById('vrScreenMergeCheckbox')?.checked ?? false;
-      const ok = await GazpromToast.confirm(
-        merge
-          ? 'Добавить записи из стандартного реестра к текущим?'
-          : 'Заменить текущий реестр стандартным?\nВсе текущие записи будут удалены.',
-        { confirmLabel: merge ? 'Объединить' : 'Заменить' }
-      );
-      if (!ok) return;
-      try {
-        GazpromToast.info('Загрузка стандартного реестра…');
-        const count = await DefaultsBootstrap.restoreBuiltinRegistry({ replace: !merge });
-        GazpromToast.success(`Стандартный реестр: ${count} записей`);
-        renderScreen('', '');
-      } catch (err) {
-        GazpromToast.error(err.message);
       }
     });
 

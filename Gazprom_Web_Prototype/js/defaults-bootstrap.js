@@ -1,16 +1,15 @@
 /**
- * Встроенные по умолчанию реестр нарушений и Word-шаблон акта.
- * Подстановка при первом запуске; восстановление из Настроек / экрана реестра.
+ * Встроенные и пользовательские пресеты: реестр нарушений и Word-шаблон.
+ * Визуальный выбор карточками в настройках и на экране реестра.
  */
 const DefaultsBootstrap = (() => {
-  const REGISTRY_JSON = './assets/defaults/violation-registry.json';
-  const TEMPLATE_DOCX = './assets/defaults/akt-template.docx';
-  const BUILTIN_TEMPLATE_NAME = 'Шаблон_12.10.25.docx';
-  const BUILTIN_REGISTRY_LABEL = 'Реестр_нарушений-2';
-  const PRESET_ID = 'default';
+  const MANIFEST_URL = './assets/defaults/manifest.json';
+  const LEGACY_REGISTRY_JSON = './assets/defaults/violation-registry.json';
+  const LEGACY_TEMPLATE_DOCX = './assets/defaults/akt-template.docx';
 
-  let registryCache = null;
-  let templateB64Cache = null;
+  let manifestCache = null;
+  const registryJsonCache = new Map();
+  const templateB64Cache = new Map();
 
   function escHtml(s) {
     return String(s ?? '')
@@ -24,24 +23,86 @@ const DefaultsBootstrap = (() => {
     return window.matchMedia('(pointer: coarse)').matches;
   }
 
-  async function fetchRegistryPayload() {
-    if (registryCache) return registryCache;
-    const res = await fetch(REGISTRY_JSON, { cache: 'no-cache' });
-    if (!res.ok) throw new Error('Не удалось загрузить стандартный реестр');
-    registryCache = await res.json();
-    return registryCache;
+  async function loadManifest() {
+    if (manifestCache) return manifestCache;
+    const res = await fetch(MANIFEST_URL, { cache: 'no-cache' });
+    if (!res.ok) throw new Error('Не удалось загрузить каталог пресетов');
+    manifestCache = await res.json();
+    return manifestCache;
   }
 
-  async function fetchTemplateBase64() {
-    if (templateB64Cache) return templateB64Cache;
-    const res = await fetch(TEMPLATE_DOCX, { cache: 'no-cache' });
-    if (!res.ok) throw new Error('Не удалось загрузить стандартный шаблон Word');
+  function ensureLibraries(catalog) {
+    if (!Array.isArray(catalog.savedTemplates)) catalog.savedTemplates = [];
+    if (!Array.isArray(catalog.savedRegistries)) catalog.savedRegistries = [];
+    return catalog;
+  }
+
+  function migrateCatalog(catalog) {
+    ensureLibraries(catalog);
+    let changed = false;
+    const defaultTemplateId = manifestCache?.templates?.[0]?.id || 'builtin-template-v1';
+    const defaultRegistryId = manifestCache?.registries?.[0]?.id || 'builtin-registry-v1';
+
+    if (!catalog.activeTemplatePresetId) {
+      if (catalog.wordTemplateSource === 'builtin') {
+        catalog.activeTemplatePresetId = defaultTemplateId;
+        changed = true;
+      } else if (catalog.wordTemplateName) {
+        const key = DocGenerator?.TEMPLATE_KEY || 'wordTemplate';
+        const data = catalog[key] || catalog.wordTemplate;
+        if (data && catalog.savedTemplates.length === 0) {
+          catalog.savedTemplates.push({
+            id: AktUtils.uuid(),
+            name: catalog.wordTemplateName,
+            data,
+            createdAt: new Date().toISOString(),
+          });
+          catalog.activeTemplatePresetId = catalog.savedTemplates[0].id;
+          changed = true;
+        }
+      }
+    }
+
+    if (!catalog.activeRegistryPresetId) {
+      if (catalog.violationRegistrySource === 'builtin') {
+        catalog.activeRegistryPresetId = defaultRegistryId;
+        changed = true;
+      } else if ((catalog.violationRegistry || []).length && catalog.savedRegistries.length === 0) {
+        catalog.savedRegistries.push({
+          id: AktUtils.uuid(),
+          name: catalog.violationRegistryLabel || 'Мой реестр',
+          label: catalog.violationRegistryLabel || 'Импорт',
+          items: AktUtils.clone(catalog.violationRegistry || []),
+          createdAt: new Date().toISOString(),
+        });
+        catalog.activeRegistryPresetId = catalog.savedRegistries[0].id;
+        changed = true;
+      }
+    }
+
+    return changed;
+  }
+
+  async function fetchRegistryPayload(url) {
+    if (registryJsonCache.has(url)) return registryJsonCache.get(url);
+    const res = await fetch(url, { cache: 'no-cache' });
+    if (!res.ok) throw new Error('Не удалось загрузить реестр');
+    const payload = await res.json();
+    registryJsonCache.set(url, payload);
+    return payload;
+  }
+
+  async function fetchTemplateBase64(url) {
+    if (templateB64Cache.has(url)) return templateB64Cache.get(url);
+    const res = await fetch(url, { cache: 'no-cache' });
+    if (!res.ok) throw new Error('Не удалось загрузить шаблон Word');
     const buf = await res.arrayBuffer();
     const bytes = new Uint8Array(buf);
     let binary = '';
     for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    templateB64Cache = btoa(binary);
-    return templateB64Cache;
+    const b64 = btoa(binary);
+    templateB64Cache.set(url, b64);
+    return b64;
   }
 
   function mapRegistryItems(rawItems) {
@@ -56,8 +117,31 @@ const DefaultsBootstrap = (() => {
     })).filter((x) => x.title);
   }
 
-  async function loadBuiltinRegistryItems() {
-    const payload = await fetchRegistryPayload();
+  function cloneRegistryItems(items) {
+    return (items || []).map((item, index) => ({
+      ...item,
+      id: AktUtils.uuid(),
+      number: item.number || index + 1,
+    }));
+  }
+
+  async function getBuiltinRegistryMeta(id) {
+    const manifest = await loadManifest();
+    return manifest.registries?.find((r) => r.id === id)
+      || manifest.registries?.[0]
+      || { id: 'builtin-registry-v1', json: LEGACY_REGISTRY_JSON, name: 'Реестр_нарушений-2' };
+  }
+
+  async function getBuiltinTemplateMeta(id) {
+    const manifest = await loadManifest();
+    return manifest.templates?.find((t) => t.id === id)
+      || manifest.templates?.[0]
+      || { id: 'builtin-template-v1', docx: LEGACY_TEMPLATE_DOCX, name: 'Шаблон_12.10.25.docx' };
+  }
+
+  async function loadBuiltinRegistryItems(presetId) {
+    const meta = await getBuiltinRegistryMeta(presetId);
+    const payload = await fetchRegistryPayload(meta.json || LEGACY_REGISTRY_JSON);
     return mapRegistryItems(payload.items || []);
   }
 
@@ -71,18 +155,83 @@ const DefaultsBootstrap = (() => {
     }
   }
 
-  async function applyBuiltinTemplateToCatalog(catalog) {
-    const b64 = await fetchTemplateBase64();
+  async function writeTemplateToCatalog(catalog, b64, name, { presetId, source }) {
     const templateKey = DocGenerator?.TEMPLATE_KEY || 'wordTemplate';
     catalog[templateKey] = b64;
     catalog.wordTemplate = b64;
-    catalog.wordTemplateName = BUILTIN_TEMPLATE_NAME;
-    catalog.wordTemplateSource = 'builtin';
-    catalog.wordTemplatePreset = PRESET_ID;
+    catalog.wordTemplateName = name;
+    catalog.wordTemplateSource = source;
+    catalog.wordTemplatePreset = source === 'builtin' ? presetId : null;
+    catalog.activeTemplatePresetId = presetId;
     catalog.wordTemplateOffloaded = false;
     catalog.mobileStrippedTemplate = false;
     await clearTemplateSidecar();
+
+    if (isCoarsePointer() && b64.length > 50000) {
+      await GazpromIdb.transaction('app', 'readwrite', (tx) => {
+        tx.objectStore('app').put({ data: b64, name }, 'wordTemplateSidecar');
+      });
+      catalog[templateKey] = null;
+      catalog.wordTemplate = null;
+      catalog.wordTemplateOffloaded = true;
+    }
     return catalog;
+  }
+
+  async function applyTemplatePreset(presetId) {
+    const catalog = ensureLibraries(await GazpromStore.get());
+    const manifest = await loadManifest();
+    const builtin = manifest.templates?.find((t) => t.id === presetId);
+
+    if (builtin) {
+      const b64 = await fetchTemplateBase64(builtin.docx || LEGACY_TEMPLATE_DOCX);
+      await writeTemplateToCatalog(catalog, b64, builtin.name, { presetId: builtin.id, source: 'builtin' });
+    } else {
+      const saved = catalog.savedTemplates.find((t) => t.id === presetId);
+      if (!saved?.data) throw new Error('Шаблон не найден');
+      await writeTemplateToCatalog(catalog, saved.data, saved.name, { presetId: saved.id, source: 'custom' });
+    }
+
+    await GazpromStore.set(catalog, { skipPhotoIngest: true });
+    GazpromStore.invalidateCache();
+    await GazpromUI?.refreshAll?.();
+  }
+
+  async function applyRegistryPreset(presetId, { merge = false } = {}) {
+    const catalog = ensureLibraries(await GazpromStore.get());
+    const manifest = await loadManifest();
+    const builtin = manifest.registries?.find((r) => r.id === presetId);
+    let items = [];
+
+    if (builtin) {
+      items = await loadBuiltinRegistryItems(builtin.id);
+      catalog.violationRegistrySource = 'builtin';
+      catalog.violationRegistryLabel = builtin.name;
+    } else {
+      const saved = catalog.savedRegistries.find((r) => r.id === presetId);
+      if (!saved?.items?.length) throw new Error('Реестр не найден');
+      items = cloneRegistryItems(saved.items);
+      catalog.violationRegistrySource = 'custom';
+      catalog.violationRegistryLabel = saved.label || saved.name;
+    }
+
+    if (merge && (catalog.violationRegistry || []).length) {
+      const merged = [...catalog.violationRegistry];
+      for (const item of items) {
+        const dup = merged.find((x) => x.title === item.title && x.subTitle === item.subTitle);
+        if (!dup) merged.push(item);
+      }
+      catalog.violationRegistry = merged;
+    } else {
+      catalog.violationRegistry = items;
+    }
+
+    catalog.activeRegistryPresetId = presetId;
+    catalog.violationRegistryPreset = builtin ? presetId : null;
+    await GazpromStore.set(catalog, { skipPhotoIngest: true });
+    GazpromStore.invalidateCache();
+    await GazpromUI?.refreshAll?.();
+    return catalog.violationRegistry.length;
   }
 
   async function hasWordTemplate(catalog) {
@@ -92,20 +241,25 @@ const DefaultsBootstrap = (() => {
   }
 
   async function ensureSeeded() {
-    const catalog = await GazpromStore.get();
+    await loadManifest();
+    let catalog = ensureLibraries(await GazpromStore.get());
     if (!GazpromStore.isReady(catalog)) return catalog;
 
-    let changed = false;
+    catalog = ensureLibraries(catalog);
+    const migrated = migrateCatalog(catalog);
+    let changed = migrated;
     const registry = catalog.violationRegistry || [];
+    const defaultRegistryId = manifestCache.registries?.[0]?.id || 'builtin-registry-v1';
+    const defaultTemplateId = manifestCache.templates?.[0]?.id || 'builtin-template-v1';
 
     if (registry.length === 0 && catalog.violationRegistrySource !== 'custom') {
       try {
-        const items = await loadBuiltinRegistryItems();
+        const items = await loadBuiltinRegistryItems(defaultRegistryId);
         if (items.length) {
           catalog.violationRegistry = items;
           catalog.violationRegistrySource = 'builtin';
-          catalog.violationRegistryPreset = PRESET_ID;
-          catalog.violationRegistryLabel = BUILTIN_REGISTRY_LABEL;
+          catalog.activeRegistryPresetId = defaultRegistryId;
+          catalog.violationRegistryLabel = manifestCache.registries[0].name;
           changed = true;
         }
       } catch (err) {
@@ -115,8 +269,8 @@ const DefaultsBootstrap = (() => {
 
     if (!(await hasWordTemplate(catalog)) && catalog.wordTemplateSource !== 'custom') {
       try {
-        await applyBuiltinTemplateToCatalog(catalog);
-        changed = true;
+        await applyTemplatePreset(defaultTemplateId);
+        changed = false;
       } catch (err) {
         console.warn('[DefaultsBootstrap] template seed failed:', err);
       }
@@ -130,36 +284,199 @@ const DefaultsBootstrap = (() => {
     return catalog;
   }
 
-  async function restoreBuiltinRegistry({ replace = true } = {}) {
-    const items = await loadBuiltinRegistryItems();
-    if (!items.length) throw new Error('Стандартный реестр пуст');
-
-    const catalog = await GazpromStore.get();
-    if (replace) {
-      catalog.violationRegistry = items;
-    } else {
-      const merged = [...(catalog.violationRegistry || [])];
-      for (const item of items) {
-        const dup = merged.find((x) => x.title === item.title && x.subTitle === item.subTitle);
-        if (!dup) merged.push(item);
-      }
-      catalog.violationRegistry = merged;
-    }
-    catalog.violationRegistrySource = 'builtin';
-    catalog.violationRegistryPreset = PRESET_ID;
-    catalog.violationRegistryLabel = BUILTIN_REGISTRY_LABEL;
-    await GazpromStore.set(catalog, { skipPhotoIngest: true });
-    GazpromStore.invalidateCache();
-    await GazpromUI?.refreshAll?.();
-    return catalog.violationRegistry.length;
+  async function listTemplatePresets(catalog) {
+    const manifest = await loadManifest();
+    const c = ensureLibraries(catalog || (await GazpromStore.get()));
+    migrateCatalog(c);
+    const activeId = c.activeTemplatePresetId || manifest.templates?.[0]?.id;
+    const builtins = (manifest.templates || []).map((t) => ({
+      id: t.id,
+      name: t.name,
+      label: t.label || 'Встроенный',
+      subtitle: t.subtitle || 'Word .docx',
+      kind: 'builtin',
+      active: t.id === activeId,
+    }));
+    const customs = (c.savedTemplates || []).map((t) => ({
+      id: t.id,
+      name: t.name,
+      label: 'Свой шаблон',
+      subtitle: t.name,
+      kind: 'custom',
+      active: t.id === activeId,
+    }));
+    return [...builtins, ...customs];
   }
 
-  async function restoreBuiltinTemplate() {
-    const catalog = await GazpromStore.get();
-    await applyBuiltinTemplateToCatalog(catalog);
-    await GazpromStore.set(catalog, { skipPhotoIngest: true });
-    GazpromStore.invalidateCache();
-    await GazpromUI?.refreshAll?.();
+  async function listRegistryPresets(catalog) {
+    const manifest = await loadManifest();
+    const c = ensureLibraries(catalog || (await GazpromStore.get()));
+    migrateCatalog(c);
+    const activeId = c.activeRegistryPresetId || manifest.registries?.[0]?.id;
+    const builtins = (manifest.registries || []).map((r) => ({
+      id: r.id,
+      name: r.name,
+      label: r.label || 'Встроенный',
+      subtitle: r.subtitle || `${r.count || 0} записей`,
+      count: r.count || 0,
+      previewRows: r.previewRows || [],
+      kind: 'builtin',
+      active: r.id === activeId,
+    }));
+    const customs = (c.savedRegistries || []).map((r) => ({
+      id: r.id,
+      name: r.name,
+      label: r.label || 'Свой реестр',
+      subtitle: `${(r.items || []).length} записей`,
+      count: (r.items || []).length,
+      previewRows: (r.items || []).slice(0, 3).map((x) => x.title),
+      kind: 'custom',
+      active: r.id === activeId,
+    }));
+    return [...builtins, ...customs];
+  }
+
+  function renderDocThumb() {
+    return `
+      <div class="preset-thumb preset-thumb--doc" aria-hidden="true">
+        <div class="preset-doc-sheet">
+          <div class="preset-doc-sheet__head"></div>
+          <div class="preset-doc-sheet__line"></div>
+          <div class="preset-doc-sheet__line preset-doc-sheet__line--mid"></div>
+          <div class="preset-doc-sheet__line preset-doc-sheet__line--short"></div>
+          <span class="preset-doc-sheet__badge">W</span>
+        </div>
+      </div>`;
+  }
+
+  function renderRegistryThumb(preset) {
+    const rows = (preset.previewRows || []).slice(0, 3);
+    const body = rows.length
+      ? rows.map((row, i) => `
+          <div class="preset-registry-row">
+            <span class="preset-registry-row__num">${i + 1}</span>
+            <span class="preset-registry-row__text">${escHtml(String(row).slice(0, 32))}</span>
+          </div>`).join('')
+      : `
+          <div class="preset-registry-row"><span class="preset-registry-row__num">1</span><span class="preset-registry-row__text">…</span></div>
+          <div class="preset-registry-row"><span class="preset-registry-row__num">2</span><span class="preset-registry-row__text">…</span></div>`;
+    return `<div class="preset-thumb preset-thumb--registry" aria-hidden="true">${body}</div>`;
+  }
+
+  function renderPresetCard(preset, type) {
+    const thumb = type === 'template' ? renderDocThumb() : renderRegistryThumb(preset);
+    const meta = type === 'registry' && preset.count ? `${preset.count} зап.` : preset.subtitle;
+    return `
+      <button
+        type="button"
+        class="preset-card preset-card--${type}${preset.active ? ' preset-card--active' : ''}"
+        data-preset-id="${escHtml(preset.id)}"
+        data-preset-kind="${escHtml(preset.kind)}"
+        aria-pressed="${preset.active ? 'true' : 'false'}"
+        aria-label="${escHtml(preset.label)}: ${escHtml(preset.name)}"
+      >
+        ${thumb}
+        <span class="preset-card__label">${escHtml(preset.label)}</span>
+        <span class="preset-card__name">${escHtml(preset.name)}</span>
+        <span class="preset-card__meta">${escHtml(meta)}</span>
+        ${preset.active ? '<span class="preset-card__check" aria-hidden="true">✓</span>' : ''}
+        ${preset.kind === 'custom' ? '<span class="preset-card__tag">свой</span>' : '<span class="preset-card__tag preset-card__tag--builtin">встроенный</span>'}
+      </button>`;
+  }
+
+  function renderAddCard(type, label) {
+    return `
+      <button type="button" class="preset-card preset-card--add preset-card--${type}" data-preset-add="${type}" aria-label="${escHtml(label)}">
+        <span class="preset-card__add-icon" aria-hidden="true">+</span>
+        <span class="preset-card__name">${escHtml(label)}</span>
+      </button>`;
+  }
+
+  async function renderTemplatePicker(container) {
+    if (!container) return;
+    const presets = await listTemplatePresets();
+    container.innerHTML = `
+      <div class="preset-picker-grid" role="listbox" aria-label="Выбор шаблона акта">
+        ${presets.map((p) => renderPresetCard(p, 'template')).join('')}
+        ${renderAddCard('template', 'Загрузить .docx')}
+      </div>`;
+
+    container.querySelectorAll('[data-preset-id]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (btn.classList.contains('preset-card--active')) return;
+        try {
+          GazpromToast.info('Применяю шаблон…');
+          await applyTemplatePreset(btn.dataset.presetId);
+          await renderTemplatePicker(container);
+          await refreshTemplateModal();
+          GazpromToast.success('Шаблон выбран');
+        } catch (err) {
+          GazpromToast.error(err.message);
+        }
+      });
+    });
+
+    container.querySelector('[data-preset-add="template"]')?.addEventListener('click', () => {
+      document.getElementById('wordTemplateInput')?.click();
+    });
+  }
+
+  async function renderRegistryPicker(container) {
+    if (!container) return;
+    const presets = await listRegistryPresets();
+    container.innerHTML = `
+      <div class="preset-picker-grid" role="listbox" aria-label="Выбор реестра нарушений">
+        ${presets.map((p) => renderPresetCard(p, 'registry')).join('')}
+        ${renderAddCard('registry', 'Импорт Excel')}
+      </div>`;
+
+    container.querySelectorAll('[data-preset-id]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (btn.classList.contains('preset-card--active')) return;
+        const merge = document.getElementById('vrScreenMergeCheckbox')?.checked ?? false;
+        const ok = await GazpromToast.confirm(
+          merge
+            ? `Добавить записи из «${btn.querySelector('.preset-card__name')?.textContent || 'реестра'}» к текущим?`
+            : `Переключиться на реестр «${btn.querySelector('.preset-card__name')?.textContent || ''}»?\nТекущие записи будут заменены.`,
+          { confirmLabel: merge ? 'Объединить' : 'Выбрать' }
+        );
+        if (!ok) return;
+        try {
+          GazpromToast.info('Загрузка реестра…');
+          await applyRegistryPreset(btn.dataset.presetId, { merge });
+          await renderRegistryPicker(container);
+          if (typeof ViolationRegistry !== 'undefined') {
+            await ViolationRegistry.renderScreen('', '');
+          }
+          GazpromToast.success('Реестр выбран');
+        } catch (err) {
+          GazpromToast.error(err.message);
+        }
+      });
+    });
+
+    container.querySelector('[data-preset-add="registry"]')?.addEventListener('click', () => {
+      document.getElementById('vrScreenImportInput')?.click();
+      const opts = document.getElementById('vrScreenImportOptions');
+      if (opts) opts.hidden = false;
+    });
+  }
+
+  async function renderSettingsTilePreviews(catalog) {
+    const templates = await listTemplatePresets(catalog);
+    const registries = await listRegistryPresets(catalog);
+    const activeTemplate = templates.find((p) => p.active) || templates[0];
+    const activeRegistry = registries.find((p) => p.active) || registries[0];
+
+    const templatePreview = document.querySelector('[data-tile-preview="template"]');
+    if (templatePreview && activeTemplate) {
+      templatePreview.innerHTML = `${renderDocThumb()}<span class="settings-tile-preview__caption">${escHtml(activeTemplate.name)}</span>`;
+    }
+
+    const registryPreview = document.querySelector('[data-tile-preview="registry"]');
+    if (registryPreview && activeRegistry) {
+      registryPreview.innerHTML = `${renderRegistryThumb(activeRegistry)}<span class="settings-tile-preview__caption">${escHtml(activeRegistry.name)}</span>`;
+    }
   }
 
   async function saveCustomTemplate(file) {
@@ -168,26 +485,47 @@ const DefaultsBootstrap = (() => {
     let binary = '';
     for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
     const b64 = btoa(binary);
-    const catalog = (await GazpromStore.get()) || { akts: [] };
-    const templateKey = DocGenerator?.TEMPLATE_KEY || 'wordTemplate';
-    catalog[templateKey] = b64;
-    catalog.wordTemplate = b64;
-    catalog.wordTemplateName = file.name;
-    catalog.wordTemplateSource = 'custom';
-    catalog.wordTemplatePreset = null;
-    catalog.wordTemplateOffloaded = false;
-    catalog.mobileStrippedTemplate = false;
-    await clearTemplateSidecar();
+    const catalog = ensureLibraries((await GazpromStore.get()) || { akts: [] });
 
-    if (isCoarsePointer() && b64.length > 50000) {
-      await GazpromIdb.transaction('app', 'readwrite', (tx) => {
-        tx.objectStore('app').put({ data: b64, name: file.name }, 'wordTemplateSidecar');
-      });
-      catalog[templateKey] = null;
-      catalog.wordTemplate = null;
-      catalog.wordTemplateOffloaded = true;
+    let saved = catalog.savedTemplates.find((t) => t.name === file.name);
+    if (!saved) {
+      saved = { id: AktUtils.uuid(), name: file.name, data: b64, createdAt: new Date().toISOString() };
+      catalog.savedTemplates.push(saved);
+    } else {
+      saved.data = b64;
+      saved.createdAt = new Date().toISOString();
     }
 
+    await writeTemplateToCatalog(catalog, b64, file.name, { presetId: saved.id, source: 'custom' });
+    await GazpromStore.set(catalog, { skipPhotoIngest: true });
+    GazpromStore.invalidateCache();
+  }
+
+  async function saveCustomRegistryPreset(name, items) {
+    const catalog = ensureLibraries(await GazpromStore.get());
+    const label = name || 'Импорт Excel';
+    let saved = catalog.savedRegistries.find((r) => r.name === label);
+    const snapshot = cloneRegistryItems(items);
+
+    if (!saved) {
+      saved = {
+        id: AktUtils.uuid(),
+        name: label,
+        label,
+        items: snapshot,
+        createdAt: new Date().toISOString(),
+      };
+      catalog.savedRegistries.push(saved);
+    } else {
+      saved.items = snapshot;
+      saved.label = label;
+      saved.createdAt = new Date().toISOString();
+    }
+
+    catalog.violationRegistry = snapshot;
+    catalog.violationRegistrySource = 'custom';
+    catalog.violationRegistryLabel = label;
+    catalog.activeRegistryPresetId = saved.id;
     await GazpromStore.set(catalog, { skipPhotoIngest: true });
     GazpromStore.invalidateCache();
   }
@@ -199,21 +537,23 @@ const DefaultsBootstrap = (() => {
   }
 
   function registrySourceLabel(catalog) {
-    const src = catalog?.violationRegistrySource;
-    if (src === 'builtin') return `Стандартный (${catalog.violationRegistryLabel || BUILTIN_REGISTRY_LABEL})`;
-    if (src === 'custom') return 'Свой реестр';
+    const active = catalog?.activeRegistryPresetId;
+    if (active?.startsWith('builtin-')) {
+      const name = catalog?.violationRegistryLabel || manifestCache?.registries?.[0]?.name || 'Стандартный';
+      return `Стандартный (${name})`;
+    }
+    if (catalog?.violationRegistrySource === 'custom') return catalog.violationRegistryLabel || 'Свой реестр';
     const n = catalog?.violationRegistry?.length || 0;
     return n ? 'Загруженный' : 'Не задан';
   }
 
   function templateSourceLabel(catalog) {
-    const src = catalog?.wordTemplateSource;
-    if (src === 'builtin') return `Встроенный (${BUILTIN_TEMPLATE_NAME})`;
-    if (src === 'custom') return catalog?.wordTemplateName || 'Свой шаблон';
+    if (catalog?.wordTemplateSource === 'builtin') {
+      return `Встроенный (${catalog.wordTemplateName || manifestCache?.templates?.[0]?.name || 'шаблон'})`;
+    }
+    if (catalog?.wordTemplateSource === 'custom') return catalog?.wordTemplateName || 'Свой шаблон';
     return catalog?.wordTemplateName ? catalog.wordTemplateName : 'Не загружен';
   }
-
-  /* ——— Модал: шаблон акта ——— */
 
   function closeTemplateModal() {
     const modal = document.getElementById('templateModal');
@@ -224,23 +564,18 @@ const DefaultsBootstrap = (() => {
 
   async function refreshTemplateModal() {
     const catalog = await GazpromStore.get();
-    const nameEl = document.getElementById('templateModalCurrentName');
-    const sourceEl = document.getElementById('templateModalCurrentSource');
     const statusEl = document.getElementById('templateModalStatus');
     const has = await hasWordTemplate(catalog);
 
-    if (nameEl) {
-      nameEl.textContent = has
-        ? (catalog.wordTemplateName || BUILTIN_TEMPLATE_NAME)
-        : '—';
-    }
-    if (sourceEl) {
-      sourceEl.textContent = templateSourceLabel(catalog);
-    }
     if (statusEl) {
-      statusEl.textContent = has ? '✅ Готов к генерации актов' : '⚠️ Шаблон не загружен';
+      statusEl.textContent = has
+        ? `✅ Активный: ${catalog.wordTemplateName || 'шаблон'}`
+        : '⚠️ Шаблон не выбран';
       statusEl.className = `defaults-status ${has ? 'defaults-status--ok' : 'defaults-status--warn'}`;
     }
+
+    await renderTemplatePicker(document.getElementById('templatePresetPicker'));
+    await renderSettingsTilePreviews(catalog);
   }
 
   function openTemplateModal() {
@@ -261,26 +596,6 @@ const DefaultsBootstrap = (() => {
       if (e.target === modal) closeTemplateModal();
     });
 
-    document.getElementById('templateModalUploadBtn')?.addEventListener('click', () => {
-      document.getElementById('wordTemplateInput')?.click();
-    });
-
-    document.getElementById('templateModalRestoreBtn')?.addEventListener('click', async () => {
-      const ok = await GazpromToast.confirm(
-        'Вернуть стандартный шаблон акта?\nТекущий файл будет заменён.',
-        { confirmLabel: 'Вернуть стандартный' }
-      );
-      if (!ok) return;
-      try {
-        GazpromToast.info('Загрузка стандартного шаблона…');
-        await restoreBuiltinTemplate();
-        await refreshTemplateModal();
-        GazpromToast.success('Стандартный шаблон восстановлен');
-      } catch (err) {
-        GazpromToast.error(err.message);
-      }
-    });
-
     document.getElementById('wordTemplateInput')?.addEventListener('change', async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -289,7 +604,7 @@ const DefaultsBootstrap = (() => {
         await saveCustomTemplate(file);
         await GazpromUI?.refreshAll?.();
         await refreshTemplateModal();
-        GazpromToast.success('Шаблон Word сохранён');
+        GazpromToast.success('Шаблон добавлен и выбран');
       } catch (err) {
         GazpromToast.error(err.message);
       } finally {
@@ -300,17 +615,26 @@ const DefaultsBootstrap = (() => {
 
   return {
     ensureSeeded,
-    restoreBuiltinRegistry,
-    restoreBuiltinTemplate,
+    applyTemplatePreset,
+    applyRegistryPreset,
     saveCustomTemplate,
+    saveCustomRegistryPreset,
     markRegistryCustom,
     registrySourceLabel,
     templateSourceLabel,
     hasWordTemplate,
     openTemplateModal,
     bindTemplateModal,
-    BUILTIN_TEMPLATE_NAME,
-    BUILTIN_REGISTRY_LABEL,
+    renderRegistryPicker,
+    renderSettingsTilePreviews,
+    listTemplatePresets,
+    listRegistryPresets,
+    renderDocThumb,
+    renderRegistryThumb,
     escHtml,
+    restoreBuiltinRegistry: ({ replace = true } = {}) =>
+      applyRegistryPreset(manifestCache?.registries?.[0]?.id || 'builtin-registry-v1', { merge: !replace }),
+    restoreBuiltinTemplate: () =>
+      applyTemplatePreset(manifestCache?.templates?.[0]?.id || 'builtin-template-v1'),
   };
 })();

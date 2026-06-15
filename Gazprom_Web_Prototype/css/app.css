@@ -3434,6 +3434,224 @@
       color: var(--success);
     }
 
+    /* ——— Карточки выбора пресетов ——— */
+    .preset-picker-section {
+      margin-bottom: 14px;
+      padding: 14px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .preset-picker-section__title {
+      margin: 0 0 6px;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: Montserrat, sans-serif;
+    }
+    .preset-picker-section__hint {
+      margin: 0 0 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+    .preset-picker-host { width: 100%; }
+    .preset-picker-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+      gap: 10px;
+    }
+    .preset-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+      padding: 10px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+      min-height: 168px;
+    }
+    .preset-card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 6px 18px rgba(13,71,161,0.1);
+      transform: translateY(-1px);
+    }
+    .preset-card--active {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+      box-shadow: 0 0 0 1px var(--primary);
+    }
+    .preset-card--add {
+      align-items: center;
+      justify-content: center;
+      border-style: dashed;
+      color: var(--text-muted);
+      min-height: 168px;
+    }
+    .preset-card__add-icon {
+      font-size: 28px;
+      line-height: 1;
+      color: var(--primary);
+      font-weight: 700;
+    }
+    .preset-card__label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+    .preset-card__name {
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.3;
+      color: var(--text);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .preset-card__meta {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .preset-card__check {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+    }
+    .preset-card__tag {
+      align-self: flex-start;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: #eef2f7;
+      color: var(--text-muted);
+    }
+    .preset-card__tag--builtin {
+      background: var(--success-soft);
+      color: var(--success);
+    }
+    .preset-thumb {
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      min-height: 78px;
+    }
+    .preset-thumb--doc {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+    }
+    .preset-doc-sheet {
+      position: relative;
+      width: 100%;
+      max-width: 72px;
+      aspect-ratio: 0.72;
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      box-shadow: 0 2px 6px rgba(15,23,42,0.08);
+      padding: 8px 6px 6px;
+    }
+    .preset-doc-sheet__head {
+      height: 6px;
+      width: 70%;
+      background: #0d47a1;
+      border-radius: 2px;
+      margin-bottom: 6px;
+      opacity: 0.85;
+    }
+    .preset-doc-sheet__line {
+      height: 3px;
+      background: #e2e8f0;
+      border-radius: 2px;
+      margin-bottom: 4px;
+    }
+    .preset-doc-sheet__line--mid { width: 88%; }
+    .preset-doc-sheet__line--short { width: 62%; }
+    .preset-doc-sheet__badge {
+      position: absolute;
+      right: 4px;
+      bottom: 4px;
+      font-size: 9px;
+      font-weight: 800;
+      color: #2563eb;
+      background: #dbeafe;
+      border-radius: 3px;
+      padding: 1px 3px;
+    }
+    .preset-thumb--registry {
+      padding: 6px;
+      display: grid;
+      gap: 4px;
+    }
+    .preset-registry-row {
+      display: grid;
+      grid-template-columns: 14px 1fr;
+      gap: 4px;
+      align-items: start;
+      font-size: 9px;
+      line-height: 1.2;
+    }
+    .preset-registry-row__num {
+      color: var(--primary);
+      font-weight: 700;
+    }
+    .preset-registry-row__text {
+      color: #475569;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .settings-tile-preview {
+      margin: -8px auto 10px;
+      width: 100%;
+      max-width: 120px;
+      pointer-events: none;
+    }
+    .settings-tile-preview .preset-thumb {
+      min-height: 56px;
+    }
+    .settings-tile-preview .preset-doc-sheet {
+      max-width: 56px;
+      padding: 5px 4px 4px;
+    }
+    .settings-tile-preview .preset-registry-row {
+      font-size: 7px;
+    }
+    .settings-tile-preview__caption {
+      display: block;
+      margin-top: 6px;
+      font-size: 10px;
+      line-height: 1.25;
+      color: var(--text-muted);
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .settings-tile--template,
+    .settings-tile[data-catalog="violations"] {
+      position: relative;
+    }
+
     /* Фильтры по организациям для представителей */
     .pred-filter-row {
       display: flex;
@@ -4911,6 +5129,21 @@
       body.gazprom-mobile-shell .settings-grid,
       body.gazprom-mobile-shell .wizard-layout {
         box-sizing: border-box;
+      }
+
+      body.gazprom-mobile-shell .preset-picker-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      body.gazprom-mobile-shell .violations-screen-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        width: 100%;
+      }
+
+      body.gazprom-mobile-shell .violations-screen-actions .btn-primary {
+        grid-column: 1 / -1;
       }
 
       body.gazprom-mobile-shell .main {

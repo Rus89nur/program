@@ -1,14 +1,29 @@
 {
-  "version": 1,
-  "registry": {
-    "id": "builtin-registry-v1",
-    "name": "Реестр_нарушений-2",
-    "json": "./assets/defaults/violation-registry.json",
-    "xlsx": "./assets/defaults/violation-registry.xlsx"
-  },
-  "template": {
-    "id": "builtin-template-v1",
-    "name": "Шаблон_12.10.25.docx",
-    "docx": "./assets/defaults/akt-template.docx"
-  }
+  "version": 2,
+  "templates": [
+    {
+      "id": "builtin-template-v1",
+      "name": "Шаблон_12.10.25.docx",
+      "label": "Стандартный",
+      "subtitle": "Акт проверки · основной формат",
+      "docx": "./assets/defaults/akt-template.docx",
+      "builtin": true
+    }
+  ],
+  "registries": [
+    {
+      "id": "builtin-registry-v1",
+      "name": "Реестр_нарушений-2",
+      "label": "Стандартный",
+      "subtitle": "193 формулировки несоответствий",
+      "json": "./assets/defaults/violation-registry.json",
+      "count": 193,
+      "previewRows": [
+        "Допускается обертывание электроламп горючими материалами",
+        "Эвакуационный путь не очищен от снега",
+        "Допускается оставление без присмотра включенных электроприборов"
+      ],
+      "builtin": true
+    }
+  ]
 }
