@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "registry": {
+    "id": "builtin-registry-v1",
+    "name": "Реестр_нарушений-2",
+    "json": "./assets/defaults/violation-registry.json",
+    "xlsx": "./assets/defaults/violation-registry.xlsx"
+  },
+  "template": {
+    "id": "builtin-template-v1",
+    "name": "Шаблон_12.10.25.docx",
+    "docx": "./assets/defaults/akt-template.docx"
+  }
+}

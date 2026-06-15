@@ -768,7 +768,10 @@ const DocGenerator = (() => {
   }
 
   function hasTemplate() {
-    return GazpromStore.get().then((c) => Boolean(c?.[TEMPLATE_KEY]));
+    return GazpromStore.get().then((c) => {
+      const key = TEMPLATE_KEY;
+      return Boolean(c?.[key] || c?.wordTemplate || c?.wordTemplateOffloaded);
+    });
   }
 
   async function getTemplateName() {

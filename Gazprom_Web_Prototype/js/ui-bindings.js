@@ -495,11 +495,17 @@ const GazpromUI = (() => {
     // Шаблон Word
     const templateBadge = document.querySelector('[data-template-status]');
     if (templateBadge) {
-      const hasTemplate = !!(data.wordTemplateName || data[DocGenerator?.TEMPLATE_KEY]);
-      templateBadge.textContent = hasTemplate
-        ? (data.wordTemplateName || 'загружен')
-        : '';
-      templateBadge.style.color = hasTemplate ? 'var(--success)' : '';
+      const hasTemplate = !!(data.wordTemplateName || data[DocGenerator?.TEMPLATE_KEY] || data.wordTemplateOffloaded);
+      if (!hasTemplate) {
+        templateBadge.textContent = '';
+      } else if (typeof DefaultsBootstrap !== 'undefined') {
+        const src = data.wordTemplateSource;
+        templateBadge.textContent = src === 'builtin' ? 'стандарт' : (data.wordTemplateName || 'свой');
+        templateBadge.style.color = 'var(--success)';
+      } else {
+        templateBadge.textContent = data.wordTemplateName || 'загружен';
+        templateBadge.style.color = 'var(--success)';
+      }
     }
 
     // Корзина

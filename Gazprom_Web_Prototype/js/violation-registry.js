@@ -19,9 +19,12 @@ const ViolationRegistry = (() => {
     return catalog?.[LIST_KEY] || [];
   }
 
-  async function saveAll(list) {
+  async function saveAll(list, { markCustom = true } = {}) {
     const catalog = await GazpromStore.get();
     catalog[LIST_KEY] = list;
+    if (markCustom && typeof DefaultsBootstrap !== 'undefined') {
+      DefaultsBootstrap.markRegistryCustom(catalog);
+    }
     await GazpromStore.set(catalog);
     GazpromStore.invalidateCache();
   }
@@ -117,17 +120,23 @@ const ViolationRegistry = (() => {
 
     if (!imported.length) throw new Error('Не найдено ни одного нарушения в файле');
 
+    const catalog = await GazpromStore.get();
     if (replace) {
-      await saveAll(imported);
+      catalog[LIST_KEY] = imported;
     } else {
-      const existing = await getAll();
-      const merged = [...existing];
+      const merged = [...(catalog[LIST_KEY] || [])];
       for (const item of imported) {
         const dup = merged.find((x) => x.title === item.title && x.subTitle === item.subTitle);
         if (!dup) merged.push(item);
       }
-      await saveAll(merged);
+      catalog[LIST_KEY] = merged;
     }
+    if (typeof DefaultsBootstrap !== 'undefined') {
+      DefaultsBootstrap.markRegistryCustom(catalog);
+      catalog.violationRegistryLabel = file?.name || 'Импорт Excel';
+    }
+    await GazpromStore.set(catalog);
+    GazpromStore.invalidateCache();
 
     await GazpromUI.refreshAll();
     return imported.length;
@@ -212,6 +221,16 @@ const ViolationRegistry = (() => {
     const searchInput = document.getElementById('vrScreenSearch');
     if (searchInput && searchInput.value !== query) searchInput.value = query;
 
+    const sourceEl = document.getElementById('vrScreenSourceMeta');
+    if (sourceEl && typeof DefaultsBootstrap !== 'undefined') {
+      const label = DefaultsBootstrap.registrySourceLabel(catalog);
+      const count = all.length;
+      sourceEl.textContent = count
+        ? `${count} записей · ${label}`
+        : 'Реестр пуст';
+      sourceEl.className = `vr-screen-source defaults-source defaults-source--${catalog?.violationRegistrySource || 'empty'}`;
+    }
+
     if (all.length === 0) {
       tbody.innerHTML = `
         <tr>
@@ -220,8 +239,9 @@ const ViolationRegistry = (() => {
               <div style="font-size:40px;margin-bottom:12px;">⚠️</div>
               <p>Реестр нарушений пуст</p>
               <p style="font-size:13px;color:var(--text-muted);margin-top:8px;max-width:400px;">
-                Нажмите «+ Добавить» чтобы внести первое нарушение,<br>
-                или «📂 Импорт Excel» для загрузки из файла.<br><br>
+                Нажмите «↩️ Стандартный реестр» для загрузки встроенного справочника,<br>
+                «+ Добавить» — внести вручную,<br>
+                или «📂 Импорт Excel» — загрузить свой файл.<br><br>
                 Формат Excel: колонки «№», «Формулировка несоответствия», «Ссылка на нормативный документ», «Примечание», «Вид нарушения», «Формулировка из правил».
               </p>
             </div>
@@ -352,6 +372,25 @@ const ViolationRegistry = (() => {
         GazpromToast.error('Ошибка импорта: ' + (err.message || String(err)));
       } finally {
         e.target.value = ''; // сброс, чтобы можно было выбрать тот же файл снова
+      }
+    });
+
+    document.getElementById('vrScreenRestoreBtn')?.addEventListener('click', async () => {
+      const merge = document.getElementById('vrScreenMergeCheckbox')?.checked ?? false;
+      const ok = await GazpromToast.confirm(
+        merge
+          ? 'Добавить записи из стандартного реестра к текущим?'
+          : 'Заменить текущий реестр стандартным?\nВсе текущие записи будут удалены.',
+        { confirmLabel: merge ? 'Объединить' : 'Заменить' }
+      );
+      if (!ok) return;
+      try {
+        GazpromToast.info('Загрузка стандартного реестра…');
+        const count = await DefaultsBootstrap.restoreBuiltinRegistry({ replace: !merge });
+        GazpromToast.success(`Стандартный реестр: ${count} записей`);
+        renderScreen('', '');
+      } catch (err) {
+        GazpromToast.error(err.message);
       }
     });
 

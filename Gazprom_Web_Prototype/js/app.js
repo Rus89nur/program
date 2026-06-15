@@ -136,7 +136,7 @@ function registerServiceWorker() {
       });
       return;
     }
-    navigator.serviceWorker.register('./sw.js?v=160')
+    navigator.serviceWorker.register('./sw.js?v=162')
       .then((reg) => {
         reg.update();
         document.addEventListener('visibilitychange', () => {
@@ -452,21 +452,17 @@ function bindTrash() {
   });
 }
 
-function bindTemplateUpload() {
+function bindTemplateSettings() {
   document.querySelector('.settings-tile--template')?.addEventListener('click', () => {
-    document.getElementById('wordTemplateInput')?.click();
+    DefaultsBootstrap.openTemplateModal();
   });
-  document.getElementById('wordTemplateInput')?.addEventListener('change', async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      await DocGenerator.saveTemplate(file);
-      await GazpromUI.refreshAll();
-    } catch (err) {
-      GazpromToast.error(err.message);
+  document.querySelector('.settings-tile--template')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      DefaultsBootstrap.openTemplateModal();
     }
-    e.target.value = '';
   });
+  DefaultsBootstrap.bindTemplateModal();
 }
 
 function init() {
@@ -596,7 +592,7 @@ function init() {
   bindGlobalSearch();
   bindReports();
   bindTrash();
-  bindTemplateUpload();
+  bindTemplateSettings();
   document.getElementById('homeRestoreBackupBtn')?.addEventListener('click', () => {
     goTo('settings');
     requestAnimationFrame(() => openBackupModal());
@@ -624,7 +620,9 @@ function init() {
 
   void GazpromStore.requestPersistence();
 
-  GazpromUI.refreshAll().catch(console.error);
+  void DefaultsBootstrap.ensureSeeded()
+    .then(() => GazpromUI.refreshAll())
+    .catch(console.error);
 }
 
 init();
