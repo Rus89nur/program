@@ -141,12 +141,13 @@ const ViolationTypesEditor = (() => {
     }
 
     body.innerHTML = `
+      <div class="vt-table-wrap">
       <table class="list-table">
         <thead>
           <tr>
             <th>Название</th>
-            <th style="width:100px;">В данных</th>
-            <th style="width:120px;"></th>
+            <th class="vt-col-count">В данных</th>
+            <th class="vt-col-actions"></th>
           </tr>
         </thead>
         <tbody>
@@ -154,9 +155,9 @@ const ViolationTypesEditor = (() => {
             .map((t) => {
               const n = ViolationTypes.usageCount(catalog, t);
               return `<tr>
-                <td>${esc(t.title)}</td>
-                <td>${n || '—'}</td>
-                <td class="btn-row">
+                <td class="vt-cell-title">${esc(t.title)}</td>
+                <td class="vt-col-count">${n || '—'}</td>
+                <td class="btn-row vt-col-actions">
                   <button type="button" class="btn-ghost btn-sm" data-vt-archive="${esc(t.id)}" title="В архив">📦</button>
                   <button type="button" class="btn-ghost btn-sm modal-btn-danger" data-vt-delete="${esc(t.id)}" title="Удалить">🗑</button>
                 </td>
@@ -164,7 +165,8 @@ const ViolationTypesEditor = (() => {
             })
             .join('')}
         </tbody>
-      </table>`;
+      </table>
+      </div>`;
 
     body.querySelectorAll('[data-vt-archive]').forEach((btn) => {
       btn.addEventListener('click', async () => {
@@ -233,13 +235,14 @@ const ViolationTypesEditor = (() => {
     }
 
     body.innerHTML = `
-      <table class="list-table">
+      <div class="vt-table-wrap">
+      <table class="list-table vt-archive-table">
         <thead>
           <tr>
             <th>Устаревший вид</th>
-            <th style="width:100px;">В данных</th>
-            <th>Заменён на</th>
-            <th style="width:220px;"></th>
+            <th class="vt-col-count">В данных</th>
+            <th class="vt-col-mapped">Заменён на</th>
+            <th class="vt-col-actions"></th>
           </tr>
         </thead>
         <tbody>
@@ -252,11 +255,11 @@ const ViolationTypesEditor = (() => {
                 ? '<span class="vt-badge vt-badge--ok">настроено</span>'
                 : '<span class="vt-badge vt-badge--warn">требует сопоставления</span>';
               return `<tr>
-                <td>${esc(t.title)} ${status}</td>
-                <td>${n || '—'}</td>
-                <td>${mapped ? esc(mapped.title) : '—'}</td>
-                <td class="btn-row">
-                  <button type="button" class="btn-secondary btn-sm" data-vt-restore="${esc(t.id)}" title="Вернуть в активные">↩ Активные</button>
+                <td class="vt-cell-title">${esc(t.title)} ${status}</td>
+                <td class="vt-col-count">${n || '—'}</td>
+                <td class="vt-col-mapped">${mapped ? esc(mapped.title) : '—'}</td>
+                <td class="btn-row vt-col-actions">
+                  <button type="button" class="btn-secondary btn-sm vt-btn-restore" data-vt-restore="${esc(t.id)}" title="Вернуть в активные"><span class="vt-btn-restore__full">↩ Активные</span><span class="vt-btn-restore__short" aria-hidden="true">↩</span></button>
                   <button type="button" class="btn-secondary btn-sm" data-vt-goto-map="${esc(t.id)}">Сопоставить</button>
                   <button type="button" class="btn-ghost btn-sm modal-btn-danger" data-vt-delete="${esc(t.id)}" title="Удалить">🗑</button>
                 </td>
@@ -264,7 +267,8 @@ const ViolationTypesEditor = (() => {
             })
             .join('')}
         </tbody>
-      </table>`;
+      </table>
+      </div>`;
 
     body.querySelectorAll('[data-vt-goto-map]').forEach((btn) => {
       btn.addEventListener('click', () => openSplitModal(btn.dataset.vtGotoMap));

@@ -6729,9 +6729,11 @@
     .vt-split-header h3 { font-size: 16px; font-family: Montserrat, sans-serif; }
     .vt-split-body {
       display: grid;
-      grid-template-columns: 1fr 40px 1fr;
+      grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr);
       flex: 1 1 auto;
       min-height: 0;
+      min-width: 0;
+      max-width: 100%;
     }
     .vt-split-col {
       padding: 14px;
@@ -6820,7 +6822,10 @@
       flex-direction: column;
       flex: 1 1 auto;
       min-height: 0;
+      min-width: 0;
+      max-width: 100%;
       max-height: min(72dvh, calc(var(--overlay-available-height) - 140px));
+      overflow: hidden;
     }
     .vt-split-inline .vt-split-preview,
     .vt-split-inline .vt-footer-actions {
@@ -6830,12 +6835,17 @@
       display: flex;
       flex-direction: column;
       min-height: 0;
+      min-width: 0;
+      max-width: 100%;
+      overflow-x: clip;
     }
     #screen-violation-types #vtScreenHost {
       display: flex;
       flex-direction: column;
       flex: 1 1 auto;
       min-height: 0;
+      min-width: 0;
+      max-width: 100%;
     }
     #screen-violation-types .violations-screen-header {
       flex-shrink: 0;
@@ -6843,18 +6853,62 @@
     #screen-violation-types #vtTabBody {
       flex: 1 1 auto;
       min-height: 0;
+      min-width: 0;
+      max-width: 100%;
       overflow: hidden;
       display: flex;
       flex-direction: column;
     }
-    #screen-violation-types #vtTabBody > .list-table,
-    #screen-violation-types #vtTabBody > table.list-table {
-      display: block;
-      width: 100%;
+    #screen-violation-types .vt-table-wrap {
+      flex: 1 1 auto;
+      min-height: 0;
+      min-width: 0;
+      max-width: 100%;
       overflow: auto;
-      max-height: min(65dvh, calc(var(--overlay-available-height) - 200px));
       -webkit-overflow-scrolling: touch;
     }
+    #screen-violation-types .vt-table-wrap .list-table {
+      width: 100%;
+      min-width: 0;
+      table-layout: fixed;
+    }
+    #screen-violation-types .vt-cell-title {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      line-height: 1.45;
+    }
+    #screen-violation-types .vt-col-count {
+      width: 72px;
+      text-align: center;
+      white-space: nowrap;
+    }
+    #screen-violation-types .vt-col-mapped {
+      width: 26%;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    #screen-violation-types .vt-col-actions {
+      width: 132px;
+      text-align: right;
+      vertical-align: top;
+    }
+    #screen-violation-types .vt-archive-table .vt-col-actions {
+      width: 148px;
+    }
+    #screen-violation-types .vt-col-actions.btn-row {
+      white-space: normal;
+      text-align: right;
+      line-height: 1.5;
+    }
+    #screen-violation-types .vt-col-actions .btn-sm {
+      display: inline-block;
+      vertical-align: top;
+      margin: 0 0 4px 4px;
+      padding: 6px 8px;
+      font-size: 12px;
+      line-height: 1.25;
+    }
+    #screen-violation-types .vt-btn-restore__short { display: none; }
     .vt-wizard-panel {
       max-width: 720px;
       width: 100%;
@@ -6968,4 +7022,16 @@
       .vt-wizard-pair { grid-template-columns: 1fr; }
       .vt-wizard-pair__arrow { transform: rotate(90deg); }
       .vt-wizard-charts { grid-template-columns: 1fr; }
+      #screen-violation-types .vt-col-mapped {
+        display: none;
+      }
+      #screen-violation-types .vt-archive-table .vt-col-actions {
+        width: 112px;
+      }
+      #screen-violation-types .vt-col-actions .btn-sm[data-vt-goto-map] {
+        font-size: 11px;
+        padding: 6px;
+      }
+      #screen-violation-types .vt-btn-restore__full { display: none; }
+      #screen-violation-types .vt-btn-restore__short { display: inline; }
     }
