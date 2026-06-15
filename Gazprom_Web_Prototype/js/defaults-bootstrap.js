@@ -576,21 +576,8 @@ const DefaultsBootstrap = (() => {
     });
   }
 
-  async function renderSettingsTilePreviews(catalog) {
-    const templates = await listTemplatePresets(catalog);
-    const registries = await listRegistryPresets(catalog);
-    const activeTemplate = templates.find((p) => p.active) || templates[0];
-    const activeRegistry = registries.find((p) => p.active) || registries[0];
-
-    const templatePreview = document.querySelector('[data-tile-preview="template"]');
-    if (templatePreview && activeTemplate) {
-      templatePreview.innerHTML = `${renderDocThumb()}<span class="settings-tile-preview__caption">${escHtml(activeTemplate.name)}</span>`;
-    }
-
-    const registryPreview = document.querySelector('[data-tile-preview="registry"]');
-    if (registryPreview && activeRegistry) {
-      registryPreview.innerHTML = `${renderRegistryThumb(activeRegistry)}<span class="settings-tile-preview__caption">${escHtml(activeRegistry.name)}</span>`;
-    }
+  async function renderSettingsTilePreviews() {
+    /* Превью на плитках настроек отключено — выбор только в модале / экране реестра. */
   }
 
   async function saveCustomTemplate(file) {
