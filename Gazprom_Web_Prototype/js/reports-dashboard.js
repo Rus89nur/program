@@ -86,6 +86,48 @@ const ReportsDashboard = (() => {
     return '—';
   }
 
+  function getOrgAliases(akt, data) {
+    const aliases = new Set();
+    const add = (val) => {
+      const s = String(val || '').trim();
+      if (s && s !== '—') aliases.add(s);
+    };
+    add(getOrgTitle(akt, data));
+    add(akt?.organization?.title);
+    add(akt?.organization?.shortTitle);
+    add(akt?.organization?.id);
+    const orgId = akt?.organization?.id;
+    if (orgId && data) {
+      const org = (data.organizations || []).find((o) => o.id === orgId);
+      if (org) {
+        add(org.title);
+        add(org.shortTitle);
+        add(org.id);
+      }
+    }
+    return aliases;
+  }
+
+  function contractorFilterValues() {
+    return [...filters.contractors];
+  }
+
+  function isContractorFilterActive(...labels) {
+    if (!filters.contractors.size) return false;
+    const selected = contractorFilterValues();
+    return labels.some((label) => {
+      const val = String(label || '').trim();
+      if (!val) return false;
+      return selected.includes(val);
+    });
+  }
+
+  function matchesContractorFilter(akt, data) {
+    if (!filters.contractors.size) return true;
+    const aliases = getOrgAliases(akt, data);
+    return contractorFilterValues().some((f) => aliases.has(f));
+  }
+
   function getObjectTitle(akt) {
     return (akt.objectsCheck || [])[0]?.title || '—';
   }
@@ -93,16 +135,15 @@ const ReportsDashboard = (() => {
   function getViolationKind(v) {
     const vid = String(v.vid || '').trim();
     if (vid) {
-      const resolved =
-        activeCatalog && typeof ViolationTypes !== 'undefined'
-          ? ViolationTypes.resolveVid(activeCatalog, vid)
-          : vid;
-      const out = resolved || vid;
+      const out = vid;
       return out.length > 80 ? `${out.slice(0, 77)}…` : out;
     }
     const title = String(v.title || '').trim();
     if (!title) return 'Без названия';
-    return title.length > 80 ? `${title.slice(0, 77)}…` : title;
+    const shortPrefix = /^[^:]+:\s*/;
+    const normalized = shortPrefix.test(title) ? title.replace(shortPrefix, '').trim() : title;
+    const label = normalized || title;
+    return label.length > 80 ? `${label.slice(0, 77)}…` : label;
   }
 
   function getSchedulePlanDate(item) {
@@ -203,25 +244,7 @@ const ReportsDashboard = (() => {
         if (!filters.years.has(y)) return false;
       }
       if (filters.objects.size && !filters.objects.has(getObjectTitle(akt))) return false;
-      if (
-        !ignoreContractorFilter &&
-        filters.contractors.size &&
-        !filters.contractors.has(getOrgTitle(akt, data))
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }
-
-  function filterScheduleItems(items, data) {
-    return (items || []).filter((item) => {
-      if (filters.years.size) {
-        const y = getScheduleYear(item);
-        if (!y || !filters.years.has(y)) return false;
-      }
-      if (filters.objects.size && !filters.objects.has(getScheduleObjectTitle(item))) return false;
-      if (filters.contractors.size && !filters.contractors.has(getScheduleOrgTitle(item, data))) {
+      if (!ignoreContractorFilter && filters.contractors.size && !matchesContractorFilter(akt, data)) {
         return false;
       }
       return true;
@@ -417,7 +440,7 @@ const ReportsDashboard = (() => {
         const grow = Math.max(1, counts.total);
         const minWidth = Math.max(28, Math.round((counts.total / max) * 100));
         const color = orgBlockColor(counts);
-        const isActive = filters.contractors.has(org);
+        const isActive = isContractorFilterActive(org, filterOrg);
         const filterOrg = org === 'Организация не указана' ? '—' : org;
         return `<button type="button" class="reports-treemap__cell${isActive ? ' reports-treemap__cell--active' : ''}" style="flex-grow:${grow};flex-basis:${minWidth}%;background:${color}" data-reports-org="${AktUtils.escapeHtml(filterOrg)}" title="${AktUtils.escapeHtml(org)} — ${counts.total}" aria-pressed="${isActive}" aria-label="Фильтр: ${AktUtils.escapeHtml(org)}, ${counts.total} нарушений">
           <span class="reports-treemap__name">${AktUtils.escapeHtml(org)}</span>
@@ -471,7 +494,7 @@ const ReportsDashboard = (() => {
   }
 
   function renderScheduleDashboard(data) {
-    const items = filterScheduleItems(data.scheduleItems || [], data);
+    const items = data.scheduleItems || [];
     const total = items.length;
     const done = items.filter((i) => i.actualDate).length;
     const pending = total - done;
@@ -567,12 +590,13 @@ const ReportsDashboard = (() => {
     renderTreemapLegend();
 
     const { rows, akts } = collectRows(data);
+    const { rows: barRows } = collectRows(data, { ignoreContractorFilter: true });
     const stats = countByStatus(rows);
 
     renderKpi(rows, akts);
     renderDonut(stats);
     renderOrgTreemap(data);
-    renderBarChart(rows);
+    renderBarChart(barRows);
     renderScheduleDashboard(data);
   }
 

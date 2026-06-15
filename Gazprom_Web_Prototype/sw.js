@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gazprom-web-v166';
+const CACHE_NAME = 'gazprom-web-v167';
 const IS_LOCALHOST = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
 const STATIC_ASSETS = [
   './manifest.json',
@@ -27,7 +27,7 @@ const STATIC_ASSETS = [
   './js/short-akt-form.js',
   './js/doc-generator.js?v=36',
   './js/report-exporter.js?v=2',
-  './js/reports-dashboard.js?v=5',
+  './js/reports-dashboard.js?v=6',
   './js/app.js?v=134',
   './assets/sample-demo.gazprombackup',
   './assets/defaults/manifest.json',
