@@ -108,9 +108,7 @@ const ViolationTypesEditor = (() => {
       screenQuery = e.target.value;
       renderTabBody();
     });
-    document.getElementById('vtAddTypeBtn')?.addEventListener('click', () => {
-      handleAddType({ forMapColumn: currentTab === 'map' || !!mapSelectedFrom });
-    });
+    document.getElementById('vtAddTypeBtn')?.addEventListener('click', () => handleAddType());
     document.getElementById('vtRunWizardBtn')?.addEventListener('click', () => openWizard());
     host.querySelectorAll('[data-vt-tab]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -138,7 +136,7 @@ const ViolationTypesEditor = (() => {
   function renderActiveTab(body) {
     const items = filterByQuery(ViolationTypes.getActiveTypes(catalog));
     if (!items.length) {
-      body.innerHTML = `<p class="vt-empty">Нет активных видов. Нажмите «+ Новый вид».</p>`;
+      body.innerHTML = `<p class="vt-empty">Нет активных видов. Новые виды создаются на вкладке «Сопоставить» и попадают в активные после привязки к архивному.</p>`;
       return;
     }
 
@@ -160,6 +158,7 @@ const ViolationTypesEditor = (() => {
                 <td>${n || '—'}</td>
                 <td class="btn-row">
                   <button type="button" class="btn-ghost btn-sm" data-vt-archive="${esc(t.id)}" title="В архив">📦</button>
+                  <button type="button" class="btn-ghost btn-sm modal-btn-danger" data-vt-delete="${esc(t.id)}" title="Удалить">🗑</button>
                 </td>
               </tr>`;
             })
@@ -189,6 +188,41 @@ const ViolationTypesEditor = (() => {
         renderScreen();
       });
     });
+    bindDeleteButtons(body);
+  }
+
+  async function handleDeleteType(id) {
+    const t = ViolationTypes.findById(catalog, id);
+    if (!t) return;
+
+    const usage = ViolationTypes.usageCount(catalog, t);
+    if (usage > 0) {
+      GazpromToast.error(
+        `Вид «${t.title}» используется в ${usage} записях. Удаление невозможно — перенесите в архив и настройте замену.`
+      );
+      return;
+    }
+
+    const ok = await GazpromToast.confirm(`Удалить вид «${t.title}»?`);
+    if (!ok) return;
+
+    const result = ViolationTypes.deleteType(catalog, id);
+    if (!result.ok) {
+      GazpromToast.error('Не удалось удалить вид');
+      return;
+    }
+
+    if (mapSelectedFrom === id) mapSelectedFrom = null;
+    if (mapSelectedTo === id) mapSelectedTo = null;
+
+    await saveCatalog('Вид удалён');
+    renderScreen();
+  }
+
+  function bindDeleteButtons(root) {
+    root.querySelectorAll('[data-vt-delete]').forEach((btn) => {
+      btn.addEventListener('click', () => handleDeleteType(btn.dataset.vtDelete));
+    });
   }
 
   function renderArchiveTab(body) {
@@ -205,7 +239,7 @@ const ViolationTypesEditor = (() => {
             <th>Устаревший вид</th>
             <th style="width:100px;">В данных</th>
             <th>Заменён на</th>
-            <th style="width:120px;"></th>
+            <th style="width:160px;"></th>
           </tr>
         </thead>
         <tbody>
@@ -223,6 +257,7 @@ const ViolationTypesEditor = (() => {
                 <td>${mapped ? esc(mapped.title) : '—'}</td>
                 <td class="btn-row">
                   <button type="button" class="btn-secondary btn-sm" data-vt-goto-map="${esc(t.id)}">Сопоставить</button>
+                  <button type="button" class="btn-ghost btn-sm modal-btn-danger" data-vt-delete="${esc(t.id)}" title="Удалить">🗑</button>
                 </td>
               </tr>`;
             })
@@ -233,19 +268,15 @@ const ViolationTypesEditor = (() => {
     body.querySelectorAll('[data-vt-goto-map]').forEach((btn) => {
       btn.addEventListener('click', () => openSplitModal(btn.dataset.vtGotoMap));
     });
+    bindDeleteButtons(body);
   }
 
   function renderMapTab(body) {
     const archived = filterByQuery(ViolationTypes.getArchivedTypes(catalog));
-    const active = ViolationTypes.getActiveTypes(catalog);
+    const mapTargets = filterByQuery(ViolationTypes.getMapTargetTypes(catalog));
 
     if (!archived.length) {
       body.innerHTML = `<p class="vt-empty">Нет архивных видов для сопоставления. Перенесите вид в архив на вкладке «Активные» (кнопка 📦) или откройте вкладку «Архив».</p>`;
-      return;
-    }
-
-    if (!active.length) {
-      body.innerHTML = `<p class="vt-empty">Сначала создайте активный вид — кнопка «+ Новый вид» вверху.</p>`;
       return;
     }
 
@@ -259,12 +290,13 @@ const ViolationTypesEditor = (() => {
     }
 
     const fromType = ViolationTypes.findById(catalog, mapSelectedFrom);
-    const activeIds = new Set(active.map((t) => t.id));
-    if (!mapSelectedTo || !activeIds.has(mapSelectedTo)) {
+    const targetIds = new Set(mapTargets.map((t) => t.id));
+    if (!mapSelectedTo || !targetIds.has(mapSelectedTo)) {
       mapSelectedTo =
         fromType?.replacedBy ||
         ViolationTypes.getMappings(catalog)[mapSelectedFrom] ||
-        active[0]?.id ||
+        mapTargets.find((t) => t.status === ViolationTypes.STATUS_PENDING)?.id ||
+        mapTargets[0]?.id ||
         null;
     }
 
@@ -301,24 +333,35 @@ const ViolationTypesEditor = (() => {
           </div>
           <div class="vt-split-arrow" aria-hidden="true">→</div>
           <div class="vt-split-col vt-split-col--new">
-            <h4>Новый активный вид</h4>
+            <h4>Новый вид (привязка)</h4>
             <div id="vtInlineNewList">
-              ${[...active]
-                .sort((a, b) => {
-                  if (a.id === mapSelectedTo) return -1;
-                  if (b.id === mapSelectedTo) return 1;
-                  return a.title.localeCompare(b.title, 'ru');
-                })
-                .map(
-                  (t) => `<button type="button" class="vt-type-item ${t.id === mapSelectedTo ? 'selected' : ''}" data-vt-to-item="${esc(t.id)}">
-                    <div>${esc(t.title)}</div>
-                    <div class="vt-type-item__meta">
-                      <span class="vt-badge vt-badge--active">активен</span>
-                      ${t.id === mapSelectedTo ? '<span class="vt-badge vt-badge--ok">новый</span>' : ''}
-                    </div>
-                  </button>`
-                )
-                .join('')}
+              ${mapTargets.length
+                ? [...mapTargets]
+                    .sort((a, b) => {
+                      if (a.id === mapSelectedTo) return -1;
+                      if (b.id === mapSelectedTo) return 1;
+                      if (a.status === ViolationTypes.STATUS_PENDING) return -1;
+                      if (b.status === ViolationTypes.STATUS_PENDING) return 1;
+                      return a.title.localeCompare(b.title, 'ru');
+                    })
+                    .map((t) => {
+                      const isPending = t.status === ViolationTypes.STATUS_PENDING;
+                      const badges = isPending
+                        ? '<span class="vt-badge vt-badge--warn">ожидает привязки</span>'
+                        : '<span class="vt-badge vt-badge--active">активен</span>';
+                      const delBtn = isPending
+                        ? `<button type="button" class="vt-type-item__delete" data-vt-delete="${esc(t.id)}" title="Удалить">🗑</button>`
+                        : '';
+                      return `<div class="vt-type-item-wrap ${t.id === mapSelectedTo ? 'selected' : ''}">
+                        <button type="button" class="vt-type-item" data-vt-to-item="${esc(t.id)}">
+                          <div>${esc(t.title)}</div>
+                          <div class="vt-type-item__meta">${badges}</div>
+                        </button>
+                        ${delBtn}
+                      </div>`;
+                    })
+                    .join('')
+                : `<p class="vt-empty" style="padding:12px;">Нажмите «+ Новый вид» — он появится здесь для привязки к выбранному архивному виду слева.</p>`}
             </div>
             <button type="button" class="btn-primary btn-sm vt-split-add-new" id="vtInlineAddType">+ Новый вид</button>
           </div>
@@ -346,9 +389,8 @@ const ViolationTypesEditor = (() => {
         renderMapTab(body);
       });
     });
-    body.querySelector('#vtInlineAddType')?.addEventListener('click', () => {
-      handleAddType({ forMapColumn: true });
-    });
+    bindDeleteButtons(body);
+    body.querySelector('#vtInlineAddType')?.addEventListener('click', () => handleAddType());
     body.querySelector('#vtInlineSaveMap')?.addEventListener('click', async () => {
       if (!mapSelectedFrom || !mapSelectedTo) return;
       ViolationTypes.setMapping(catalog, mapSelectedFrom, mapSelectedTo);
@@ -373,7 +415,15 @@ const ViolationTypesEditor = (() => {
     renderScreen();
   }
 
-  async function handleAddType({ forMapColumn = false } = {}) {
+  async function handleAddType() {
+    const archived = ViolationTypes.getArchivedTypes(catalog);
+    if (!archived.length) {
+      GazpromToast.error(
+        'Сначала нужен архивный вид слева. Перенесите вид в архив (📦) или импортируйте данные с устаревшими видами.'
+      );
+      return;
+    }
+
     const title = await GazpromToast.prompt('Название нового вида нарушения', '');
     if (title === null) return;
     const trimmed = String(title).trim();
@@ -382,30 +432,22 @@ const ViolationTypesEditor = (() => {
       return;
     }
 
-    const created = ViolationTypes.addType(catalog, trimmed);
+    const created = ViolationTypes.addType(catalog, trimmed, { forMapping: true });
     if (!created) return;
 
-    const useMapFlow = forMapColumn || currentTab === 'map' || !!mapSelectedFrom;
-
-    if (useMapFlow) {
-      mapPinNewTypeId = created.id;
-      mapSelectedTo = created.id;
-      currentTab = 'map';
-      if (mapSelectedFrom && mapSelectedFrom !== created.id) {
-        ViolationTypes.setMapping(catalog, mapSelectedFrom, created.id);
-        await saveCatalog('Новый вид создан и выбран для сопоставления');
-      } else {
-        await saveCatalog('Новый вид добавлен');
-      }
-    } else {
-      currentTab = 'active';
-      await saveCatalog('Вид добавлен');
+    if (!mapSelectedFrom || !archived.some((t) => t.id === mapSelectedFrom)) {
+      mapSelectedFrom = archived[0].id;
     }
 
+    mapPinNewTypeId = created.id;
+    mapSelectedTo = created.id;
+    currentTab = 'map';
+
+    await saveCatalog('Новый вид создан — выберите архивный вид слева и нажмите «Сохранить соответствие»');
     renderScreen();
     requestAnimationFrame(() => {
       document
-        .querySelector('#vtInlineNewList .vt-type-item.selected')
+        .querySelector('#vtInlineNewList .vt-type-item-wrap.selected')
         ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     });
   }

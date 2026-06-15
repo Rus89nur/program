@@ -92,4 +92,31 @@ describe('ViolationTypes', () => {
     const stats = VT.buildKindStats(catalog, { resolve: true });
     expect(stats.get('Пожарная безопасность')).toBe(2);
   });
+
+  it('pending-вид активируется при setMapping', () => {
+    const catalog = {
+      akts: [],
+      violationTypes: [
+        { id: 'a1', title: 'Старый', status: 'archived' },
+        { id: 'p1', title: 'Новый', status: 'pending' },
+      ],
+      typeMappings: {},
+    };
+    VT.setMapping(catalog, 'a1', 'p1');
+    expect(VT.findById(catalog, 'p1').status).toBe('active');
+    expect(VT.getActiveTypes(catalog).some((t) => t.title === 'Новый')).toBe(true);
+  });
+
+  it('deleteType удаляет неиспользуемый вид', () => {
+    const catalog = {
+      akts: [],
+      violationTypes: [
+        { id: 'a1', title: 'Лишний', status: 'pending' },
+      ],
+      typeMappings: {},
+    };
+    const r = VT.deleteType(catalog, 'a1');
+    expect(r.ok).toBe(true);
+    expect(catalog.violationTypes).toHaveLength(0);
+  });
 });

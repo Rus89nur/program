@@ -4,6 +4,7 @@
 const ViolationTypes = (() => {
   const STATUS_ACTIVE = 'active';
   const STATUS_ARCHIVED = 'archived';
+  const STATUS_PENDING = 'pending';
 
   function getTypes(catalog) {
     return catalog?.violationTypes || [];
@@ -115,6 +116,19 @@ const ViolationTypes = (() => {
     return getTypes(catalog).filter((t) => t.status === STATUS_ACTIVE);
   }
 
+  function getPendingTypes(catalog) {
+    ensureCatalog(catalog);
+    return getTypes(catalog).filter((t) => t.status === STATUS_PENDING);
+  }
+
+  /** Активные + ожидающие привязки — правая колонка «Сопоставить». */
+  function getMapTargetTypes(catalog) {
+    ensureCatalog(catalog);
+    return getTypes(catalog).filter(
+      (t) => t.status === STATUS_ACTIVE || t.status === STATUS_PENDING
+    );
+  }
+
   function getArchivedTypes(catalog) {
     ensureCatalog(catalog);
     return getTypes(catalog).filter((t) => t.status === STATUS_ARCHIVED);
@@ -176,21 +190,62 @@ const ViolationTypes = (() => {
     return collectVidCounts(catalog).get(type.title) || 0;
   }
 
-  function addType(catalog, title) {
+  function addType(catalog, title, { forMapping = false } = {}) {
     const t = String(title || '').trim();
     if (!t) return null;
     ensureCatalog(catalog);
     const existing = findByTitle(catalog, t);
     if (existing) {
+      if (forMapping && existing.status === STATUS_ARCHIVED) {
+        existing.status = STATUS_PENDING;
+        delete existing.replacedBy;
+        return existing;
+      }
       if (existing.status === STATUS_ARCHIVED) {
         existing.status = STATUS_ACTIVE;
         delete existing.replacedBy;
       }
       return existing;
     }
-    const item = { id: AktUtils.uuid(), title: t, status: STATUS_ACTIVE };
+    const item = {
+      id: AktUtils.uuid(),
+      title: t,
+      status: forMapping ? STATUS_PENDING : STATUS_ACTIVE,
+    };
     catalog.violationTypes = [...getTypes(catalog), item];
     return item;
+  }
+
+  function activateType(catalog, id) {
+    const t = findById(catalog, id);
+    if (!t || t.status !== STATUS_PENDING) return false;
+    t.status = STATUS_ACTIVE;
+    return true;
+  }
+
+  function deleteType(catalog, id) {
+    const t = findById(catalog, id);
+    if (!t) return { ok: false, reason: 'not_found' };
+
+    const usage = usageCount(catalog, t);
+    if (usage > 0) {
+      return { ok: false, reason: 'in_use', count: usage };
+    }
+
+    const types = getTypes(catalog).filter((x) => x.id !== id);
+    for (const item of types) {
+      if (item.replacedBy === id) delete item.replacedBy;
+    }
+
+    const mappings = { ...getMappings(catalog) };
+    delete mappings[id];
+    for (const key of Object.keys(mappings)) {
+      if (mappings[key] === id) delete mappings[key];
+    }
+
+    catalog.violationTypes = types;
+    catalog.typeMappings = mappings;
+    return { ok: true };
   }
 
   function archiveType(catalog, id) {
@@ -205,7 +260,12 @@ const ViolationTypes = (() => {
     ensureCatalog(catalog);
     const from = findById(catalog, fromId);
     const to = findById(catalog, toId);
-    if (!from || !to || to.status !== STATUS_ACTIVE) return false;
+    if (!from || !to) return false;
+    if (to.status === STATUS_PENDING) {
+      to.status = STATUS_ACTIVE;
+    } else if (to.status !== STATUS_ACTIVE) {
+      return false;
+    }
 
     from.status = STATUS_ARCHIVED;
     from.replacedBy = toId;
@@ -284,10 +344,13 @@ const ViolationTypes = (() => {
   return {
     STATUS_ACTIVE,
     STATUS_ARCHIVED,
+    STATUS_PENDING,
     ensureCatalog,
     getTypes,
     getMappings,
     getActiveTypes,
+    getPendingTypes,
+    getMapTargetTypes,
     getArchivedTypes,
     getActiveTitles,
     getUnmappedArchived,
@@ -297,6 +360,8 @@ const ViolationTypes = (() => {
     usageCount,
     collectVidCounts,
     addType,
+    activateType,
+    deleteType,
     archiveType,
     setMapping,
     clearMapping,
