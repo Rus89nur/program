@@ -3387,6 +3387,53 @@
       cursor: pointer;
     }
 
+    /* ——— Встроенные шаблон / реестр ——— */
+    .defaults-status {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+    }
+    .defaults-status--ok {
+      color: var(--success);
+      background: var(--success-soft);
+    }
+    .defaults-status--warn {
+      color: var(--warning);
+      background: var(--warning-soft);
+    }
+    .defaults-meta {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      font-size: 14px;
+    }
+    .defaults-meta div {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 8px;
+      align-items: start;
+    }
+    .defaults-meta dt {
+      margin: 0;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .defaults-meta dd {
+      margin: 0;
+      word-break: break-word;
+    }
+    .vr-screen-source,
+    .defaults-source {
+      margin: 10px 0 0;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .defaults-source--builtin {
+      color: var(--success);
+    }
+
     /* Фильтры по организациям для представителей */
     .pred-filter-row {
       display: flex;
@@ -6272,6 +6319,7 @@
       color: var(--primary);
       border-bottom-color: var(--primary);
     }
+    .vt-tab--warn:not(.active) { color: var(--warning); }
     .vt-empty {
       padding: 32px 20px;
       text-align: center;

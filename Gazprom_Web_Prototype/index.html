@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '160';</script>
+  <script>window.GAZPROM_ASSET_V = '161';</script>
   <style id="appShellCritical">
     @media (max-width:900px),(max-width:1280px) and (max-height:520px) and (hover:none){
       .sidebar{display:none!important}
@@ -58,7 +58,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=145" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=146" id="appCss">
   <script>
   (function () {
     var css = document.getElementById('appCss');
@@ -116,7 +116,7 @@
       </button>
       <div class="sidebar-footer" id="sidebarAppBuild" aria-label="Версия веб-приложения">
         <span class="sidebar-footer__brand">программа НЕТ</span>
-        Сборка: <span data-app-build>web-160</span> · PWA
+        Сборка: <span data-app-build>web-161</span> · PWA
       </div>
     </aside>
 
@@ -183,7 +183,7 @@
             <div class="stat-label">Черновиков</div>
           </div>
         </div>
-        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-160</p>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-161</p>
       </section>
 
       <section class="screen" id="screen-wizard">
@@ -353,7 +353,7 @@
 
           <div class="card reports-chart-card reports-chart-card--wide">
             <h4 class="reports-chart-card__title">Нарушения по подрядчикам</h4>
-            <div class="reports-contractor-grid" id="reportsContractorGrid" role="list"></div>
+            <div class="reports-treemap-wrap" id="reportsOrgTreemap" role="list"></div>
             <div class="reports-treemap-legend" id="reportsTreemapLegend" aria-label="Легенда"></div>
           </div>
 
@@ -494,9 +494,11 @@
             </select>
             <div class="violations-screen-actions">
               <button class="btn-primary btn-sm" type="button" id="vrScreenAddBtn">+ Добавить</button>
+              <button class="btn-secondary btn-sm" type="button" id="vrScreenRestoreBtn">↩️ Стандартный реестр</button>
               <button class="btn-secondary btn-sm" type="button" id="vrScreenImportBtn">📂 Импорт Excel</button>
               <button class="btn-secondary btn-sm" type="button" id="vrScreenExportBtn">📊 Экспорт Excel</button>
             </div>
+            <p class="vr-screen-source defaults-source" id="vrScreenSourceMeta" aria-live="polite"></p>
             <input type="file" id="vrScreenImportInput" accept=".xlsx,.xls,.xls" style="position:absolute;left:-9999px;opacity:0;pointer-events:none;">
           </div>
           <div id="vrScreenImportOptions" style="margin-top:10px;padding:10px 12px;background:var(--primary-soft);border-radius:var(--radius);font-size:13px;" hidden>
@@ -552,6 +554,39 @@
       <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg></span><span>Ещё</span>
     </button>
   </nav>
+
+  <!-- ——— Модал: шаблон акта ——— -->
+  <div id="templateModal" class="catalog-form-overlay" hidden>
+    <div class="catalog-form-dialog card backup-modal-dialog">
+      <h3>📄 Шаблон акта (Word)</h3>
+
+      <div class="backup-modal-section">
+        <p id="templateModalStatus" class="defaults-status defaults-status--ok">Загрузка…</p>
+        <dl class="defaults-meta">
+          <div><dt>Текущий файл</dt><dd id="templateModalCurrentName">—</dd></div>
+          <div><dt>Источник</dt><dd id="templateModalCurrentSource">—</dd></div>
+        </dl>
+      </div>
+
+      <hr class="backup-modal-divider">
+
+      <div class="backup-modal-section">
+        <h4 class="backup-modal-section-title">Выбор шаблона</h4>
+        <p class="backup-import-hint">
+          По умолчанию используется встроенный шаблон <strong>Шаблон_12.10.25.docx</strong>.
+          Можно загрузить свой файл <strong>.docx</strong> или вернуть стандартный.
+        </p>
+        <div class="backup-import-actions">
+          <button type="button" class="btn-primary" id="templateModalUploadBtn">📂 Загрузить свой .docx</button>
+          <button type="button" class="btn-secondary" id="templateModalRestoreBtn">↩️ Вернуть стандартный</button>
+        </div>
+      </div>
+
+      <div class="catalog-form-actions">
+        <button type="button" class="btn-ghost" id="templateModalClose">Закрыть</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ——— Модал: экспорт и управление копиями ——— -->
   <div id="backupModal" class="catalog-form-overlay" hidden>
@@ -625,12 +660,13 @@
   <script src="js/violation-search.js?v=3"></script>
   <script src="js/violation-templates.js?v=20"></script>
   <script src="js/violation-types.js?v=1"></script>
-  <script src="js/violation-types-editor.js?v=1"></script>
-  <script src="js/violation-registry.js?v=8"></script>
+  <script src="js/violation-types-editor.js?v=2"></script>
+  <script src="js/defaults-bootstrap.js?v=1"></script>
+  <script src="js/violation-registry.js?v=9"></script>
   <script src="js/catalog-service.js"></script>
   <script src="js/backup-import.js?v=30"></script>
   <script src="js/akt-search.js"></script>
-  <script src="js/ui-bindings.js?v=29"></script>
+  <script src="js/ui-bindings.js?v=30"></script>
   <script src="js/catalog-editor.js?v=12"></script>
   <script src="js/schedule-editor.js?v=2"></script>
   <script src="js/elimination-editor.js?v=8"></script>
@@ -639,7 +675,7 @@
   <script src="js/wizard-modals.js?v=43"></script>
   <script src="js/wizard.js?v=56"></script>
   <script src="js/short-akt-form.js?v=3"></script>
-  <script src="js/doc-generator.js?v=35"></script>
-  <script src="js/app.js?v=131"></script>
+  <script src="js/doc-generator.js?v=36"></script>
+  <script src="js/app.js?v=132"></script>
 </body>
 </html>

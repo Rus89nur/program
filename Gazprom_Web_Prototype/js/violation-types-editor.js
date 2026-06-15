@@ -4,8 +4,7 @@
 const ViolationTypesEditor = (() => {
   const TABS = [
     { key: 'active', label: 'Активные' },
-    { key: 'archive', label: 'Архив' },
-    { key: 'mappings', label: 'Соответствия' },
+    { key: 'map', label: 'Сопоставить' },
   ];
 
   let catalog = null;
@@ -14,6 +13,8 @@ const ViolationTypesEditor = (() => {
   let bound = false;
   let wizardStep = 0;
   let wizardMappings = new Map();
+  let mapSelectedFrom = null;
+  let mapSelectedTo = null;
 
   function esc(s) {
     return AktUtils.escapeHtml(String(s ?? ''));
@@ -22,8 +23,11 @@ const ViolationTypesEditor = (() => {
   async function loadCatalog() {
     catalog = await GazpromStore.get();
     if (!catalog) {
-      GazpromToast.error('Нет данных в базе');
-      return null;
+      catalog = {
+        akts: [],
+        violationTypes: [],
+        typeMappings: {},
+      };
     }
     if (ViolationTypes.ensureCatalog(catalog)) {
       await GazpromStore.set(catalog);
@@ -70,10 +74,12 @@ const ViolationTypesEditor = (() => {
       const count =
         tab.key === 'active'
           ? ViolationTypes.getActiveTypes(catalog).length
-          : tab.key === 'archive'
-            ? ViolationTypes.getArchivedTypes(catalog).length
-            : ViolationTypes.getArchivedTypes(catalog).length;
-      return `<button type="button" class="vt-tab ${currentTab === tab.key ? 'active' : ''}" data-vt-tab="${tab.key}">
+          : ViolationTypes.getArchivedTypes(catalog).length;
+      const warn =
+        tab.key === 'map' && ViolationTypes.getUnmappedArchived(catalog).length > 0
+          ? ' vt-tab--warn'
+          : '';
+      return `<button type="button" class="vt-tab${currentTab === tab.key ? ' active' : ''}${warn}" data-vt-tab="${tab.key}">
         ${esc(tab.label)} (${count})
       </button>`;
     }).join('');
@@ -88,7 +94,6 @@ const ViolationTypesEditor = (() => {
         <div class="vt-toolbar">
           <input type="search" class="form-control" id="vtSearch" placeholder="Поиск по названию…" value="${esc(screenQuery)}" autocomplete="off">
           <button type="button" class="btn-primary btn-sm" id="vtAddTypeBtn">+ Новый вид</button>
-          <button type="button" class="btn-secondary btn-sm" id="vtSplitMapBtn">Сопоставить</button>
         </div>
         <div class="vt-tabs" role="tablist">${tabButtons}</div>
       </div>
@@ -100,7 +105,6 @@ const ViolationTypesEditor = (() => {
       renderTabBody();
     });
     document.getElementById('vtAddTypeBtn')?.addEventListener('click', () => handleAddType());
-    document.getElementById('vtSplitMapBtn')?.addEventListener('click', () => openSplitModal());
     document.getElementById('vtRunWizardBtn')?.addEventListener('click', () => openWizard());
     host.querySelectorAll('[data-vt-tab]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -121,8 +125,7 @@ const ViolationTypesEditor = (() => {
     if (!body || !catalog) return;
 
     if (currentTab === 'active') renderActiveTab(body);
-    else if (currentTab === 'archive') renderArchiveTab(body);
-    else renderMappingsTab(body);
+    else renderMapTab(body);
   }
 
   function renderActiveTab(body) {
@@ -175,115 +178,115 @@ const ViolationTypesEditor = (() => {
         }
         ViolationTypes.archiveType(catalog, id);
         await saveCatalog('Вид перенесён в архив');
+        currentTab = 'map';
         renderScreen();
       });
     });
   }
 
-  function renderArchiveTab(body) {
-    const items = filterByQuery(ViolationTypes.getArchivedTypes(catalog));
-    if (!items.length) {
-      body.innerHTML = `<p class="vt-empty">Архив пуст.</p>`;
+  function renderMapTab(body) {
+    const archived = filterByQuery(ViolationTypes.getArchivedTypes(catalog));
+    const active = ViolationTypes.getActiveTypes(catalog);
+
+    if (!archived.length) {
+      body.innerHTML = `<p class="vt-empty">Нет архивных видов для сопоставления. Перенесите вид в архив на вкладке «Активные» или импортируйте данные с устаревшими видами.</p>`;
       return;
     }
 
-    body.innerHTML = `
-      <table class="list-table">
-        <thead>
-          <tr>
-            <th>Устаревший вид</th>
-            <th style="width:100px;">В данных</th>
-            <th>Заменён на</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${items
-            .map((t) => {
-              const n = ViolationTypes.usageCount(catalog, t);
-              const mappedId = t.replacedBy || ViolationTypes.getMappings(catalog)[t.id] || '';
-              const mapped = ViolationTypes.findById(catalog, mappedId);
-              const status = ViolationTypes.isMappedToActive(catalog, t)
-                ? '<span class="vt-badge vt-badge--ok">настроено</span>'
-                : '<span class="vt-badge vt-badge--warn">требует внимания</span>';
-              return `<tr>
-                <td>${esc(t.title)} ${status}</td>
-                <td>${n || '—'}</td>
-                <td>
-                  <button type="button" class="btn-secondary btn-sm" data-vt-map="${esc(t.id)}">
-                    ${mapped ? esc(mapped.title) : 'Настроить →'}
-                  </button>
-                </td>
-              </tr>`;
-            })
-            .join('')}
-        </tbody>
-      </table>`;
-
-    body.querySelectorAll('[data-vt-map]').forEach((btn) => {
-      btn.addEventListener('click', () => openSplitModal(btn.dataset.vtMap));
-    });
-  }
-
-  function renderMappingsTab(body) {
-    const items = filterByQuery(ViolationTypes.getArchivedTypes(catalog));
-    if (!items.length) {
-      body.innerHTML = `<p class="vt-empty">Нет архивных видов для сопоставления.</p>`;
+    if (!active.length) {
+      body.innerHTML = `<p class="vt-empty">Сначала создайте активный вид — кнопка «+ Новый вид» вверху.</p>`;
       return;
     }
 
+    if (!mapSelectedFrom || !archived.some((t) => t.id === mapSelectedFrom)) {
+      mapSelectedFrom = archived[0].id;
+    }
+    const fromType = ViolationTypes.findById(catalog, mapSelectedFrom);
+    if (!mapSelectedTo || !active.some((t) => t.id === mapSelectedTo)) {
+      mapSelectedTo =
+        fromType?.replacedBy ||
+        ViolationTypes.getMappings(catalog)[mapSelectedFrom] ||
+        active[0].id;
+    }
+
+    const toType = ViolationTypes.findById(catalog, mapSelectedTo);
+    const usageN = fromType ? ViolationTypes.usageCount(catalog, fromType) : 0;
+    const previewText =
+      fromType && toType
+        ? usageN > 0
+          ? `Отчёт «Виды выявленных нарушений»: +${usageN} к «${toType.title}»`
+          : 'В данных нет записей с этим видом'
+        : '';
+
     body.innerHTML = `
-      <table class="list-table">
-        <thead>
-          <tr>
-            <th style="width:40%;">Устаревший вид</th>
-            <th style="width:80px;">В данных</th>
-            <th style="width:40%;">Заменить на (активный)</th>
-            <th>Статус</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${items
-            .map((t) => {
-              const n = ViolationTypes.usageCount(catalog, t);
-              const mappedId = t.replacedBy || ViolationTypes.getMappings(catalog)[t.id] || '';
-              const rowClass = ViolationTypes.isMappedToActive(catalog, t) ? '' : 'vt-row--warn';
-              const status = ViolationTypes.isMappedToActive(catalog, t)
-                ? '<span class="vt-badge vt-badge--ok">настроено</span>'
-                : '<span class="vt-badge vt-badge--warn">не сопоставлено</span>';
-              return `<tr class="${rowClass}">
-                <td>${esc(t.title)}</td>
-                <td>${n || '—'}</td>
-                <td>
-                  <select class="form-control vt-map-select" data-vt-from="${esc(t.id)}">
-                    ${activeSelectOptions(mappedId, { includeEmpty: true })}
-                  </select>
-                </td>
-                <td>${status}</td>
-              </tr>`;
-            })
-            .join('')}
-        </tbody>
-      </table>
-      <div class="vt-footer-actions">
-        <button type="button" class="btn-secondary" id="vtCancelMappings">Отменить</button>
-        <button type="button" class="btn-primary" id="vtApplyMappings">Сохранить соответствия</button>
-        <button type="button" class="btn-secondary" id="vtMigrateData">Применить ко всем данным</button>
+      <div class="vt-split-inline">
+        <div class="vt-split-body">
+          <div class="vt-split-col vt-split-col--old">
+            <h4>Устаревший вид</h4>
+            <div id="vtInlineOldList">
+              ${archived
+                .map((t) => {
+                  const n = ViolationTypes.usageCount(catalog, t);
+                  const mapped = ViolationTypes.isMappedToActive(catalog, t);
+                  return `<button type="button" class="vt-type-item ${t.id === mapSelectedFrom ? 'selected' : ''}" data-vt-from-item="${esc(t.id)}">
+                    <div>${esc(t.title)}</div>
+                    <div class="vt-type-item__meta">
+                      <span class="vt-badge vt-badge--archived">архив</span>
+                      ${mapped ? '<span class="vt-badge vt-badge--ok">настроено</span>' : '<span class="vt-badge vt-badge--warn">нет пары</span>'}
+                      ${n ? `<span class="vt-badge vt-badge--count">${n} зап.</span>` : ''}
+                    </div>
+                  </button>`;
+                })
+                .join('')}
+            </div>
+          </div>
+          <div class="vt-split-arrow" aria-hidden="true">→</div>
+          <div class="vt-split-col vt-split-col--new">
+            <h4>Новый активный вид</h4>
+            <div id="vtInlineNewList">
+              ${active
+                .map(
+                  (t) => `<button type="button" class="vt-type-item ${t.id === mapSelectedTo ? 'selected' : ''}" data-vt-to-item="${esc(t.id)}">
+                    <div>${esc(t.title)}</div>
+                    <div class="vt-type-item__meta"><span class="vt-badge vt-badge--active">активен</span></div>
+                  </button>`
+                )
+                .join('')}
+            </div>
+            <button type="button" class="btn-primary btn-sm vt-split-add-new" id="vtInlineAddType">+ Новый вид</button>
+          </div>
+        </div>
+        ${previewText ? `<div class="vt-split-preview">${esc(previewText)}</div>` : ''}
+        <div class="vt-footer-actions">
+          <button type="button" class="btn-primary" id="vtInlineSaveMap">Сохранить соответствие</button>
+          <button type="button" class="btn-secondary" id="vtMigrateData">Применить ко всем данным</button>
+        </div>
       </div>`;
 
-    document.getElementById('vtCancelMappings')?.addEventListener('click', () => renderScreen());
-    document.getElementById('vtApplyMappings')?.addEventListener('click', () => handleSaveMappings());
-    document.getElementById('vtMigrateData')?.addEventListener('click', () => handleMigrateData());
-  }
-
-  async function handleSaveMappings() {
-    document.querySelectorAll('.vt-map-select').forEach((sel) => {
-      const fromId = sel.dataset.vtFrom;
-      const toId = sel.value;
-      if (toId) ViolationTypes.setMapping(catalog, fromId, toId);
-      else ViolationTypes.clearMapping(catalog, fromId);
+    body.querySelectorAll('[data-vt-from-item]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        mapSelectedFrom = btn.dataset.vtFromItem;
+        const mapped =
+          ViolationTypes.findById(catalog, mapSelectedFrom)?.replacedBy ||
+          ViolationTypes.getMappings(catalog)[mapSelectedFrom];
+        if (mapped) mapSelectedTo = mapped;
+        renderMapTab(body);
+      });
     });
-    await saveCatalog('Соответствия сохранены');
-    renderScreen();
+    body.querySelectorAll('[data-vt-to-item]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        mapSelectedTo = btn.dataset.vtToItem;
+        renderMapTab(body);
+      });
+    });
+    body.querySelector('#vtInlineAddType')?.addEventListener('click', () => handleAddType({ stayOnMap: true }));
+    body.querySelector('#vtInlineSaveMap')?.addEventListener('click', async () => {
+      if (!mapSelectedFrom || !mapSelectedTo) return;
+      ViolationTypes.setMapping(catalog, mapSelectedFrom, mapSelectedTo);
+      await saveCatalog('Соответствие сохранено');
+      renderScreen();
+    });
+    body.querySelector('#vtMigrateData')?.addEventListener('click', () => handleMigrateData());
   }
 
   async function handleMigrateData() {
@@ -301,143 +304,28 @@ const ViolationTypesEditor = (() => {
     renderScreen();
   }
 
-  async function handleAddType() {
+  async function handleAddType({ stayOnMap = false } = {}) {
     const title = await GazpromToast.prompt('Название нового вида нарушения', '');
-    if (!title?.trim()) return;
-    ViolationTypes.addType(catalog, title.trim());
+    if (title === null) return;
+    const trimmed = String(title).trim();
+    if (!trimmed) {
+      GazpromToast.error('Введите название вида');
+      return;
+    }
+    const created = ViolationTypes.addType(catalog, trimmed);
     await saveCatalog('Вид добавлен');
+    if (stayOnMap && created) {
+      mapSelectedTo = created.id;
+      currentTab = 'map';
+    }
     renderScreen();
   }
 
   function openSplitModal(preselectFromId = null) {
-    const archived = ViolationTypes.getArchivedTypes(catalog);
-    const active = ViolationTypes.getActiveTypes(catalog);
-    if (!archived.length) {
-      GazpromToast.info('Нет архивных видов для сопоставления');
-      return;
-    }
-    if (!active.length) {
-      GazpromToast.error('Сначала создайте активный вид нарушения');
-      return;
-    }
-
-    let selectedFrom = preselectFromId || archived[0].id;
-    let selectedTo =
-      ViolationTypes.findById(catalog, selectedFrom)?.replacedBy ||
-      ViolationTypes.getMappings(catalog)[selectedFrom] ||
-      active[0].id;
-
-    const overlay = document.createElement('div');
-    overlay.className = 'catalog-form-overlay vt-split-overlay';
-    overlay.innerHTML = `
-      <div class="vt-split-panel card">
-        <div class="vt-split-header">
-          <h3>Сопоставление видов нарушений</h3>
-          <button type="button" class="btn-ghost btn-sm vt-split-close" aria-label="Закрыть">✕</button>
-        </div>
-        <div class="vt-split-body">
-          <div class="vt-split-col vt-split-col--old">
-            <h4>Устаревший вид</h4>
-            <div id="vtSplitOldList"></div>
-          </div>
-          <div class="vt-split-arrow" aria-hidden="true">→</div>
-          <div class="vt-split-col vt-split-col--new">
-            <h4>Новый активный вид</h4>
-            <div id="vtSplitNewList"></div>
-            <button type="button" class="btn-secondary btn-sm vt-split-add-new">+ Создать новый вид</button>
-          </div>
-        </div>
-        <div class="vt-split-preview" id="vtSplitPreview"></div>
-        <div class="vt-split-footer">
-          <button type="button" class="btn-ghost vt-split-close">Отмена</button>
-          <button type="button" class="btn-primary" id="vtSplitSave">Сохранить соответствие</button>
-        </div>
-      </div>`;
-
-    const paintLists = () => {
-      const oldList = overlay.querySelector('#vtSplitOldList');
-      const newList = overlay.querySelector('#vtSplitNewList');
-      const fromType = ViolationTypes.findById(catalog, selectedFrom);
-      const toType = ViolationTypes.findById(catalog, selectedTo);
-
-      oldList.innerHTML = ViolationTypes.getArchivedTypes(catalog)
-        .map((t) => {
-          const n = ViolationTypes.usageCount(catalog, t);
-          return `<button type="button" class="vt-type-item ${t.id === selectedFrom ? 'selected' : ''}" data-vt-from-item="${esc(t.id)}">
-            <div>${esc(t.title)}</div>
-            <div class="vt-type-item__meta">
-              <span class="vt-badge vt-badge--archived">архив</span>
-              ${n ? `<span class="vt-badge vt-badge--count">${n} зап.</span>` : ''}
-            </div>
-          </button>`;
-        })
-        .join('');
-
-      newList.innerHTML = ViolationTypes.getActiveTypes(catalog)
-        .map(
-          (t) => `<button type="button" class="vt-type-item ${t.id === selectedTo ? 'selected' : ''}" data-vt-to-item="${esc(t.id)}">
-            <div>${esc(t.title)}</div>
-            <div class="vt-type-item__meta"><span class="vt-badge vt-badge--active">активен</span></div>
-          </button>`
-        )
-        .join('');
-
-      const preview = overlay.querySelector('#vtSplitPreview');
-      if (fromType && toType) {
-        const n = ViolationTypes.usageCount(catalog, fromType);
-        preview.textContent =
-          n > 0
-            ? `Отчёт «Виды выявленных нарушений»: +${n} к «${toType.title}»`
-            : 'В данных нет записей с этим видом';
-      } else {
-        preview.textContent = '';
-      }
-
-      oldList.querySelectorAll('[data-vt-from-item]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          selectedFrom = btn.dataset.vtFromItem;
-          const mapped =
-            ViolationTypes.findById(catalog, selectedFrom)?.replacedBy ||
-            ViolationTypes.getMappings(catalog)[selectedFrom];
-          if (mapped) selectedTo = mapped;
-          paintLists();
-        });
-      });
-      newList.querySelectorAll('[data-vt-to-item]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          selectedTo = btn.dataset.vtToItem;
-          paintLists();
-        });
-      });
-    };
-
-    const close = () => {
-      overlay.remove();
-      GazpromMobileOverlay.unlock();
-    };
-
-    overlay.querySelectorAll('.vt-split-close').forEach((b) => b.addEventListener('click', close));
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) close();
-    });
-    overlay.querySelector('.vt-split-add-new')?.addEventListener('click', async () => {
-      const title = await GazpromToast.prompt('Название нового вида', '');
-      if (!title?.trim()) return;
-      const created = ViolationTypes.addType(catalog, title.trim());
-      selectedTo = created.id;
-      paintLists();
-    });
-    overlay.querySelector('#vtSplitSave')?.addEventListener('click', async () => {
-      if (!selectedFrom || !selectedTo) return;
-      ViolationTypes.setMapping(catalog, selectedFrom, selectedTo);
-      await saveCatalog('Соответствие сохранено');
-      close();
-      renderScreen();
-    });
-
-    document.body.appendChild(overlay);
-    GazpromMobileOverlay.lock();
-    paintLists();
+    currentTab = 'map';
+    mapSelectedFrom = preselectFromId;
+    mapSelectedTo = null;
+    renderScreen();
   }
 
   function renderWizardChart(stats, title, highlightKinds = []) {
@@ -617,7 +505,7 @@ const ViolationTypesEditor = (() => {
   }
 
   async function renderScreen() {
-    if (!(await loadCatalog())) return;
+    await loadCatalog();
     renderHeader();
     renderTabBody();
   }
