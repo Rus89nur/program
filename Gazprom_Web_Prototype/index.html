@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '170';</script>
+  <script>window.GAZPROM_ASSET_V = '172';</script>
   <style id="appShellCritical">
     @media (max-width:900px),(max-width:1280px) and (max-height:520px) and (hover:none){
       .sidebar{display:none!important}
@@ -58,7 +58,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=152" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=153" id="appCss">
   <script>
   (function () {
     var css = document.getElementById('appCss');
@@ -116,7 +116,7 @@
       </button>
       <div class="sidebar-footer" id="sidebarAppBuild" aria-label="Версия веб-приложения">
         <span class="sidebar-footer__brand">программа НЕТ</span>
-        Сборка: <span data-app-build>web-170</span> · PWA
+        Сборка: <span data-app-build>web-172</span> · PWA
       </div>
     </aside>
 
@@ -183,7 +183,7 @@
             <div class="stat-label">Черновиков</div>
           </div>
         </div>
-        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-170</p>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-172</p>
       </section>
 
       <section class="screen" id="screen-wizard">
@@ -480,33 +480,12 @@
         </div>
       </section>
 
-      <!-- ——— Экран: выбор реестра (шаг 1) ——— -->
-      <section class="screen" id="screen-violation-registry-picker">
-        <div class="violations-screen-header card">
-          <div class="violations-screen-nav">
-            <button class="btn-ghost btn-sm" type="button" data-go="settings">← Настройки</button>
-            <span class="violations-screen-breadcrumb">/ Нарушения / Выбор реестра</span>
-          </div>
-          <div class="preset-picker-section">
-            <h4 class="preset-picker-section__title">Выберите реестр</h4>
-            <p class="preset-picker-section__hint">Нажмите на карточку, чтобы открыть реестр и работать с формулировками. Свой файл — «+ Импорт Excel».</p>
-            <div id="vrRegistryPresetPicker" class="preset-picker-host"></div>
-          </div>
-          <div id="vrPickerImportOptions" class="vr-import-options" hidden>
-            <label class="vr-import-options__label">
-              <input type="checkbox" id="vrPickerMergeCheckbox"> Объединить с существующими (иначе — заменить все данные)
-            </label>
-          </div>
-          <input type="file" id="vrPickerImportInput" accept=".xlsx,.xls,.xls" hidden>
-        </div>
-      </section>
-
-      <!-- ——— Экран: работа с реестром (шаг 2) ——— -->
+      <!-- ——— Экран: работа с реестром ——— -->
       <section class="screen" id="screen-violations">
         <div class="violations-screen-header card">
           <div class="violations-screen-nav">
-            <button class="btn-ghost btn-sm" type="button" data-go="violation-registry-picker">← Выбор реестра</button>
-            <span class="violations-screen-breadcrumb">/ Работа с реестром</span>
+            <button class="btn-ghost btn-sm" type="button" id="vrOpenRegistryModalBtn">← Выбор реестра</button>
+            <span class="violations-screen-breadcrumb">/ Реестр нарушений</span>
           </div>
           <div class="violations-screen-toolbar">
             <input type="search" class="form-control" id="vrScreenSearch" placeholder="🔍 Поиск по формулировке, документу, примечанию…" autocomplete="off">
@@ -567,6 +546,33 @@
       <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg></span><span>Ещё</span>
     </button>
   </nav>
+
+  <!-- ——— Модал: выбор реестра ——— -->
+  <div id="registryModal" class="catalog-form-overlay" hidden>
+    <div class="catalog-form-dialog card backup-modal-dialog">
+      <h3>⚠️ Реестр нарушений</h3>
+
+      <div class="backup-modal-section">
+        <p id="registryModalStatus" class="defaults-status defaults-status--ok">Выберите реестр для работы</p>
+      </div>
+
+      <div class="backup-modal-section">
+        <h4 class="backup-modal-section-title">Выбор реестра</h4>
+        <p class="backup-import-hint">Нажмите на карточку, чтобы открыть реестр. Свой файл — «+ Импорт Excel».</p>
+        <div id="registryPresetPicker" class="preset-picker-host"></div>
+        <div id="vrPickerImportOptions" class="vr-import-options" hidden>
+          <label class="vr-import-options__label">
+            <input type="checkbox" id="vrPickerMergeCheckbox"> Объединить с существующими (иначе — заменить все данные)
+          </label>
+        </div>
+        <input type="file" id="vrPickerImportInput" accept=".xlsx,.xls,.xls" hidden>
+      </div>
+
+      <div class="catalog-form-actions">
+        <button type="button" class="btn-ghost" id="registryModalClose">Закрыть</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ——— Модал: шаблон акта ——— -->
   <div id="templateModal" class="catalog-form-overlay" hidden>
@@ -662,8 +668,8 @@
   <script src="js/violation-templates.js?v=20"></script>
   <script src="js/violation-types.js?v=2"></script>
   <script src="js/violation-types-editor.js?v=5"></script>
-  <script src="js/defaults-bootstrap.js?v=4"></script>
-  <script src="js/violation-registry.js?v=11"></script>
+  <script src="js/defaults-bootstrap.js?v=5"></script>
+  <script src="js/violation-registry.js?v=12"></script>
   <script src="js/catalog-service.js"></script>
   <script src="js/backup-import.js?v=30"></script>
   <script src="js/akt-search.js"></script>
@@ -672,11 +678,11 @@
   <script src="js/schedule-editor.js?v=2"></script>
   <script src="js/elimination-editor.js?v=8"></script>
   <script src="js/report-exporter.js?v=2"></script>
-  <script src="js/reports-dashboard.js?v=7"></script>
+  <script src="js/reports-dashboard.js?v=8"></script>
   <script src="js/wizard-modals.js?v=43"></script>
   <script src="js/wizard.js?v=56"></script>
   <script src="js/short-akt-form.js?v=3"></script>
   <script src="js/doc-generator.js?v=36"></script>
-  <script src="js/app.js?v=134"></script>
+  <script src="js/app.js?v=136"></script>
 </body>
 </html>
