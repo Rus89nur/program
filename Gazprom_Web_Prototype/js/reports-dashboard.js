@@ -456,10 +456,11 @@ const ReportsDashboard = (() => {
     return STATUS_META.nodeadline.color;
   }
 
-  function toggleContractorFilter(org) {
+  function selectContractorFromTreemap(org) {
     if (!org || org === '—') return;
-    if (filters.contractors.has(org)) filters.contractors.delete(org);
-    else filters.contractors.add(org);
+    const onlyThis = filters.contractors.size === 1 && filters.contractors.has(org);
+    filters.contractors.clear();
+    if (!onlyThis) filters.contractors.add(org);
   }
 
   function renderOrgTreemap(data) {
@@ -699,7 +700,7 @@ const ReportsDashboard = (() => {
       const orgCell = e.target.closest('[data-reports-org]');
       if (orgCell) {
         e.stopPropagation();
-        toggleContractorFilter(orgCell.dataset.reportsOrg);
+        selectContractorFromTreemap(orgCell.dataset.reportsOrg);
         requestRender();
         return;
       }
