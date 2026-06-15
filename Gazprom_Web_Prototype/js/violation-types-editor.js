@@ -4,6 +4,7 @@
 const ViolationTypesEditor = (() => {
   const TABS = [
     { key: 'active', label: 'Активные' },
+    { key: 'archive', label: 'Архив' },
     { key: 'map', label: 'Сопоставить' },
   ];
 
@@ -78,7 +79,9 @@ const ViolationTypesEditor = (() => {
       const warn =
         tab.key === 'map' && ViolationTypes.getUnmappedArchived(catalog).length > 0
           ? ' vt-tab--warn'
-          : '';
+          : tab.key === 'archive' && ViolationTypes.getUnmappedArchived(catalog).length > 0
+            ? ' vt-tab--warn'
+            : '';
       return `<button type="button" class="vt-tab${currentTab === tab.key ? ' active' : ''}${warn}" data-vt-tab="${tab.key}">
         ${esc(tab.label)} (${count})
       </button>`;
@@ -125,6 +128,7 @@ const ViolationTypesEditor = (() => {
     if (!body || !catalog) return;
 
     if (currentTab === 'active') renderActiveTab(body);
+    else if (currentTab === 'archive') renderArchiveTab(body);
     else renderMapTab(body);
   }
 
@@ -178,9 +182,53 @@ const ViolationTypesEditor = (() => {
         }
         ViolationTypes.archiveType(catalog, id);
         await saveCatalog('Вид перенесён в архив');
-        currentTab = 'map';
+        currentTab = 'archive';
         renderScreen();
       });
+    });
+  }
+
+  function renderArchiveTab(body) {
+    const items = filterByQuery(ViolationTypes.getArchivedTypes(catalog));
+    if (!items.length) {
+      body.innerHTML = `<p class="vt-empty">Архив пуст. Неактивные виды появятся здесь после переноса с вкладки «Активные» (кнопка 📦) или при импорте устаревших данных.</p>`;
+      return;
+    }
+
+    body.innerHTML = `
+      <table class="list-table">
+        <thead>
+          <tr>
+            <th>Устаревший вид</th>
+            <th style="width:100px;">В данных</th>
+            <th>Заменён на</th>
+            <th style="width:120px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items
+            .map((t) => {
+              const n = ViolationTypes.usageCount(catalog, t);
+              const mappedId = t.replacedBy || ViolationTypes.getMappings(catalog)[t.id] || '';
+              const mapped = ViolationTypes.findById(catalog, mappedId);
+              const status = ViolationTypes.isMappedToActive(catalog, t)
+                ? '<span class="vt-badge vt-badge--ok">настроено</span>'
+                : '<span class="vt-badge vt-badge--warn">требует сопоставления</span>';
+              return `<tr>
+                <td>${esc(t.title)} ${status}</td>
+                <td>${n || '—'}</td>
+                <td>${mapped ? esc(mapped.title) : '—'}</td>
+                <td class="btn-row">
+                  <button type="button" class="btn-secondary btn-sm" data-vt-goto-map="${esc(t.id)}">Сопоставить</button>
+                </td>
+              </tr>`;
+            })
+            .join('')}
+        </tbody>
+      </table>`;
+
+    body.querySelectorAll('[data-vt-goto-map]').forEach((btn) => {
+      btn.addEventListener('click', () => openSplitModal(btn.dataset.vtGotoMap));
     });
   }
 
@@ -189,7 +237,7 @@ const ViolationTypesEditor = (() => {
     const active = ViolationTypes.getActiveTypes(catalog);
 
     if (!archived.length) {
-      body.innerHTML = `<p class="vt-empty">Нет архивных видов для сопоставления. Перенесите вид в архив на вкладке «Активные» или импортируйте данные с устаревшими видами.</p>`;
+      body.innerHTML = `<p class="vt-empty">Нет архивных видов для сопоставления. Перенесите вид в архив на вкладке «Активные» (кнопка 📦) или откройте вкладку «Архив».</p>`;
       return;
     }
 
