@@ -16,6 +16,7 @@ const ViolationTypesEditor = (() => {
   let wizardMappings = new Map();
   let mapSelectedFrom = null;
   let mapSelectedTo = null;
+  let mapPinNewTypeId = null;
 
   function esc(s) {
     return AktUtils.escapeHtml(String(s ?? ''));
@@ -107,7 +108,9 @@ const ViolationTypesEditor = (() => {
       screenQuery = e.target.value;
       renderTabBody();
     });
-    document.getElementById('vtAddTypeBtn')?.addEventListener('click', () => handleAddType());
+    document.getElementById('vtAddTypeBtn')?.addEventListener('click', () => {
+      handleAddType({ forMapColumn: currentTab === 'map' || !!mapSelectedFrom });
+    });
     document.getElementById('vtRunWizardBtn')?.addEventListener('click', () => openWizard());
     host.querySelectorAll('[data-vt-tab]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -249,12 +252,20 @@ const ViolationTypesEditor = (() => {
     if (!mapSelectedFrom || !archived.some((t) => t.id === mapSelectedFrom)) {
       mapSelectedFrom = archived[0].id;
     }
+
+    if (mapPinNewTypeId) {
+      mapSelectedTo = mapPinNewTypeId;
+      mapPinNewTypeId = null;
+    }
+
     const fromType = ViolationTypes.findById(catalog, mapSelectedFrom);
-    if (!mapSelectedTo || !active.some((t) => t.id === mapSelectedTo)) {
+    const activeIds = new Set(active.map((t) => t.id));
+    if (!mapSelectedTo || !activeIds.has(mapSelectedTo)) {
       mapSelectedTo =
         fromType?.replacedBy ||
         ViolationTypes.getMappings(catalog)[mapSelectedFrom] ||
-        active[0].id;
+        active[0]?.id ||
+        null;
     }
 
     const toType = ViolationTypes.findById(catalog, mapSelectedTo);
@@ -292,11 +303,19 @@ const ViolationTypesEditor = (() => {
           <div class="vt-split-col vt-split-col--new">
             <h4>Новый активный вид</h4>
             <div id="vtInlineNewList">
-              ${active
+              ${[...active]
+                .sort((a, b) => {
+                  if (a.id === mapSelectedTo) return -1;
+                  if (b.id === mapSelectedTo) return 1;
+                  return a.title.localeCompare(b.title, 'ru');
+                })
                 .map(
                   (t) => `<button type="button" class="vt-type-item ${t.id === mapSelectedTo ? 'selected' : ''}" data-vt-to-item="${esc(t.id)}">
                     <div>${esc(t.title)}</div>
-                    <div class="vt-type-item__meta"><span class="vt-badge vt-badge--active">активен</span></div>
+                    <div class="vt-type-item__meta">
+                      <span class="vt-badge vt-badge--active">активен</span>
+                      ${t.id === mapSelectedTo ? '<span class="vt-badge vt-badge--ok">новый</span>' : ''}
+                    </div>
                   </button>`
                 )
                 .join('')}
@@ -327,7 +346,9 @@ const ViolationTypesEditor = (() => {
         renderMapTab(body);
       });
     });
-    body.querySelector('#vtInlineAddType')?.addEventListener('click', () => handleAddType({ stayOnMap: true }));
+    body.querySelector('#vtInlineAddType')?.addEventListener('click', () => {
+      handleAddType({ forMapColumn: true });
+    });
     body.querySelector('#vtInlineSaveMap')?.addEventListener('click', async () => {
       if (!mapSelectedFrom || !mapSelectedTo) return;
       ViolationTypes.setMapping(catalog, mapSelectedFrom, mapSelectedTo);
@@ -352,7 +373,7 @@ const ViolationTypesEditor = (() => {
     renderScreen();
   }
 
-  async function handleAddType({ stayOnMap = false } = {}) {
+  async function handleAddType({ forMapColumn = false } = {}) {
     const title = await GazpromToast.prompt('Название нового вида нарушения', '');
     if (title === null) return;
     const trimmed = String(title).trim();
@@ -360,13 +381,33 @@ const ViolationTypesEditor = (() => {
       GazpromToast.error('Введите название вида');
       return;
     }
+
     const created = ViolationTypes.addType(catalog, trimmed);
-    await saveCatalog('Вид добавлен');
-    if (stayOnMap && created) {
+    if (!created) return;
+
+    const useMapFlow = forMapColumn || currentTab === 'map' || !!mapSelectedFrom;
+
+    if (useMapFlow) {
+      mapPinNewTypeId = created.id;
       mapSelectedTo = created.id;
       currentTab = 'map';
+      if (mapSelectedFrom && mapSelectedFrom !== created.id) {
+        ViolationTypes.setMapping(catalog, mapSelectedFrom, created.id);
+        await saveCatalog('Новый вид создан и выбран для сопоставления');
+      } else {
+        await saveCatalog('Новый вид добавлен');
+      }
+    } else {
+      currentTab = 'active';
+      await saveCatalog('Вид добавлен');
     }
+
     renderScreen();
+    requestAnimationFrame(() => {
+      document
+        .querySelector('#vtInlineNewList .vt-type-item.selected')
+        ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
   }
 
   function openSplitModal(preselectFromId = null) {
