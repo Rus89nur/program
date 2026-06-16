@@ -39,6 +39,13 @@ const ViolationTypes = (() => {
     }));
   }
 
+  function mappingSeedTypes() {
+    return typeof ViolationTemplates !== 'undefined' &&
+      Array.isArray(ViolationTemplates.MAPPING_SEED_TYPES)
+      ? ViolationTemplates.MAPPING_SEED_TYPES
+      : [];
+  }
+
   function collectVidCounts(catalog) {
     const counts = new Map();
     const add = (value) => {
@@ -92,6 +99,27 @@ const ViolationTypes = (() => {
     return changed;
   }
 
+  function syncMappingSeedTypes(catalog) {
+    const seeds = mappingSeedTypes();
+    if (!seeds.length) return false;
+    const types = getTypes(catalog);
+    const existingTitles = new Set(types.map((t) => t.title));
+    let changed = false;
+    for (const title of seeds) {
+      const normalized = String(title || '').trim();
+      if (!normalized || existingTitles.has(normalized)) continue;
+      types.push({
+        id: AktUtils.uuid(),
+        title: normalized,
+        status: STATUS_PENDING,
+      });
+      existingTitles.add(normalized);
+      changed = true;
+    }
+    if (changed) catalog.violationTypes = types;
+    return changed;
+  }
+
   function ensureCatalog(catalog) {
     if (!catalog) return false;
     let changed = false;
@@ -105,6 +133,7 @@ const ViolationTypes = (() => {
       changed = true;
     }
 
+    if (syncMappingSeedTypes(catalog)) changed = true;
     if (syncOrphanVids(catalog)) changed = true;
     if (syncMappingsFromTypes(catalog)) changed = true;
 
