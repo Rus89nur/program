@@ -449,6 +449,10 @@ const GazpromUI = (() => {
     updateHeaderSync({ busy: true });
     try {
       const data = await GazpromStore.get();
+      if (typeof ViolationTypes !== 'undefined' && ViolationTypes.ensureCatalog(data)) {
+        await GazpromStore.set(data);
+        GazpromStore.invalidateCache();
+      }
       renderDataStatus(data);
       renderHome(data);
       renderHistory(data);

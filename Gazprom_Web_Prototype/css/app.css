@@ -6795,6 +6795,12 @@
       color: var(--text-muted);
       font-size: 14px;
     }
+    .vt-empty--inline {
+      padding: 12px;
+      text-align: left;
+      font-size: 13px;
+      line-height: 1.5;
+    }
     .vt-footer-actions {
       display: flex;
       flex-wrap: wrap;

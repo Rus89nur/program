@@ -18,6 +18,7 @@ function loadModules() {
     },
     ViolationTemplates: {
       VIOLATION_TYPES: ['Пожарная безопасность', 'Пожароопасные работы', 'Электробезопасность'],
+      MAPPING_SEED_TYPES: ['Новый вид Smart Forms', 'Ещё один новый вид'],
     },
   };
   vm.createContext(ctx);
@@ -36,8 +37,9 @@ describe('ViolationTypes', () => {
   it('ensureCatalog создаёт типы из шаблона', () => {
     const catalog = { akts: [] };
     VT.ensureCatalog(catalog);
-    expect(catalog.violationTypes.length).toBe(3);
-    expect(catalog.violationTypes.every((t) => t.status === 'active')).toBe(true);
+    expect(catalog.violationTypes.length).toBe(5);
+    expect(VT.getActiveTypes(catalog).length).toBe(3);
+    expect(VT.getPendingTypes(catalog).length).toBe(2);
   });
 
   it('resolveVid следует цепочке replacedBy', () => {
@@ -111,13 +113,15 @@ describe('ViolationTypes', () => {
     const catalog = {
       akts: [],
       violationTypes: [
-        { id: 'a1', title: 'Лишний', status: 'pending' },
+        { id: 'a1', title: 'Лишний уникальный вид', status: 'pending' },
       ],
       typeMappings: {},
     };
+    VT.ensureCatalog(catalog);
+    const before = catalog.violationTypes.length;
     const r = VT.deleteType(catalog, 'a1');
     expect(r.ok).toBe(true);
-    expect(catalog.violationTypes).toHaveLength(0);
+    expect(catalog.violationTypes).toHaveLength(before - 1);
   });
 
   it('restoreType возвращает вид из архива в активные', () => {

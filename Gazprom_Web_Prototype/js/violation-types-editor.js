@@ -76,13 +76,17 @@ const ViolationTypesEditor = (() => {
       const count =
         tab.key === 'active'
           ? ViolationTypes.getActiveTypes(catalog).length
-          : ViolationTypes.getArchivedTypes(catalog).length;
+          : tab.key === 'archive'
+            ? ViolationTypes.getArchivedTypes(catalog).length
+            : ViolationTypes.getPendingTypes(catalog).length;
       const warn =
-        tab.key === 'map' && ViolationTypes.getUnmappedArchived(catalog).length > 0
+        tab.key === 'map' && ViolationTypes.getPendingTypes(catalog).length > 0
           ? ' vt-tab--warn'
-          : tab.key === 'archive' && ViolationTypes.getUnmappedArchived(catalog).length > 0
+          : tab.key === 'map' && ViolationTypes.getUnmappedArchived(catalog).length > 0
             ? ' vt-tab--warn'
-            : '';
+            : tab.key === 'archive' && ViolationTypes.getUnmappedArchived(catalog).length > 0
+              ? ' vt-tab--warn'
+              : '';
       return `<button type="button" class="vt-tab${currentTab === tab.key ? ' active' : ''}${warn}" data-vt-tab="${tab.key}">
         ${esc(tab.label)} (${count})
       </button>`;
@@ -311,14 +315,19 @@ const ViolationTypesEditor = (() => {
   function renderMapTab(body) {
     const archived = filterByQuery(ViolationTypes.getArchivedTypes(catalog));
     const mapTargets = filterByQuery(ViolationTypes.getMapTargetTypes(catalog));
+    const pendingCount = ViolationTypes.getPendingTypes(catalog).length;
 
-    if (!archived.length) {
-      body.innerHTML = `<p class="vt-empty">Нет архивных видов для сопоставления. Перенесите вид в архив на вкладке «Активные» (кнопка 📦) или откройте вкладку «Архив».</p>`;
+    if (!archived.length && !pendingCount) {
+      body.innerHTML = `<p class="vt-empty">Нет архивных видов для сопоставления. Перенесите вид в архив на вкладке «Активные» (кнопка 📦) или откройте вкладку «Архив». Новые виды для привязки добавляйте кнопкой «+ Новый вид».</p>`;
       return;
     }
 
-    if (!mapSelectedFrom || !archived.some((t) => t.id === mapSelectedFrom)) {
-      mapSelectedFrom = archived[0].id;
+    if (archived.length) {
+      if (!mapSelectedFrom || !archived.some((t) => t.id === mapSelectedFrom)) {
+        mapSelectedFrom = archived[0].id;
+      }
+    } else {
+      mapSelectedFrom = null;
     }
 
     if (mapPinNewTypeId) {
@@ -326,12 +335,12 @@ const ViolationTypesEditor = (() => {
       mapPinNewTypeId = null;
     }
 
-    const fromType = ViolationTypes.findById(catalog, mapSelectedFrom);
+    const fromType = mapSelectedFrom ? ViolationTypes.findById(catalog, mapSelectedFrom) : null;
     const targetIds = new Set(mapTargets.map((t) => t.id));
     if (!mapSelectedTo || !targetIds.has(mapSelectedTo)) {
       mapSelectedTo =
         fromType?.replacedBy ||
-        ViolationTypes.getMappings(catalog)[mapSelectedFrom] ||
+        (mapSelectedFrom ? ViolationTypes.getMappings(catalog)[mapSelectedFrom] : null) ||
         mapTargets.find((t) => t.status === ViolationTypes.STATUS_PENDING)?.id ||
         mapTargets[0]?.id ||
         null;
@@ -344,29 +353,34 @@ const ViolationTypesEditor = (() => {
         ? usageN > 0
           ? `Отчёт «Виды выявленных нарушений»: +${usageN} к «${toType.title}»`
           : 'В данных нет записей с этим видом'
-        : '';
+        : pendingCount && !archived.length
+          ? `Загружено ${pendingCount} новых видов. Слева появятся архивные виды после переноса из «Активные».`
+          : '';
+    const canSaveMap = !!(mapSelectedFrom && mapSelectedTo);
+
+    const archivedListHtml = archived.length
+      ? archived
+          .map((t) => {
+            const n = ViolationTypes.usageCount(catalog, t);
+            const mapped = ViolationTypes.isMappedToActive(catalog, t);
+            return `<button type="button" class="vt-type-item ${t.id === mapSelectedFrom ? 'selected' : ''}" data-vt-from-item="${esc(t.id)}">
+              <div>${esc(t.title)}</div>
+              <div class="vt-type-item__meta">
+                <span class="vt-badge vt-badge--archived">архив</span>
+                ${mapped ? '<span class="vt-badge vt-badge--ok">настроено</span>' : '<span class="vt-badge vt-badge--warn">нет пары</span>'}
+                ${n ? `<span class="vt-badge vt-badge--count">${n} зап.</span>` : ''}
+              </div>
+            </button>`;
+          })
+          .join('')
+      : `<p class="vt-empty vt-empty--inline">Пока нет архивных видов. Перенесите устаревший вид в архив (вкладка «Активные», кнопка 📦), затем выберите его здесь для привязки.</p>`;
 
     body.innerHTML = `
       <div class="vt-split-inline">
         <div class="vt-split-body">
           <div class="vt-split-col vt-split-col--old">
             <h4>Устаревший вид</h4>
-            <div id="vtInlineOldList">
-              ${archived
-                .map((t) => {
-                  const n = ViolationTypes.usageCount(catalog, t);
-                  const mapped = ViolationTypes.isMappedToActive(catalog, t);
-                  return `<button type="button" class="vt-type-item ${t.id === mapSelectedFrom ? 'selected' : ''}" data-vt-from-item="${esc(t.id)}">
-                    <div>${esc(t.title)}</div>
-                    <div class="vt-type-item__meta">
-                      <span class="vt-badge vt-badge--archived">архив</span>
-                      ${mapped ? '<span class="vt-badge vt-badge--ok">настроено</span>' : '<span class="vt-badge vt-badge--warn">нет пары</span>'}
-                      ${n ? `<span class="vt-badge vt-badge--count">${n} зап.</span>` : ''}
-                    </div>
-                  </button>`;
-                })
-                .join('')}
-            </div>
+            <div id="vtInlineOldList">${archivedListHtml}</div>
           </div>
           <div class="vt-split-arrow" aria-hidden="true">→</div>
           <div class="vt-split-col vt-split-col--new">
@@ -398,14 +412,14 @@ const ViolationTypesEditor = (() => {
                       </div>`;
                     })
                     .join('')
-                : `<p class="vt-empty" style="padding:12px;">Нажмите «+ Новый вид» — он появится здесь для привязки к выбранному архивному виду слева.</p>`}
+                : `<p class="vt-empty vt-empty--inline">Нажмите «+ Новый вид» — он появится здесь для привязки к выбранному архивному виду слева.</p>`}
             </div>
             <button type="button" class="btn-primary btn-sm vt-split-add-new" id="vtInlineAddType">+ Новый вид</button>
           </div>
         </div>
         ${previewText ? `<div class="vt-split-preview">${esc(previewText)}</div>` : ''}
         <div class="vt-footer-actions">
-          <button type="button" class="btn-primary" id="vtInlineSaveMap">Сохранить соответствие</button>
+          <button type="button" class="btn-primary" id="vtInlineSaveMap" ${canSaveMap ? '' : 'disabled'}>Сохранить соответствие</button>
           <button type="button" class="btn-secondary" id="vtMigrateData">Применить ко всем данным</button>
         </div>
       </div>`;
@@ -674,6 +688,13 @@ const ViolationTypesEditor = (() => {
 
   async function renderScreen() {
     await loadCatalog();
+    if (
+      currentTab === 'active' &&
+      ViolationTypes.getPendingTypes(catalog).length > 0 &&
+      ViolationTypes.getArchivedTypes(catalog).length === 0
+    ) {
+      currentTab = 'map';
+    }
     renderHeader();
     renderTabBody();
   }
