@@ -39,38 +39,19 @@ const ReportsDashboard = (() => {
     return String(a || '').toLowerCase() === String(b || '').toLowerCase();
   }
 
-  function eliminationDeadline(e) {
-    const history = AktUtils.extensionDeadlineHistory(e.deadlineHistory);
-    if (history.length > 0) {
-      const sorted = [...history].sort(
-        (a, b) =>
-          new Date(b.changeDate || b.changedAt || 0).getTime() -
-          new Date(a.changeDate || a.changedAt || 0).getTime()
-      );
-      return sorted[0]?.deadlineDate;
-    }
-    return e?.newEliminationDate || e?.originalEliminationDate || null;
+  function eliminationDeadline(el, akt) {
+    return AktUtils.getViolationEliminationDeadline(el, akt);
   }
 
-  function isEliminationOverdue(e) {
-    if (!e || e.isEliminated) return false;
-    const deadline = eliminationDeadline(e);
-    if (!deadline) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const d = new Date(deadline);
-    if (Number.isNaN(d.getTime())) return false;
-    d.setHours(0, 0, 0, 0);
-    return today >= d;
+  function isEliminationOverdue(el, akt) {
+    return AktUtils.isViolationEliminationOverdue(el, akt);
   }
 
   function classifyViolation(el, akt) {
     if (el?.isEliminated) return 'done';
-    const deadline = el ? eliminationDeadline(el) : AktUtils.getEliminationDeadline(akt);
+    const deadline = eliminationDeadline(el, akt);
     if (!deadline) return 'nodeadline';
-    if (isEliminationOverdue(el || { isEliminated: false, originalEliminationDate: deadline })) {
-      return 'overdue';
-    }
+    if (isEliminationOverdue(el, akt)) return 'overdue';
     return 'ontime';
   }
 
@@ -317,9 +298,7 @@ const ReportsDashboard = (() => {
       const org = getOrgTitle(akt, data);
       const obj = getObjectTitle(akt);
       for (const v of akt.violations || []) {
-        const el = eliminations.find(
-          (e) => aktIdMatch(e.aktId, akt.id) && e.violationId === v.id
-        );
+        const el = AktUtils.findViolationElimination(eliminations, akt.id, v.id);
         rows.push({
           violation: v,
           akt,

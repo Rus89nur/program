@@ -1,19 +1,19 @@
-const CACHE_NAME = 'gazprom-web-v192';
+const CACHE_NAME = 'gazprom-web-v195';
 const IS_LOCALHOST = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
 const STATIC_ASSETS = [
   './manifest.json',
-  './css/app.css?v=165',
+  './css/app.css?v=166',
   './js/idb-connection.js?v=21',
   './js/data-store.js?v=26',
   './js/photo-store.js?v=31',
-  './js/akt-utils.js?v=29',
+  './js/akt-utils.js?v=30',
   './js/toast.js',
   './js/mobile-overlay.js?v=34',
   './js/violation-search.js?v=3',
   './js/violation-templates.js?v=21',
   './js/violation-types.js?v=6',
   './js/violation-types-editor.js?v=12',
-  './js/defaults-bootstrap.js?v=6',
+  './js/defaults-bootstrap.js?v=7',
   './js/violation-registry.js?v=13',
   './js/catalog-service.js',
   './js/backup-import.js?v=30',
@@ -21,14 +21,14 @@ const STATIC_ASSETS = [
   './js/ui-bindings.js?v=32',
   './js/catalog-editor.js?v=13',
   './js/schedule-editor.js?v=2',
-  './js/elimination-editor.js?v=8',
+  './js/elimination-editor.js?v=9',
   './js/wizard-modals.js?v=43',
-  './js/wizard.js?v=56',
-  './js/short-akt-form.js?v=3',
-  './js/doc-generator.js?v=36',
+  './js/wizard.js?v=57',
+  './js/short-akt-form.js?v=4',
+  './js/doc-generator.js?v=37',
   './js/report-exporter.js?v=2',
-  './js/reports-dashboard.js?v=12',
-  './js/app.js?v=142',
+  './js/reports-dashboard.js?v=13',
+  './js/app.js?v=145',
   './assets/sample-demo.gazprombackup',
   './assets/defaults/manifest.json',
   './assets/defaults/violation-registry.json',
@@ -68,10 +68,6 @@ self.addEventListener('activate', (event) => {
         keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
       ))
       .then(() => self.clients.claim())
-      .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
-      .then((clients) => {
-        clients.forEach((client) => client.postMessage({ type: 'SW_ACTIVATED' }));
-      })
   );
 });
 

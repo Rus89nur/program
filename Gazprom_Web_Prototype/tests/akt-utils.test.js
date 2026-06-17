@@ -141,6 +141,30 @@ describe('AktUtils', () => {
     expect(AktUtils.getEliminationDeadline(akt)).toBe('2026-07-01T00:00:00.000Z');
   });
 
+  it('getViolationEliminationDeadline prefers akt date over stale record', () => {
+    const akt = {
+      violations: [{ id: 'v1', title: 'Test' }],
+      actustranenDate: '2026-12-31T00:00:00.000Z',
+      date: '2026-06-01T00:00:00.000Z',
+    };
+    const el = {
+      isEliminated: false,
+      originalEliminationDate: '2026-06-01T00:00:00.000Z',
+      deadlineHistory: [],
+    };
+    expect(AktUtils.getViolationEliminationDeadline(el, akt)).toBe('2026-12-31T00:00:00.000Z');
+    expect(AktUtils.isViolationEliminationOverdue(el, akt)).toBe(false);
+  });
+
+  it('findViolationElimination prefers eliminated duplicate', () => {
+    const list = [
+      { id: 'a', aktId: 'akt-1', violationId: 'v1', isEliminated: false },
+      { id: 'b', aktId: 'akt-1', violationId: 'v1', isEliminated: true, eliminationDate: '2026-01-01T00:00:00.000Z' },
+    ];
+    const found = AktUtils.findViolationElimination(list, 'akt-1', 'v1');
+    expect(found?.id).toBe('b');
+  });
+
   it('buildShortViolations creates prefixed rows', () => {
     const list = AktUtils.buildShortViolations({ 'Работы на высоте': 2 });
     expect(list).toHaveLength(2);

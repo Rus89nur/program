@@ -148,7 +148,7 @@ const EliminationEditor = (() => {
     const el = detailState.eliminations.find((e) => e.violationId === violationId);
     if (!v) return;
     const done = el?.isEliminated;
-    const overdue = el && isEliminationOverdue(el);
+    const overdue = el && isEliminationOverdue(el, detailState.akt);
     row.classList.toggle('elimination-violation-row--selected', false);
     const titleEl = row.querySelector('.elimination-violation-row__title');
     if (titleEl) {
@@ -162,7 +162,7 @@ const EliminationEditor = (() => {
     }
     const deadlineEl = row.querySelector('.elimination-violation-row__deadline');
     if (deadlineEl) {
-      const deadline = el ? eliminationDeadline(el) : null;
+      const deadline = el ? eliminationDeadline(el, detailState.akt) : null;
       if (deadline) {
         deadlineEl.className = `elimination-violation-row__deadline${overdue ? ' elimination-violation-row__deadline--overdue' : ''}`;
         deadlineEl.innerHTML = `Срок: ${AktUtils.formatDateShort(deadline)}${overdue ? '<span class="elimination-violation-row__overdue-badge">ПРОСРОЧЕНО</span>' : ''}`;
@@ -177,29 +177,12 @@ const EliminationEditor = (() => {
     return String(a || '').toLowerCase() === String(b || '').toLowerCase();
   }
 
-  function eliminationDeadline(e) {
-    const history = AktUtils.extensionDeadlineHistory(e.deadlineHistory);
-    if (history.length > 0) {
-      const sorted = [...history].sort(
-        (a, b) =>
-          new Date(b.changeDate || b.changedAt || 0).getTime() -
-          new Date(a.changeDate || a.changedAt || 0).getTime()
-      );
-      return sorted[0]?.deadlineDate;
-    }
-    return e.newEliminationDate || e.originalEliminationDate;
+  function eliminationDeadline(el, akt) {
+    return AktUtils.getViolationEliminationDeadline(el, akt);
   }
 
-  function isEliminationOverdue(e) {
-    if (e.isEliminated) return false;
-    const deadline = eliminationDeadline(e);
-    if (!deadline) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const d = new Date(deadline);
-    if (Number.isNaN(d.getTime())) return false;
-    d.setHours(0, 0, 0, 0);
-    return today >= d;
+  function isEliminationOverdue(el, akt) {
+    return AktUtils.isViolationEliminationOverdue(el, akt);
   }
 
   function violationsLabel(count) {
@@ -223,27 +206,36 @@ const EliminationEditor = (() => {
     const allEliminations = data.violationEliminations || [];
 
     let items = akts.map((akt) => {
-      const violationIds = new Set((akt.violations || []).map((v) => v.id));
-      const eliminations = allEliminations.filter(
-        (e) => aktIdMatch(e.aktId, akt.id) && violationIds.has(e.violationId)
-      );
+      const violations = akt.violations || [];
+      const totalViolations = violations.length;
+      let eliminatedViolations = 0;
+      let overdueCount = 0;
+      let onTimeCount = 0;
 
-      const totalViolations = (akt.violations || []).length;
-      const eliminatedViolations = eliminations.filter((e) => e.isEliminated).length;
-      const overdueCount = eliminations.filter((e) => isEliminationOverdue(e)).length;
-      const onTimeCount = eliminations.filter(
-        (e) => !e.isEliminated && !isEliminationOverdue(e)
-      ).length;
+      const uneliminatedDeadlines = [];
+      for (const v of violations) {
+        const el = AktUtils.findViolationElimination(allEliminations, akt.id, v.id);
+        if (el?.isEliminated) {
+          eliminatedViolations += 1;
+          continue;
+        }
+        const deadline = AktUtils.getViolationEliminationDeadline(el, akt);
+        if (deadline) uneliminatedDeadlines.push(deadline);
+        if (AktUtils.isViolationEliminationOverdue(el, akt)) overdueCount += 1;
+        else onTimeCount += 1;
+      }
 
-      const uneliminated = eliminations.filter((e) => !e.isEliminated);
-      const deadlines = uneliminated.map((e) => eliminationDeadline(e)).filter(Boolean);
-      let earliestDeadline = minDeadline(deadlines);
+      let earliestDeadline = minDeadline(uneliminatedDeadlines);
       if (!earliestDeadline && totalViolations > 0) {
         earliestDeadline = AktUtils.getEliminationDeadline(akt);
       }
 
       const allEliminated =
         totalViolations > 0 && eliminatedViolations === totalViolations;
+
+      const eliminations = violations
+        .map((v) => AktUtils.findViolationElimination(allEliminations, akt.id, v.id))
+        .filter(Boolean);
 
       return {
         aktId: akt.id,
@@ -481,6 +473,12 @@ const EliminationEditor = (() => {
   }
 
   function render(data) {
+    let synced = false;
+    for (const akt of data.akts || []) {
+      if (AktUtils.syncViolationEliminationsForAkt(data, akt)) synced = true;
+    }
+    if (synced) schedulePersist(data);
+
     const items = buildEliminationItems(data);
     renderYearPills(data);
     renderStats(items);
@@ -490,45 +488,12 @@ const EliminationEditor = (() => {
   }
 
   function ensureEliminationsForAkt(catalog, akt) {
-    const list = [...(catalog.violationEliminations || [])];
-    let changed = false;
+    const changed = AktUtils.syncViolationEliminationsForAkt(catalog, akt);
     const violationIds = new Set((akt.violations || []).map((v) => v.id));
-    const aktDeadline = AktUtils.getEliminationDeadline(akt);
-
-    for (let i = 0; i < list.length; i++) {
-      if (!aktIdMatch(list[i].aktId, akt.id) || !violationIds.has(list[i].violationId)) continue;
-      const cleaned = AktUtils.extensionDeadlineHistory(list[i].deadlineHistory);
-      if (cleaned.length !== (list[i].deadlineHistory || []).length) {
-        list[i] = { ...list[i], deadlineHistory: cleaned };
-        changed = true;
-      }
-    }
-
-    for (const v of akt.violations || []) {
-      const exists = list.find(
-        (e) => aktIdMatch(e.aktId, akt.id) && e.violationId === v.id
-      );
-      if (!exists) {
-        list.push({
-          id: AktUtils.uuid(),
-          aktId: akt.id,
-          aktNumber: akt.number,
-          violationId: v.id,
-          violationTitle: v.title,
-          isEliminated: false,
-          originalEliminationDate: aktDeadline,
-          deadlineHistory: [],
-        });
-        changed = true;
-      }
-    }
-    if (changed) catalog.violationEliminations = list;
-    return {
-      changed,
-      eliminations: list.filter(
-        (e) => aktIdMatch(e.aktId, akt.id) && violationIds.has(e.violationId)
-      ),
-    };
+    const eliminations = (catalog.violationEliminations || []).filter(
+      (e) => aktIdMatch(e.aktId, akt.id) && violationIds.has(e.violationId)
+    );
+    return { changed, eliminations };
   }
 
   async function toggleAllForAkt(aktId, shouldEliminate) {
@@ -611,7 +576,7 @@ const EliminationEditor = (() => {
 
   function renderDetailViolations() {
     if (!detailState) return;
-    const { violations, eliminations, selectionMode, selectedIds } = detailState;
+    const { violations, eliminations, selectionMode, selectedIds, akt } = detailState;
     const body = document.getElementById('elimDetailBody');
     if (!body) return;
 
@@ -626,7 +591,7 @@ const EliminationEditor = (() => {
       .map((v, index) => {
         const el = eliminations.find((e) => e.violationId === v.id);
         const done = el?.isEliminated;
-        const overdue = el && isEliminationOverdue(el);
+        const overdue = el && isEliminationOverdue(el, akt);
         const selected = selectedIds.has(v.id);
         const rowClass = [
           'elimination-violation-row',
@@ -640,7 +605,7 @@ const EliminationEditor = (() => {
         else if (overdue) titleClass += ' elimination-violation-row__title--overdue';
 
         const statusIcon = done ? '✅' : overdue ? '⚠️' : '❌';
-        const deadline = el ? eliminationDeadline(el) : null;
+        const deadline = el ? eliminationDeadline(el, akt) : null;
         const deadlineLine = deadline
           ? `<div class="elimination-violation-row__deadline${overdue ? ' elimination-violation-row__deadline--overdue' : ''}">Срок: ${AktUtils.formatDateShort(deadline)}${overdue ? '<span class="elimination-violation-row__overdue-badge">ПРОСРОЧЕНО</span>' : ''}</div>`
           : '<div class="elimination-violation-row__deadline">Срок не установлен</div>';
@@ -668,7 +633,7 @@ const EliminationEditor = (() => {
     const eliminated = eliminations.filter((e) => e.isEliminated).length;
     const total = (akt.violations || []).length;
     const allDone = total > 0 && eliminated === total;
-    const hasOverdue = eliminations.some((e) => isEliminationOverdue(e));
+    const hasOverdue = eliminations.some((e) => isEliminationOverdue(e, akt));
 
     const countEl = document.getElementById('elimDetailCount');
     if (countEl) {
@@ -680,7 +645,7 @@ const EliminationEditor = (() => {
 
     const deadlines = eliminations
       .filter((e) => !e.isEliminated)
-      .map((e) => eliminationDeadline(e))
+      .map((e) => eliminationDeadline(e, akt))
       .filter(Boolean);
     let earliest = minDeadline(deadlines) || item.earliestDeadline;
 
@@ -886,7 +851,7 @@ const EliminationEditor = (() => {
     let extendedCount = 0;
     catalog.violationEliminations = (catalog.violationEliminations || []).map((e) => {
       if (!aktIdMatch(e.aktId, akt.id) || !selectedIds.has(e.violationId)) return e;
-      const prevDeadline = eliminationDeadline(e);
+      const prevDeadline = eliminationDeadline(e, akt);
       if (AktUtils.sameDeadlineDay(prevDeadline, newIso)) return e;
       extendedCount += 1;
       const history = AktUtils.extensionDeadlineHistory(e.deadlineHistory);

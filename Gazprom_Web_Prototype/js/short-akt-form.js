@@ -59,50 +59,7 @@ const ShortAktForm = (() => {
   }
 
   function syncEliminations(catalog, akt) {
-    const deadline = AktUtils.getEliminationDeadline(akt);
-    const list = [...(catalog.violationEliminations || [])];
-    const violationIds = new Set((akt.violations || []).map((v) => v.id));
-    let changed = false;
-
-    for (const v of akt.violations || []) {
-      const idx = list.findIndex(
-        (e) => String(e.aktId) === String(akt.id) && e.violationId === v.id
-      );
-      if (idx < 0) {
-        list.push({
-          id: AktUtils.uuid(),
-          aktId: akt.id,
-          aktNumber: akt.number,
-          violationId: v.id,
-          violationTitle: v.title,
-          isEliminated: false,
-          originalEliminationDate: deadline,
-          deadlineHistory: [],
-        });
-        changed = true;
-        continue;
-      }
-      const entry = list[idx];
-      if (deadline && entry.originalEliminationDate !== deadline) {
-        const history = AktUtils.extensionDeadlineHistory(entry.deadlineHistory);
-        list[idx] = {
-          ...entry,
-          violationTitle: v.title,
-          originalEliminationDate: deadline,
-          deadlineHistory: history,
-        };
-        changed = true;
-      }
-    }
-
-    const filtered = list.filter((e) => {
-      if (String(e.aktId) !== String(akt.id)) return true;
-      return violationIds.has(e.violationId);
-    });
-    if (filtered.length !== list.length) changed = true;
-
-    if (changed) catalog.violationEliminations = filtered;
-    return changed;
+    return AktUtils.syncViolationEliminationsForAkt(catalog, akt);
   }
 
   function buildFormHtml(catalog, akt) {

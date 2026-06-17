@@ -1650,6 +1650,8 @@ const WizardController = (() => {
       if (idx >= 0) catalog.akts[idx] = draftCopy;
       else catalog.akts = [...(catalog.akts || []), draftCopy];
 
+      AktUtils.syncViolationEliminationsForAkt(catalog, draftCopy);
+
       await GazpromStore.saveWizardDraft(draftCopy, reference);
       draft = draftCopy;
     });

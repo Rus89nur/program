@@ -120,6 +120,117 @@ const AktUtils = (() => {
     return null;
   }
 
+  function aktIdMatch(a, b) {
+    return String(a || '').toLowerCase() === String(b || '').toLowerCase();
+  }
+
+  /** Лучшая запись устранения при дубликатах (импорт / повторное создание). */
+  function findViolationElimination(eliminations, aktId, violationId) {
+    const matches = (eliminations || []).filter(
+      (e) => aktIdMatch(e.aktId, aktId) && e.violationId === violationId
+    );
+    if (!matches.length) return null;
+    if (matches.length === 1) return matches[0];
+    return matches.sort((a, b) => {
+      if (!!a.isEliminated !== !!b.isEliminated) return a.isEliminated ? -1 : 1;
+      const ta = new Date(a.eliminatedAt || a.eliminationDate || 0).getTime();
+      const tb = new Date(b.eliminatedAt || b.eliminationDate || 0).getTime();
+      return tb - ta;
+    })[0];
+  }
+
+  /**
+   * Актуальный срок по нарушению: продления из истории, иначе срок из акта
+   * (чтобы отчёты не показывали просрочку после изменения даты в мастере).
+   */
+  function getViolationEliminationDeadline(el, akt) {
+    const aktDeadline = getEliminationDeadline(akt);
+    if (!el) return aktDeadline;
+    const history = extensionDeadlineHistory(el.deadlineHistory);
+    if (history.length > 0) {
+      const sorted = [...history].sort(
+        (a, b) =>
+          new Date(b.changeDate || b.changedAt || 0).getTime() -
+          new Date(a.changeDate || a.changedAt || 0).getTime()
+      );
+      return sorted[0]?.deadlineDate || aktDeadline;
+    }
+    if (el.newEliminationDate) return el.newEliminationDate;
+    return aktDeadline || el.originalEliminationDate || null;
+  }
+
+  function isViolationEliminationOverdue(el, akt) {
+    if (el?.isEliminated) return false;
+    const deadline = getViolationEliminationDeadline(el, akt);
+    if (!deadline) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const d = new Date(deadline);
+    if (Number.isNaN(d.getTime())) return false;
+    d.setHours(0, 0, 0, 0);
+    return today >= d;
+  }
+
+  /** Создать / обновить / дедуплицировать записи устранения для акта. */
+  function syncViolationEliminationsForAkt(catalog, akt) {
+    if (!catalog || !akt) return false;
+    const deadline = getEliminationDeadline(akt);
+    const all = catalog.violationEliminations || [];
+    const violationIds = new Set((akt.violations || []).map((v) => v.id));
+    const others = all.filter((e) => !aktIdMatch(e.aktId, akt.id));
+    const aktRecords = all.filter(
+      (e) => aktIdMatch(e.aktId, akt.id) && violationIds.has(e.violationId)
+    );
+    const deduped = new Map();
+    for (const e of aktRecords) {
+      const prev = deduped.get(e.violationId);
+      deduped.set(
+        e.violationId,
+        prev ? findViolationElimination([prev, e], akt.id, e.violationId) : e
+      );
+    }
+    let changed =
+      aktRecords.length !== deduped.size ||
+      all.length !== others.length + aktRecords.length;
+
+    const next = [...others];
+    for (const v of akt.violations || []) {
+      let entry = deduped.get(v.id);
+      if (!entry) {
+        next.push({
+          id: uuid(),
+          aktId: akt.id,
+          aktNumber: akt.number,
+          violationId: v.id,
+          violationTitle: v.title,
+          isEliminated: false,
+          originalEliminationDate: deadline,
+          deadlineHistory: [],
+        });
+        changed = true;
+        continue;
+      }
+      const hasExtension =
+        extensionDeadlineHistory(entry.deadlineHistory).length > 0 || entry.newEliminationDate;
+      const cleaned = extensionDeadlineHistory(entry.deadlineHistory);
+      let updated = {
+        ...entry,
+        violationTitle: v.title,
+        deadlineHistory: cleaned.length !== (entry.deadlineHistory || []).length ? cleaned : entry.deadlineHistory,
+      };
+      if (deadline && !hasExtension && !sameDeadlineDay(entry.originalEliminationDate, deadline)) {
+        updated = { ...updated, originalEliminationDate: deadline };
+        changed = true;
+      }
+      if (updated.violationTitle !== entry.violationTitle) changed = true;
+      if (updated.deadlineHistory !== entry.deadlineHistory) changed = true;
+      next.push(updated);
+    }
+
+    if (changed) catalog.violationEliminations = next;
+    return changed;
+  }
+
   function parseShortViolationCounts(akt) {
     const counts = {};
     SHORT_VIOLATION_TYPES.forEach((t) => {
@@ -477,6 +588,11 @@ const AktUtils = (() => {
     getFormatKind,
     formatKindLabel,
     getEliminationDeadline,
+    aktIdMatch,
+    findViolationElimination,
+    getViolationEliminationDeadline,
+    isViolationEliminationOverdue,
+    syncViolationEliminationsForAkt,
     extensionDeadlineHistory,
     sameDeadlineDay,
     parseShortViolationCounts,
