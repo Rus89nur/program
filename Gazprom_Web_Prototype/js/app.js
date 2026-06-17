@@ -35,6 +35,7 @@ function goTo(screenId, options = {}) {
   }
 
   if (screenId === 'home' && tryApplySwUpdate()) return;
+  if (screenId === 'settings' && tryApplySwUpdate()) return;
 
   const wasWizard = document.getElementById('screen-wizard')?.classList.contains('active');
   document.documentElement.classList.add('gazprom-navigated');
@@ -96,6 +97,12 @@ function bindHeaderSync() {
 
 let backupImportInProgress = false;
 let swUpdatePending = false;
+let pendingRemoteBuild = null;
+let swReloadArmed = false;
+
+const UPDATE_TARGET_KEY = 'gazprom-update-target';
+const UPDATE_ATTEMPTS_KEY = 'gazprom-update-attempts';
+const MAX_SILENT_UPDATE_ATTEMPTS = 3;
 
 function hasEditingOverlay() {
   if (window.__gazpromSavingViolation) return true;
@@ -114,19 +121,46 @@ function shouldDeferAppReload() {
   return typeof WizardController?.isDirty === 'function' && WizardController.isDirty();
 }
 
-function markSwUpdatePending(remoteBuild = null) {
-  if (remoteBuild) updateSettingsUpdateBanner(remoteBuild);
-  if (swUpdatePending) return;
-  swUpdatePending = true;
-  if (typeof GazpromToast !== 'undefined') {
-    const local = window.GAZPROM_ASSET_V || '?';
-    const remote = remoteBuild || '?';
-    GazpromToast.info(
-      remoteBuild
-        ? `Доступна web-${remote} (у вас web-${local}). Настройки → «Обновить приложение».`
-        : 'Доступна новая версия. Откройте «Настройки» → «Обновить приложение» или перезагрузите страницу.'
-    );
+function clearSilentUpdateState() {
+  try {
+    sessionStorage.removeItem(UPDATE_TARGET_KEY);
+    sessionStorage.removeItem(UPDATE_ATTEMPTS_KEY);
+    sessionStorage.removeItem('gazprom-reload-guard');
+  } catch {
+    /* ignore */
   }
+}
+
+function canSilentUpdateTo(remoteBuild) {
+  try {
+    const target = sessionStorage.getItem(UPDATE_TARGET_KEY);
+    const attempts = parseInt(sessionStorage.getItem(UPDATE_ATTEMPTS_KEY) || '0', 10);
+    if (target === remoteBuild && attempts >= MAX_SILENT_UPDATE_ATTEMPTS) return false;
+  } catch {
+    /* ignore */
+  }
+  return true;
+}
+
+function markSilentUpdateAttempt(remoteBuild) {
+  try {
+    const target = sessionStorage.getItem(UPDATE_TARGET_KEY);
+    const attempts = target === remoteBuild
+      ? parseInt(sessionStorage.getItem(UPDATE_ATTEMPTS_KEY) || '0', 10) + 1
+      : 1;
+    sessionStorage.setItem(UPDATE_TARGET_KEY, remoteBuild);
+    sessionStorage.setItem(UPDATE_ATTEMPTS_KEY, String(attempts));
+  } catch {
+    /* ignore */
+  }
+}
+
+function markSwUpdatePending(remoteBuild = null) {
+  if (remoteBuild) {
+    pendingRemoteBuild = remoteBuild;
+    updateSettingsUpdateBanner(remoteBuild);
+  }
+  swUpdatePending = true;
 }
 
 function updateSettingsUpdateBanner(remoteBuild) {
@@ -137,7 +171,7 @@ function updateSettingsUpdateBanner(remoteBuild) {
     box.classList.add('settings-app-update--stale');
     if (avail) {
       avail.hidden = false;
-      avail.textContent = `На сайте доступна сборка web-${remoteBuild}. Нажмите «Обновить приложение».`;
+      avail.textContent = `Обновление до web-${remoteBuild}…`;
     }
   } else {
     box.classList.remove('settings-app-update--stale');
@@ -163,6 +197,17 @@ async function forceRefreshApp() {
   location.replace(url.toString());
 }
 
+async function applySilentUpdate(remoteBuild) {
+  if (!remoteBuild || !canSilentUpdateTo(remoteBuild)) return false;
+  if (shouldDeferAppReload()) {
+    markSwUpdatePending(remoteBuild);
+    return false;
+  }
+  markSilentUpdateAttempt(remoteBuild);
+  await forceRefreshApp();
+  return true;
+}
+
 async function checkRemoteBuildVersion() {
   if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
   try {
@@ -176,20 +221,39 @@ async function checkRemoteBuildVersion() {
     const remoteBuild = match[1];
     const localBuild = String(window.GAZPROM_ASSET_V || '');
     if (remoteBuild && localBuild && remoteBuild !== localBuild) {
-      updateSettingsUpdateBanner(remoteBuild);
-      markSwUpdatePending(remoteBuild);
+      pendingRemoteBuild = remoteBuild;
+      await applySilentUpdate(remoteBuild);
       return;
     }
-    updateSettingsUpdateBanner(null);
+    pendingRemoteBuild = null;
     swUpdatePending = false;
+    swReloadArmed = false;
+    updateSettingsUpdateBanner(null);
+    clearSilentUpdateState();
   } catch {
     /* ignore network errors */
   }
 }
 
 function tryApplySwUpdate() {
-  /* Обновление только вручную: Настройки → «Обновить приложение». */
-  return false;
+  if (!pendingRemoteBuild && !swUpdatePending) return false;
+  if (shouldDeferAppReload()) return false;
+  void applySilentUpdate(pendingRemoteBuild);
+  return true;
+}
+
+function handleSwControllerChange() {
+  if (!swReloadArmed || shouldDeferAppReload()) return;
+  swReloadArmed = false;
+  location.reload();
+}
+
+function onSwUpdateActivated() {
+  if (shouldDeferAppReload()) {
+    swUpdatePending = true;
+    return;
+  }
+  swReloadArmed = true;
 }
 
 function registerServiceWorker() {
@@ -215,11 +279,19 @@ function registerServiceWorker() {
             void checkRemoteBuildVersion();
           }
         });
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          if (!newSW || !navigator.serviceWorker.controller) return;
+          newSW.addEventListener('statechange', () => {
+            if (newSW.state === 'activated') onSwUpdateActivated();
+          });
+        });
       })
       .catch((err) => {
         console.warn('SW registration failed', err);
       });
-    window.setTimeout(() => checkRemoteBuildVersion(), 800);
+    navigator.serviceWorker.addEventListener('controllerchange', handleSwControllerChange);
+    void checkRemoteBuildVersion();
   });
 }
 

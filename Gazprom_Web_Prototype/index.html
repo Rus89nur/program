@@ -6,27 +6,45 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '195';</script>
+  <script>window.GAZPROM_ASSET_V = '196';</script>
   <script>
   (function () {
     if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
-    var key = 'gazprom-reload-guard';
-    var n = parseInt(sessionStorage.getItem(key) || '0', 10) + 1;
-    sessionStorage.setItem(key, String(n));
-    if (n > 4 && 'serviceWorker' in navigator) {
-      sessionStorage.setItem(key, '0');
-      navigator.serviceWorker.getRegistrations().then(function (regs) {
-        return Promise.all(regs.map(function (r) { return r.unregister(); }));
-      }).catch(function () {});
-      if ('caches' in window) {
-        caches.keys().then(function (keys) {
-          return Promise.all(keys.map(function (k) { return caches.delete(k); }));
-        }).catch(function () {});
-      }
-    }
-    window.addEventListener('load', function () {
-      window.setTimeout(function () { sessionStorage.setItem(key, '0'); }, 8000);
-    }, { once: true });
+    var local = window.GAZPROM_ASSET_V;
+    if (!local) return;
+    var url = new URL(location.href);
+    url.searchParams.set('build-check', String(Date.now()));
+    fetch(url.toString(), { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.text() : ''; })
+      .then(function (html) {
+        if (!html) return;
+        var m = html.match(/GAZPROM_ASSET_V\s*=\s*'(\d+)'/);
+        if (!m || m[1] === local) {
+          sessionStorage.removeItem('gazprom-update-target');
+          sessionStorage.removeItem('gazprom-update-attempts');
+          return;
+        }
+        var remote = m[1];
+        var target = sessionStorage.getItem('gazprom-update-target');
+        var attempts = parseInt(sessionStorage.getItem('gazprom-update-attempts') || '0', 10);
+        if (target === remote && attempts >= 3) return;
+        sessionStorage.setItem('gazprom-update-target', remote);
+        sessionStorage.setItem('gazprom-update-attempts', String(target === remote ? attempts + 1 : 1));
+        var done = function () {
+          var u = new URL(location.href);
+          u.searchParams.set('_refresh', String(Date.now()));
+          location.replace(u.toString());
+        };
+        if ('caches' in window) {
+          caches.keys()
+            .then(function (keys) { return Promise.all(keys.map(function (k) { return caches.delete(k); })); })
+            .then(done)
+            .catch(done);
+        } else {
+          done();
+        }
+      })
+      .catch(function () {});
   })();
   </script>
   <style id="appShellCritical">
@@ -138,7 +156,7 @@
       </button>
       <div class="sidebar-footer" id="sidebarAppBuild" aria-label="Версия веб-приложения">
         <span class="sidebar-footer__brand">программа НЕТ</span>
-        Сборка: <span data-app-build>web-195</span> · PWA
+        Сборка: <span data-app-build>web-196</span> · PWA
       </div>
     </aside>
 
@@ -205,7 +223,7 @@
             <div class="stat-label">Черновиков</div>
           </div>
         </div>
-        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-195</p>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-196</p>
       </section>
 
       <section class="screen" id="screen-wizard">
@@ -498,7 +516,7 @@
           <div class="card settings-tile settings-tile--ml settings-tile--disabled" aria-disabled="true" title="Только iOS (архив)"><div class="icon">🤖</div><h4>Обучение ML</h4><p>Только iOS (архив)</p></div>
         </div>
         <div class="card settings-app-update" id="settingsAppUpdate">
-          <p class="settings-app-update__label">Версия приложения: <strong id="settingsAppBuild">web-195</strong></p>
+          <p class="settings-app-update__label">Версия приложения: <strong id="settingsAppBuild">web-196</strong></p>
           <p class="settings-app-update__avail" id="settingsAppUpdateAvail" hidden></p>
           <p class="settings-app-update__hint">Если после обновления на сайте ничего не меняется — нажмите кнопку ниже (сбросит кэш PWA).</p>
           <button type="button" class="btn-secondary btn-sm" id="appForceRefreshBtn">Обновить приложение</button>
@@ -729,6 +747,6 @@
   <script src="js/wizard.js?v=57"></script>
   <script src="js/short-akt-form.js?v=4"></script>
   <script src="js/doc-generator.js?v=37"></script>
-  <script src="js/app.js?v=145"></script>
+  <script src="js/app.js?v=146"></script>
 </body>
 </html>
