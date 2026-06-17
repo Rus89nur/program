@@ -117,6 +117,14 @@ const ViolationTypesEditor = (() => {
     if (message) GazpromToast.success(message);
   }
 
+  async function createVtMigrateBackup() {
+    if (typeof CatalogService === 'undefined' || typeof CatalogService.exportBackup !== 'function') {
+      throw new Error('Модуль резервного копирования недоступен');
+    }
+    GazpromToast.info('Создание резервной копии перед миграцией…');
+    await CatalogService.exportBackup(catalog, { filenameSuffix: 'before_vt_migrate' });
+  }
+
   function activeSelectOptions(selectedId, { includeEmpty = false, emptyLabel = '— выберите новый вид —' } = {}) {
     const items = ViolationTypes.getActiveTypes(catalog);
     const opts = includeEmpty
@@ -588,11 +596,17 @@ const ViolationTypesEditor = (() => {
       return;
     }
     const ok = await GazpromToast.confirm(
-      'Обновить поле «вид нарушения» во всех актах и реестре по новым соответствиям? Это необратимо.'
+      'Обновить поле «вид нарушения» во всех актах и реестре по новым соответствиям?\n\nПеред изменением автоматически скачается резервная копия (.gazprombackup).'
     );
     if (!ok) return;
+    try {
+      await createVtMigrateBackup();
+    } catch (err) {
+      GazpromToast.error(err.message || 'Не удалось создать резервную копию. Миграция отменена.');
+      return;
+    }
     const n = ViolationTypes.migrateStoredVids(catalog);
-    await saveCatalog(`Обновлено записей: ${n}`);
+    await saveCatalog(`Резервная копия сохранена. Обновлено записей: ${n}`);
     renderScreen();
   }
 
@@ -791,7 +805,7 @@ const ViolationTypesEditor = (() => {
         bodyEl.innerHTML = `<p class="vt-wizard-intro">Сохранить ${wizardMappings.size} соответствий? Отчёты начнут группировать нарушения по новым видам.</p>
           <label class="vt-wizard-check">
             <input type="checkbox" id="vtWizardAlsoMigrate">
-            Также обновить «вид нарушения» во всех актах и реестре
+            Также обновить «вид нарушения» во всех актах и реестре (перед этим скачается резервная копия)
           </label>`;
         footEl.innerHTML = `<button type="button" class="btn-secondary" id="vtWizardBack">← Назад</button>
           <button type="button" class="btn-primary" id="vtWizardApply">Сохранить</button>`;
@@ -803,10 +817,19 @@ const ViolationTypesEditor = (() => {
           for (const [fromId, toId] of wizardMappings) {
             ViolationTypes.setMapping(catalog, fromId, toId);
           }
-          if (overlay.querySelector('#vtWizardAlsoMigrate')?.checked) {
+          const alsoMigrate = overlay.querySelector('#vtWizardAlsoMigrate')?.checked;
+          if (alsoMigrate) {
+            try {
+              await createVtMigrateBackup();
+            } catch (err) {
+              GazpromToast.error(err.message || 'Не удалось создать резервную копию. Миграция отменена.');
+              return;
+            }
             ViolationTypes.migrateStoredVids(catalog);
           }
-          await saveCatalog('Миграция видов сохранена');
+          await saveCatalog(
+            alsoMigrate ? 'Резервная копия сохранена. Миграция видов выполнена' : 'Миграция видов сохранена'
+          );
           close();
           renderScreen();
         });

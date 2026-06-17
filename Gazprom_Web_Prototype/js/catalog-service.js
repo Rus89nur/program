@@ -77,7 +77,7 @@ const CatalogService = (() => {
     return p;
   }
 
-  async function exportBackup(catalog) {
+  async function exportBackup(catalog, options = {}) {
     const data = catalog ? await PhotoStore.expandCatalog(AktUtils.clone(catalog)) : await GazpromStore.getForExport();
     if (!data) throw new Error('Нет данных для экспорта');
     const templateKey =
@@ -109,8 +109,9 @@ const CatalogService = (() => {
     });
     const a = document.createElement('a');
     const date = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '').replace('T', '_');
+    const suffix = options.filenameSuffix ? `_${options.filenameSuffix}` : '';
     a.href = URL.createObjectURL(blob);
-    a.download = `gazprom_${date}.gazprombackup`;
+    a.download = `gazprom${suffix}_${date}.gazprombackup`;
     a.click();
     URL.revokeObjectURL(a.href);
   }
