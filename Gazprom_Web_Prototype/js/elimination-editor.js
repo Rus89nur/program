@@ -38,11 +38,30 @@ const EliminationEditor = (() => {
     }
   }
 
+  function actIsDone(item) {
+    return item.totalViolations === 0 || item.allEliminated;
+  }
+
+  function actIsOpen(item) {
+    return item.totalViolations > 0 && !item.allEliminated;
+  }
+
+  function actIsInWork(item) {
+    return actIsOpen(item) && !item.hasOverdue;
+  }
+
   function applyStatusFilter(items) {
     if (selectedFilter === 'overdue') {
-      return items.filter(
-        (i) => i.totalViolations > 0 && i.hasOverdue && !i.allEliminated
-      );
+      return items.filter((i) => actIsOpen(i) && i.hasOverdue);
+    }
+    if (selectedFilter === 'done') {
+      return items.filter(actIsDone);
+    }
+    if (selectedFilter === 'open') {
+      return items.filter(actIsOpen);
+    }
+    if (selectedFilter === 'inwork') {
+      return items.filter(actIsInWork);
     }
     return items;
   }
@@ -290,17 +309,36 @@ const EliminationEditor = (() => {
 
   function renderStats(items) {
     const total = items.length;
-    const done = items.filter(
-      (i) => i.totalViolations === 0 || i.allEliminated
-    ).length;
-    const open = total - done;
+    const done = items.filter(actIsDone).length;
+    const open = items.filter(actIsOpen).length;
+    const inwork = items.filter(actIsInWork).length;
     const set = (id, val) => {
       const el = document.getElementById(id);
       if (el) el.textContent = String(val);
     };
     set('elimStatTotal', total);
     set('elimStatDone', done);
+    set('elimStatInwork', inwork);
     set('elimStatOpen', open);
+    updateStatFilterActive();
+  }
+
+  function updateStatFilterActive() {
+    document.querySelectorAll('.elim-stat-grid [data-elim-filter]').forEach((btn) => {
+      const filter = btn.dataset.elimFilter;
+      const active =
+        filter === selectedFilter || (filter === 'all' && selectedFilter === 'all');
+      btn.classList.toggle('elim-stat-card--active', active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+  }
+
+  function handleStatusFilter(filter) {
+    if (filter === 'all') {
+      selectedFilter = 'all';
+      return;
+    }
+    selectedFilter = selectedFilter === filter ? 'all' : filter;
   }
 
   function renderDonut(stats) {
@@ -387,9 +425,9 @@ const EliminationEditor = (() => {
     if (!screen || screen.dataset.elimYearBound) return;
     screen.dataset.elimYearBound = '1';
     screen.addEventListener('click', async (e) => {
-      const overdueBtn = e.target.closest('#elimYearPills [data-elim-filter="overdue"]');
-      if (overdueBtn) {
-        selectedFilter = selectedFilter === 'overdue' ? 'all' : 'overdue';
+      const filterBtn = e.target.closest('[data-elim-filter]');
+      if (filterBtn) {
+        handleStatusFilter(filterBtn.dataset.elimFilter || 'all');
         const catalog = await GazpromStore.get();
         render(catalog);
         return;
@@ -463,6 +501,9 @@ const EliminationEditor = (() => {
 
   function filterEmptyMessage() {
     if (selectedFilter === 'overdue') return 'Нет просроченных актов';
+    if (selectedFilter === 'done') return 'Нет устранённых актов';
+    if (selectedFilter === 'open') return 'Нет неустранённых актов';
+    if (selectedFilter === 'inwork') return 'Нет актов в работе';
     return 'Нет актов для отображения';
   }
 

@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '197';</script>
+  <script>window.GAZPROM_ASSET_V = '198';</script>
   <script>
   (function () {
     if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
@@ -98,7 +98,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=167" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=168" id="appCss">
   <script>
   (function () {
     var css = document.getElementById('appCss');
@@ -156,7 +156,7 @@
       </button>
       <div class="sidebar-footer" id="sidebarAppBuild" aria-label="Версия веб-приложения">
         <span class="sidebar-footer__brand">программа НЕТ</span>
-        Сборка: <span data-app-build>web-197</span> · PWA
+        Сборка: <span data-app-build>web-198</span> · PWA
       </div>
     </aside>
 
@@ -223,7 +223,7 @@
             <div class="stat-label">Черновиков</div>
           </div>
         </div>
-        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-197</p>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-198</p>
       </section>
 
       <section class="screen" id="screen-wizard">
@@ -477,25 +477,31 @@
               <div class="elim-year-pills" id="elimYearPills" role="group" aria-label="Фильтры"></div>
             </div>
           </div>
-          <div class="elim-stat-grid">
-            <div class="card stat-card elim-stat-card elim-stat-card--total">
-              <div class="elim-stat-card__body">
-                <div class="stat-label">Всего актов</div>
-                <div class="stat-value" id="elimStatTotal">0</div>
-              </div>
-            </div>
-            <div class="card stat-card elim-stat-card elim-stat-card--done">
-              <div class="elim-stat-card__body">
-                <div class="stat-label">Устранено</div>
-                <div class="stat-value" id="elimStatDone">0</div>
-              </div>
-            </div>
-            <div class="card stat-card elim-stat-card elim-stat-card--open">
-              <div class="elim-stat-card__body">
-                <div class="stat-label">Не устранено</div>
-                <div class="stat-value" id="elimStatOpen">0</div>
-              </div>
-            </div>
+          <div class="elim-stat-grid" id="elimStatGrid" role="group" aria-label="Фильтр по актам">
+            <button type="button" class="card stat-card elim-stat-card elim-stat-card--total" data-elim-filter="all" aria-pressed="true">
+              <span class="elim-stat-card__body">
+                <span class="stat-label">Всего актов</span>
+                <span class="stat-value" id="elimStatTotal">0</span>
+              </span>
+            </button>
+            <button type="button" class="card stat-card elim-stat-card elim-stat-card--done" data-elim-filter="done" aria-pressed="false">
+              <span class="elim-stat-card__body">
+                <span class="stat-label">Устранено</span>
+                <span class="stat-value" id="elimStatDone">0</span>
+              </span>
+            </button>
+            <button type="button" class="card stat-card elim-stat-card elim-stat-card--inwork" data-elim-filter="inwork" aria-pressed="false">
+              <span class="elim-stat-card__body">
+                <span class="stat-label">В работе</span>
+                <span class="stat-value" id="elimStatInwork">0</span>
+              </span>
+            </button>
+            <button type="button" class="card stat-card elim-stat-card elim-stat-card--open" data-elim-filter="open" aria-pressed="false">
+              <span class="elim-stat-card__body">
+                <span class="stat-label">Не устранено</span>
+                <span class="stat-value" id="elimStatOpen">0</span>
+              </span>
+            </button>
           </div>
           </div>
           <div class="elimination-card-list" id="eliminationCardList" role="list"></div>
@@ -518,7 +524,7 @@
           <div class="card settings-tile settings-tile--ml settings-tile--disabled" aria-disabled="true" title="Только iOS (архив)"><div class="icon">🤖</div><h4>Обучение ML</h4><p>Только iOS (архив)</p></div>
         </div>
         <div class="card settings-app-update" id="settingsAppUpdate">
-          <p class="settings-app-update__label">Версия приложения: <strong id="settingsAppBuild">web-197</strong></p>
+          <p class="settings-app-update__label">Версия приложения: <strong id="settingsAppBuild">web-198</strong></p>
           <p class="settings-app-update__avail" id="settingsAppUpdateAvail" hidden></p>
           <p class="settings-app-update__hint">Если после обновления на сайте ничего не меняется — нажмите кнопку ниже (сбросит кэш PWA).</p>
           <button type="button" class="btn-secondary btn-sm" id="appForceRefreshBtn">Обновить приложение</button>
@@ -742,7 +748,7 @@
   <script src="js/ui-bindings.js?v=32"></script>
   <script src="js/catalog-editor.js?v=13"></script>
   <script src="js/schedule-editor.js?v=2"></script>
-  <script src="js/elimination-editor.js?v=9"></script>
+  <script src="js/elimination-editor.js?v=10"></script>
   <script src="js/report-exporter.js?v=2"></script>
   <script src="js/reports-dashboard.js?v=13"></script>
   <script src="js/wizard-modals.js?v=43"></script>

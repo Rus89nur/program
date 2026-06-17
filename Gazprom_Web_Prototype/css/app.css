@@ -4157,7 +4157,7 @@
 
     .elim-stat-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 16px;
       flex: 1;
       min-width: 0;
@@ -4171,6 +4171,33 @@
       padding: 18px 16px;
       margin-bottom: 0;
       text-align: center;
+      appearance: none;
+      -webkit-appearance: none;
+      font-family: inherit;
+      width: 100%;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s, transform 0.1s;
+    }
+
+    .elim-stat-card:hover {
+      border-color: #90caf9;
+      box-shadow: 0 2px 8px rgba(21, 101, 192, 0.1);
+    }
+
+    .elim-stat-card:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    .elim-stat-card--active {
+      border-color: #1565c0;
+      background: #e3f2fd;
+      box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.18);
+    }
+
+    .elim-stat-card--active:hover {
+      border-color: #1565c0;
+      background: #dbeafe;
     }
 
     .elim-stat-card__body {
@@ -4198,7 +4225,41 @@
     }
 
     .elim-stat-card--done .stat-value { color: var(--success); }
+    .elim-stat-card--inwork .stat-value { color: var(--primary); }
     .elim-stat-card--open .stat-value { color: var(--danger); }
+
+    .elim-stat-card--done.elim-stat-card--active {
+      border-color: var(--success);
+      background: rgba(46, 125, 50, 0.08);
+      box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.18);
+    }
+
+    .elim-stat-card--done.elim-stat-card--active:hover {
+      border-color: var(--success);
+      background: rgba(46, 125, 50, 0.12);
+    }
+
+    .elim-stat-card--inwork.elim-stat-card--active {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+      box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.18);
+    }
+
+    .elim-stat-card--inwork.elim-stat-card--active:hover {
+      border-color: var(--primary);
+      background: #dbeafe;
+    }
+
+    .elim-stat-card--open.elim-stat-card--active {
+      border-color: var(--danger);
+      background: rgba(198, 40, 40, 0.06);
+      box-shadow: 0 0 0 2px rgba(198, 40, 40, 0.15);
+    }
+
+    .elim-stat-card--open.elim-stat-card--active:hover {
+      border-color: var(--danger);
+      background: rgba(198, 40, 40, 0.1);
+    }
 
     .elim-year-pills .btn-org-filter--overdue:not(.btn-org-filter-active) {
       border-color: rgba(198, 40, 40, 0.35);
@@ -4679,7 +4740,7 @@
         margin: 0 auto;
       }
       .elim-stat-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
         flex: none;
       }
     }
