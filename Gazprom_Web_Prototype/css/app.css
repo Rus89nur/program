@@ -1393,6 +1393,22 @@
       line-height: 1.5;
       max-width: 520px;
     }
+    .settings-app-update__avail {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--warning);
+      line-height: 1.45;
+    }
+    .settings-app-update--stale {
+      border: 1px solid #ffcc80;
+      background: #fff8e1;
+    }
+    .settings-app-update--stale #appForceRefreshBtn {
+      border-color: var(--primary);
+      color: var(--primary);
+      font-weight: 600;
+    }
 
     /* Mockup banner */
     .mockup-banner {
