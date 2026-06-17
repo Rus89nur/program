@@ -141,6 +141,33 @@ describe('ViolationTypes', () => {
     expect(catalog.dismissedMappingSeeds).toContain('Новый вид Smart Forms');
   });
 
+  it('несколько архивных видов могут указывать на один новый', () => {
+    const catalog = {
+      akts: [],
+      violationTypes: [
+        { id: 'old1', title: 'Старый 1', status: 'archived' },
+        { id: 'old2', title: 'Старый 2', status: 'archived' },
+        { id: 'new1', title: 'Новый', status: 'pending' },
+      ],
+      typeMappings: {},
+    };
+    VT.setMapping(catalog, 'old1', 'new1');
+    VT.setMapping(catalog, 'old2', 'new1');
+    expect(VT.countMappedFrom(catalog, 'new1')).toBe(2);
+    expect(VT.findById(catalog, 'new1').status).toBe('active');
+  });
+
+  it('activateStandaloneType активирует уникальный вид без предшественника', () => {
+    const catalog = {
+      akts: [],
+      violationTypes: [{ id: 'p1', title: 'Уникальный', status: 'pending' }],
+      typeMappings: {},
+    };
+    expect(VT.activateStandaloneType(catalog, 'p1')).toBe(true);
+    expect(VT.findById(catalog, 'p1').status).toBe('active');
+    expect(VT.findById(catalog, 'p1').standalone).toBe(true);
+  });
+
   it('restoreType возвращает вид из архива в активные', () => {
     const catalog = {
       akts: [],

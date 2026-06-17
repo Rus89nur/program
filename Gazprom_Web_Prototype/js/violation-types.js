@@ -5,6 +5,8 @@ const ViolationTypes = (() => {
   const STATUS_ACTIVE = 'active';
   const STATUS_ARCHIVED = 'archived';
   const STATUS_PENDING = 'pending';
+  /** Слева в «Сопоставить»: новый вид без устаревшего предшественника. */
+  const STANDALONE_MAP_FROM = '__vt_standalone__';
 
   function getTypes(catalog) {
     return catalog?.violationTypes || [];
@@ -313,6 +315,36 @@ const ViolationTypes = (() => {
     return true;
   }
 
+  function isStandaloneMapFrom(fromId) {
+    return fromId === STANDALONE_MAP_FROM;
+  }
+
+  function countMappedFrom(catalog, toId) {
+    if (!toId) return 0;
+    const mappings = getMappings(catalog);
+    return getArchivedTypes(catalog).filter(
+      (t) => t.replacedBy === toId || mappings[t.id] === toId
+    ).length;
+  }
+
+  function getMappedFromTitles(catalog, toId) {
+    if (!toId) return [];
+    const mappings = getMappings(catalog);
+    return getArchivedTypes(catalog)
+      .filter((t) => t.replacedBy === toId || mappings[t.id] === toId)
+      .map((t) => t.title);
+  }
+
+  function activateStandaloneType(catalog, toId) {
+    ensureCatalog(catalog);
+    const to = findById(catalog, toId);
+    if (!to) return false;
+    if (to.status !== STATUS_PENDING && to.status !== STATUS_ACTIVE) return false;
+    to.status = STATUS_ACTIVE;
+    to.standalone = true;
+    return true;
+  }
+
   function restoreType(catalog, id) {
     const t = findById(catalog, id);
     if (!t || t.status !== STATUS_ARCHIVED) {
@@ -347,6 +379,7 @@ const ViolationTypes = (() => {
     } else if (to.status !== STATUS_ACTIVE) {
       return false;
     }
+    delete to.standalone;
 
     from.status = STATUS_ARCHIVED;
     from.replacedBy = toId;
@@ -426,6 +459,8 @@ const ViolationTypes = (() => {
     STATUS_ACTIVE,
     STATUS_ARCHIVED,
     STATUS_PENDING,
+    STANDALONE_MAP_FROM,
+    isStandaloneMapFrom,
     ensureCatalog,
     getTypes,
     getMappings,
@@ -447,6 +482,9 @@ const ViolationTypes = (() => {
     restoreType,
     setMapping,
     clearMapping,
+    countMappedFrom,
+    getMappedFromTitles,
+    activateStandaloneType,
     isMappedToActive,
     dismissMappingSeed,
     buildKindStats,
