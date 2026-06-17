@@ -35,6 +35,7 @@ function goTo(screenId, options = {}) {
   }
 
   if (screenId === 'home' && tryApplySwUpdate()) return;
+  if (screenId === 'settings' && tryApplySwUpdate()) return;
 
   const wasWizard = document.getElementById('screen-wizard')?.classList.contains('active');
   document.documentElement.classList.add('gazprom-navigated');
@@ -117,6 +118,50 @@ function shouldDeferAppReload() {
 function markSwUpdatePending() {
   if (swUpdatePending) return;
   swUpdatePending = true;
+  if (typeof GazpromToast !== 'undefined') {
+    GazpromToast.info(
+      'Доступна новая версия. Откройте «Настройки» → «Обновить приложение» или перезагрузите страницу.'
+    );
+  }
+}
+
+async function forceRefreshApp() {
+  try {
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
+    }
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((reg) => reg.unregister()));
+    }
+  } catch (err) {
+    console.warn('forceRefreshApp', err);
+  }
+  location.reload();
+}
+
+async function checkRemoteBuildVersion() {
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
+  try {
+    const url = new URL(location.href);
+    url.searchParams.set('build-check', String(Date.now()));
+    const res = await fetch(url.toString(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const html = await res.text();
+    const match = html.match(/GAZPROM_ASSET_V\s*=\s*'(\d+)'/);
+    if (!match) return;
+    const remoteBuild = match[1];
+    const localBuild = String(window.GAZPROM_ASSET_V || '');
+    if (remoteBuild && localBuild && remoteBuild !== localBuild) {
+      swUpdatePending = true;
+      GazpromToast.info(
+        `На сервере web-${remoteBuild}, у вас web-${localBuild}. Настройки → «Обновить приложение».`
+      );
+    }
+  } catch {
+    /* ignore network errors */
+  }
 }
 
 function tryApplySwUpdate() {
@@ -136,11 +181,15 @@ function registerServiceWorker() {
       });
       return;
     }
-    navigator.serviceWorker.register('./sw.js?v=187')
+    navigator.serviceWorker.register('./sw.js?v=188')
       .then((reg) => {
-        reg.update();
+        const pingUpdate = () => {
+          reg.update().catch(() => {});
+          tryApplySwUpdate();
+        };
+        pingUpdate();
         document.addEventListener('visibilitychange', () => {
-          if (document.visibilityState === 'visible') reg.update();
+          if (document.visibilityState === 'visible') pingUpdate();
         });
         reg.addEventListener('updatefound', () => {
           const newSW = reg.installing;
@@ -156,6 +205,7 @@ function registerServiceWorker() {
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       markSwUpdatePending();
     });
+    window.setTimeout(checkRemoteBuildVersion, 1200);
   });
 }
 
@@ -617,6 +667,12 @@ function init() {
   });
   CatalogEditor.bindSettingsTiles();
   ViolationTypesEditor.init();
+  document.getElementById('appForceRefreshBtn')?.addEventListener('click', () => {
+    void forceRefreshApp();
+  });
+  syncAppBuildLabel();
+  const settingsBuild = document.getElementById('settingsAppBuild');
+  if (settingsBuild) settingsBuild.textContent = window.GAZPROM_WEB_BUILD || '';
   ViolationRegistry.bindScreen();
   DefaultsBootstrap.bindRegistryModal();
   EliminationEditor.bindFilters();
