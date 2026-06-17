@@ -1018,3 +1018,7 @@ const DocGenerator = (() => {
     TEMPLATE_KEY,
   };
 })();
+
+if (typeof window !== 'undefined') {
+  window.DocGenerator = DocGenerator;
+}

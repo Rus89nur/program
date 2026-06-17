@@ -398,11 +398,24 @@ const DefaultsBootstrap = (() => {
       </button>`;
   }
 
+  function getDocGenerator() {
+    if (typeof window !== 'undefined' && window.DocGenerator) return window.DocGenerator;
+    if (typeof DocGenerator !== 'undefined') return DocGenerator;
+    return null;
+  }
+
   function renderTemplateMarkersGuide() {
     const host = document.getElementById('templateMarkersGuide');
-    if (!host || typeof DocGenerator?.getMarkerGuide !== 'function') return;
+    if (!host) return;
 
-    const groups = DocGenerator.getMarkerGuide();
+    const gen = getDocGenerator();
+    if (!gen || typeof gen.getMarkerGuide !== 'function') {
+      host.innerHTML =
+        '<p class="backup-import-hint">Справочник маркеров загружается… Если таблица пустая — закройте окно и откройте снова.</p>';
+      return;
+    }
+
+    const groups = gen.getMarkerGuide();
     host.innerHTML = groups
       .map(
         (group) => `
@@ -547,11 +560,12 @@ const DefaultsBootstrap = (() => {
 
     container.querySelector('[data-preset-add="template-create"]')?.addEventListener('click', async () => {
       try {
-        if (typeof DocGenerator?.downloadBlankTemplate !== 'function') {
-          throw new Error('Модуль Word не загружен');
+        const gen = getDocGenerator();
+        if (!gen || typeof gen.downloadBlankTemplate !== 'function') {
+          throw new Error('Модуль Word не загружен. Обновите страницу (сборка web-199+).');
         }
         GazpromToast.info('Создаю пустой шаблон Word…');
-        await DocGenerator.downloadBlankTemplate();
+        await gen.downloadBlankTemplate();
         GazpromToast.success(
           'Файл скачан. Откройте в Word, отредактируйте и загрузите через «Загрузить .docx»'
         );
@@ -832,7 +846,9 @@ const DefaultsBootstrap = (() => {
     if (!modal) return;
     modal.hidden = false;
     GazpromMobileOverlay?.lock?.();
-    void refreshTemplateModal();
+    void refreshTemplateModal().then(() => {
+      requestAnimationFrame(() => renderTemplateMarkersGuide());
+    });
   }
 
   function bindTemplateModal() {
