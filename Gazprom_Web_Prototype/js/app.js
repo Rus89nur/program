@@ -35,7 +35,6 @@ function goTo(screenId, options = {}) {
   }
 
   if (screenId === 'home' && tryApplySwUpdate()) return;
-  if (screenId === 'settings' && tryApplySwUpdate()) return;
 
   const wasWizard = document.getElementById('screen-wizard')?.classList.contains('active');
   document.documentElement.classList.add('gazprom-navigated');
@@ -164,7 +163,7 @@ async function forceRefreshApp() {
   location.replace(url.toString());
 }
 
-async function checkRemoteBuildVersion({ autoPrompt = true } = {}) {
+async function checkRemoteBuildVersion() {
   if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
   try {
     const url = new URL(location.href);
@@ -178,27 +177,19 @@ async function checkRemoteBuildVersion({ autoPrompt = true } = {}) {
     const localBuild = String(window.GAZPROM_ASSET_V || '');
     if (remoteBuild && localBuild && remoteBuild !== localBuild) {
       updateSettingsUpdateBanner(remoteBuild);
-      if (autoPrompt && !shouldDeferAppReload()) {
-        const ok = await GazpromToast.confirm(
-          `На сайте доступна сборка web-${remoteBuild}, у вас web-${localBuild}. Обновить сейчас?`
-        );
-        if (ok) await forceRefreshApp();
-        return;
-      }
       markSwUpdatePending(remoteBuild);
       return;
     }
     updateSettingsUpdateBanner(null);
+    swUpdatePending = false;
   } catch {
     /* ignore network errors */
   }
 }
 
 function tryApplySwUpdate() {
-  if (!swUpdatePending || shouldDeferAppReload()) return false;
-  swUpdatePending = false;
-  void forceRefreshApp();
-  return true;
+  /* Обновление только вручную: Настройки → «Обновить приложение». */
+  return false;
 }
 
 function registerServiceWorker() {
@@ -216,47 +207,19 @@ function registerServiceWorker() {
       .then((reg) => {
         const pingUpdate = () => {
           reg.update().catch(() => {});
-          if (swUpdatePending) tryApplySwUpdate();
         };
         pingUpdate();
         document.addEventListener('visibilitychange', () => {
           if (document.visibilityState === 'visible') {
             pingUpdate();
-            void checkRemoteBuildVersion({ autoPrompt: true });
+            void checkRemoteBuildVersion();
           }
-        });
-        reg.addEventListener('updatefound', () => {
-          const newSW = reg.installing;
-          if (!newSW) return;
-          newSW.addEventListener('statechange', () => {
-            if (newSW.state !== 'activated') return;
-            if (!shouldDeferAppReload()) {
-              void forceRefreshApp();
-              return;
-            }
-            markSwUpdatePending();
-          });
         });
       })
       .catch((err) => {
         console.warn('SW registration failed', err);
       });
-    navigator.serviceWorker.addEventListener('message', (event) => {
-      if (event.data?.type !== 'SW_ACTIVATED') return;
-      if (!shouldDeferAppReload()) {
-        void forceRefreshApp();
-        return;
-      }
-      markSwUpdatePending();
-    });
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (!shouldDeferAppReload()) {
-        void forceRefreshApp();
-        return;
-      }
-      markSwUpdatePending();
-    });
-    window.setTimeout(() => checkRemoteBuildVersion({ autoPrompt: true }), 800);
+    window.setTimeout(() => checkRemoteBuildVersion(), 800);
   });
 }
 

@@ -7,6 +7,28 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <script>window.GAZPROM_ASSET_V = '195';</script>
+  <script>
+  (function () {
+    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
+    var key = 'gazprom-reload-guard';
+    var n = parseInt(sessionStorage.getItem(key) || '0', 10) + 1;
+    sessionStorage.setItem(key, String(n));
+    if (n > 4 && 'serviceWorker' in navigator) {
+      sessionStorage.setItem(key, '0');
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        return Promise.all(regs.map(function (r) { return r.unregister(); }));
+      }).catch(function () {});
+      if ('caches' in window) {
+        caches.keys().then(function (keys) {
+          return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+        }).catch(function () {});
+      }
+    }
+    window.addEventListener('load', function () {
+      window.setTimeout(function () { sessionStorage.setItem(key, '0'); }, 8000);
+    }, { once: true });
+  })();
+  </script>
   <style id="appShellCritical">
     @media (max-width:900px),(max-width:1280px) and (max-height:520px) and (hover:none){
       .sidebar{display:none!important}
