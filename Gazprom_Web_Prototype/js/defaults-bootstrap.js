@@ -564,10 +564,15 @@ const DefaultsBootstrap = (() => {
         if (!gen || typeof gen.downloadBlankTemplate !== 'function') {
           throw new Error('Модуль Word не загружен. Обновите страницу (сборка web-199+).');
         }
-        GazpromToast.info('Создаю пустой шаблон Word…');
-        await gen.downloadBlankTemplate();
+        GazpromToast.info('Создаю шаблон Word…');
+        const mode = await gen.downloadBlankTemplate();
+        if (mode === 'shared') {
+          GazpromToast.success('Выберите Word в меню «Поделиться»');
+          return;
+        }
+        if (mode === 'cancelled') return;
         GazpromToast.success(
-          'Файл скачан. Откройте в Word, отредактируйте и загрузите через «Загрузить .docx»'
+          'Шаблон создан — откройте в Word (в конце файла памятка по маркерам). Затем загрузите через «Загрузить .docx»'
         );
       } catch (err) {
         GazpromToast.error(err?.message || 'Не удалось создать шаблон');

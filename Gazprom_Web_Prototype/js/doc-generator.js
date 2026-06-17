@@ -117,6 +117,42 @@ const DocGenerator = (() => {
     setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
   }
 
+  async function openDocxBlob(blob, fileName) {
+    const mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    const file = new File([blob], fileName, { type: mime });
+
+    if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function') {
+      try {
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: fileName });
+          return 'shared';
+        }
+      } catch (err) {
+        if (err?.name === 'AbortError') return 'cancelled';
+      }
+    }
+
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = fileName;
+    a.type = mime;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    setTimeout(() => {
+      try {
+        window.open(blobUrl, '_blank', 'noopener,noreferrer');
+      } catch (_) {
+        /* ignore */
+      }
+    }, 150);
+
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
+    return 'download';
+  }
+
   function wParagraph(text, { bold = false } = {}) {
     const body = xmlEscape(String(text ?? ''));
     const rPr = bold ? '<w:rPr><w:b/></w:rPr>' : '';
@@ -129,6 +165,18 @@ const DocGenerator = (() => {
 
   function wTableCell(text) {
     return `<w:tc><w:tcPr><w:tcW w:w="2000" w:type="dxa"/></w:tcPr>${wParagraphMarkers(text)}</w:tc>`;
+  }
+
+  function wTableCellText(text, { bold = false } = {}) {
+    return `<w:tc><w:tcPr><w:tcW w:w="2400" w:type="dxa"/></w:tcPr>${wParagraph(text, { bold })}</w:tc>`;
+  }
+
+  function wTableCellMarkers(text) {
+    return `<w:tc><w:tcPr><w:tcW w:w="1800" w:type="dxa"/></w:tcPr>${wParagraphMarkers(text)}</w:tc>`;
+  }
+
+  function wTableRowGuide(cells) {
+    return `<w:tr>${cells.join('')}</w:tr>`;
   }
 
   function wTableRow(cells) {
@@ -149,6 +197,44 @@ const DocGenerator = (() => {
       rows.join(''),
       '</w:tbl>',
     ].join('');
+  }
+
+  function buildMarkerGuideXmlParts() {
+    const parts = [
+      '<w:p><w:r><w:br w:type="page"/></w:r></w:p>',
+      wParagraph('ПАМЯТКА ПО МАРКЕРАМ', { bold: true }),
+      wParagraph(
+        'Маркеры — текстовые «хештеги» в документе. Вставляйте их целиком; Word не должен разбивать маркер на части.'
+      ),
+      wParagraph(
+        'После оформления шаблона удалите эту памятку и загрузите готовый .docx в приложение через «Загрузить .docx».'
+      ),
+      wParagraph(''),
+    ];
+
+    TEMPLATE_MARKER_GUIDE.forEach((group) => {
+      parts.push(wParagraph(group.title, { bold: true }));
+      if (group.hint) parts.push(wParagraph(group.hint));
+      parts.push(
+        wTable([
+          wTableRowGuide([
+            wTableCellText('Маркер', { bold: true }),
+            wTableCellText('Что подставится', { bold: true }),
+            wTableCellText('Откуда в приложении', { bold: true }),
+          ]),
+          ...group.items.map((item) =>
+            wTableRowGuide([
+              wTableCellMarkers(item.key),
+              wTableCellText(item.label),
+              wTableCellText(item.source),
+            ])
+          ),
+        ])
+      );
+      parts.push(wParagraph(''));
+    });
+
+    return parts.join('');
   }
 
   function buildBlankDocumentXml() {
@@ -187,6 +273,7 @@ const DocGenerator = (() => {
       ]),
       wParagraph(''),
       wParagraph('Отредактируйте оформление в Word, сохраните .docx и загрузите в приложение.', { bold: false }),
+      buildMarkerGuideXmlParts(),
       '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134"/></w:sectPr>',
     ].join('');
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -260,7 +347,7 @@ const DocGenerator = (() => {
       type: 'blob',
       mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
-    downloadBlob(blob, BLANK_TEMPLATE_FILENAME);
+    return openDocxBlob(blob, BLANK_TEMPLATE_FILENAME);
   }
 
   async function loadTemplateBlob(catalogOverride) {

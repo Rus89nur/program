@@ -77,10 +77,11 @@ describe('DocGenerator.buildTemplateData', () => {
     );
   });
 
-  it('exposes marker guide for template modal', () => {
+  it('blank template includes marker guide groups', () => {
     const guide = DocGenerator.getMarkerGuide();
     expect(guide.length).toBeGreaterThan(3);
     expect(guide.some((g) => g.items.some((i) => i.key === 'Number'))).toBe(true);
     expect(guide.some((g) => g.items.some((i) => i.key === 'PoradNum'))).toBe(true);
+    expect(guide[0].items[0]).toMatchObject({ key: expect.any(String), label: expect.any(String) });
   });
 });

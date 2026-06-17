@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gazprom-web-v199';
+const CACHE_NAME = 'gazprom-web-v201';
 const IS_LOCALHOST = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
 const STATIC_ASSETS = [
   './manifest.json',
@@ -13,8 +13,8 @@ const STATIC_ASSETS = [
   './js/violation-templates.js?v=21',
   './js/violation-types.js?v=6',
   './js/violation-types-editor.js?v=12',
-  './js/doc-generator.js?v=38',
-  './js/defaults-bootstrap.js?v=8',
+  './js/doc-generator.js?v=39',
+  './js/defaults-bootstrap.js?v=9',
   './js/violation-registry.js?v=13',
   './js/catalog-service.js',
   './js/backup-import.js?v=30',
@@ -22,7 +22,7 @@ const STATIC_ASSETS = [
   './js/ui-bindings.js?v=32',
   './js/catalog-editor.js?v=13',
   './js/schedule-editor.js?v=2',
-  './js/elimination-editor.js?v=10',
+  './js/elimination-editor.js?v=11',
   './js/wizard-modals.js?v=43',
   './js/wizard.js?v=57',
   './js/short-akt-form.js?v=4',
