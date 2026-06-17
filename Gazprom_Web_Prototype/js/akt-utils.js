@@ -90,11 +90,31 @@ const AktUtils = (() => {
     return (history || []).filter((h) => h && h.isOriginal !== true);
   }
 
+  function parseCalendarDate(iso) {
+    if (!iso) return null;
+    const s = String(iso);
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+
+  function todayCalendarDate() {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  }
+
+  function isDeadlineExpired(iso) {
+    const deadline = parseCalendarDate(iso);
+    if (!deadline) return false;
+    return todayCalendarDate() > deadline;
+  }
+
   function sameDeadlineDay(aIso, bIso) {
-    if (!aIso || !bIso) return false;
-    const a = new Date(aIso);
-    const b = new Date(bIso);
-    if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return false;
+    const a = parseCalendarDate(aIso);
+    const b = parseCalendarDate(bIso);
+    if (!a || !b) return false;
     return (
       a.getFullYear() === b.getFullYear() &&
       a.getMonth() === b.getMonth() &&
@@ -106,13 +126,23 @@ const AktUtils = (() => {
   function pickLaterDeadline(aIso, bIso) {
     if (!aIso) return bIso || null;
     if (!bIso) return aIso || null;
-    const a = new Date(aIso);
-    const b = new Date(bIso);
-    if (Number.isNaN(a.getTime())) return bIso;
-    if (Number.isNaN(b.getTime())) return aIso;
-    a.setHours(0, 0, 0, 0);
-    b.setHours(0, 0, 0, 0);
+    const a = parseCalendarDate(aIso);
+    const b = parseCalendarDate(bIso);
+    if (!a) return bIso;
+    if (!b) return aIso;
     return a >= b ? aIso : bIso;
+  }
+
+  function getRecordOnlyDeadline(el) {
+    if (!el) return null;
+    const history = extensionDeadlineHistory(el.deadlineHistory);
+    if (history.length > 0) {
+      return history.reduce(
+        (best, h) => pickLaterDeadline(best, h?.deadlineDate),
+        null
+      );
+    }
+    return el.newEliminationDate || el.originalEliminationDate || null;
   }
 
   /** Срок устранения: для сокращённых — дата предоставления отчёта; для полных — actustranenDate. */
@@ -162,12 +192,10 @@ const AktUtils = (() => {
     const history = extensionDeadlineHistory(el.deadlineHistory);
     let fromRecord = null;
     if (history.length > 0) {
-      const sorted = [...history].sort(
-        (a, b) =>
-          new Date(b.changeDate || b.changedAt || 0).getTime() -
-          new Date(a.changeDate || a.changedAt || 0).getTime()
+      fromRecord = history.reduce(
+        (best, h) => pickLaterDeadline(best, h?.deadlineDate),
+        null
       );
-      fromRecord = sorted[0]?.deadlineDate || null;
     } else if (el.newEliminationDate) {
       fromRecord = el.newEliminationDate;
     } else {
@@ -179,13 +207,7 @@ const AktUtils = (() => {
   function isViolationEliminationOverdue(el, akt) {
     if (el?.isEliminated) return false;
     const deadline = getViolationEliminationDeadline(el, akt);
-    if (!deadline) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const d = new Date(deadline);
-    if (Number.isNaN(d.getTime())) return false;
-    d.setHours(0, 0, 0, 0);
-    return today > d;
+    return isDeadlineExpired(deadline);
   }
 
   /** Создать / обновить / дедуплицировать записи устранения для акта. */
@@ -235,9 +257,23 @@ const AktUtils = (() => {
         violationTitle: v.title,
         deadlineHistory: cleaned.length !== (entry.deadlineHistory || []).length ? cleaned : entry.deadlineHistory,
       };
-      if (deadline && !hasExtension && !sameDeadlineDay(entry.originalEliminationDate, deadline)) {
-        updated = { ...updated, originalEliminationDate: deadline };
-        changed = true;
+      if (deadline && !entry.isEliminated) {
+        const recordDeadline = getRecordOnlyDeadline(entry);
+        if (
+          recordDeadline &&
+          pickLaterDeadline(deadline, recordDeadline) === deadline &&
+          !sameDeadlineDay(deadline, recordDeadline)
+        ) {
+          updated = {
+            ...updated,
+            originalEliminationDate: deadline,
+            newEliminationDate: null,
+          };
+          changed = true;
+        } else if (!hasExtension && !sameDeadlineDay(entry.originalEliminationDate, deadline)) {
+          updated = { ...updated, originalEliminationDate: deadline };
+          changed = true;
+        }
       }
       if (updated.violationTitle !== entry.violationTitle) changed = true;
       if (updated.deadlineHistory !== entry.deadlineHistory) changed = true;
@@ -609,6 +645,8 @@ const AktUtils = (() => {
     findViolationElimination,
     getViolationEliminationDeadline,
     isViolationEliminationOverdue,
+    isDeadlineExpired,
+    pickLaterDeadline,
     syncViolationEliminationsForAkt,
     extensionDeadlineHistory,
     sameDeadlineDay,

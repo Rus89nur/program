@@ -47,7 +47,10 @@ const EliminationEditor = (() => {
   }
 
   function actIsOverdue(item) {
-    return actIsOpen(item) && item.hasOverdue;
+    if (!actIsOpen(item)) return false;
+    const deadline =
+      item.earliestDeadline || AktUtils.getEliminationDeadline(item.akt);
+    return AktUtils.isDeadlineExpired(deadline);
   }
 
   function actIsInWork(item) {
@@ -246,12 +249,15 @@ const EliminationEditor = (() => {
       }
 
       let earliestDeadline = minDeadline(uneliminatedDeadlines);
-      if (!earliestDeadline && totalViolations > 0) {
+      if (!earliestDeadline && totalViolations > 0 && eliminatedViolations < totalViolations) {
         earliestDeadline = AktUtils.getEliminationDeadline(akt);
       }
 
       const allEliminated =
         totalViolations > 0 && eliminatedViolations === totalViolations;
+
+      const actOpen = totalViolations > 0 && !allEliminated;
+      const actOverdue = actOpen && AktUtils.isDeadlineExpired(earliestDeadline);
 
       const eliminations = violations
         .map((v) => AktUtils.findViolationElimination(allEliminations, akt.id, v.id))
@@ -265,7 +271,7 @@ const EliminationEditor = (() => {
         eliminatedViolations,
         overdueCount,
         onTimeCount,
-        hasOverdue: overdueCount > 0,
+        hasOverdue: actOverdue,
         earliestDeadline,
         allEliminated,
         eliminations,
@@ -452,7 +458,7 @@ const EliminationEditor = (() => {
       .map((item) => {
         const allDone = item.allEliminated;
         const noViolations = item.totalViolations === 0;
-        const overdue = item.hasOverdue && !allDone;
+        const overdue = item.hasOverdue;
         const cardClass = [
           'elimination-act-card',
           allDone ? 'elimination-act-card--done' : '',

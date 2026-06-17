@@ -177,6 +177,55 @@ describe('AktUtils', () => {
     expect(AktUtils.isViolationEliminationOverdue(el, akt)).toBe(false);
   });
 
+  it('isDeadlineExpired is false on deadline day and true after', () => {
+    const july = '2026-07-15T00:00:00.000Z';
+    const june = '2026-06-15T00:00:00.000Z';
+    const realDate = Date;
+    try {
+      global.Date = class extends realDate {
+        constructor(...args) {
+          if (args.length === 0) return new realDate('2026-07-15T12:00:00');
+          return new realDate(...args);
+        }
+        static now() {
+          return new realDate('2026-07-15T12:00:00').getTime();
+        }
+      };
+      expect(AktUtils.isDeadlineExpired(july)).toBe(false);
+      expect(AktUtils.isDeadlineExpired(june)).toBe(true);
+    } finally {
+      global.Date = realDate;
+    }
+  });
+
+  it('syncViolationEliminationsForAkt updates stale record when akt deadline moved forward', () => {
+    const akt = {
+      id: 'akt-6',
+      number: '6',
+      violations: [{ id: 'v1', title: 'Test' }],
+      actustranenDate: '2026-07-31T00:00:00.000Z',
+      date: '2026-06-01T00:00:00.000Z',
+    };
+    const catalog = {
+      violationEliminations: [
+        {
+          id: 'e1',
+          aktId: 'akt-6',
+          violationId: 'v1',
+          isEliminated: false,
+          originalEliminationDate: '2026-06-01T00:00:00.000Z',
+          newEliminationDate: '2026-06-15T00:00:00.000Z',
+          deadlineHistory: [],
+        },
+      ],
+    };
+    const changed = AktUtils.syncViolationEliminationsForAkt(catalog, akt);
+    expect(changed).toBe(true);
+    expect(catalog.violationEliminations[0].originalEliminationDate).toBe('2026-07-31T00:00:00.000Z');
+    expect(catalog.violationEliminations[0].newEliminationDate).toBeNull();
+    expect(AktUtils.isViolationEliminationOverdue(catalog.violationEliminations[0], akt)).toBe(false);
+  });
+
   it('getViolationEliminationDeadline keeps later per-violation extension', () => {
     const akt = {
       violations: [{ id: 'v1', title: 'Test' }],
