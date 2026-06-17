@@ -156,6 +156,46 @@ describe('AktUtils', () => {
     expect(AktUtils.isViolationEliminationOverdue(el, akt)).toBe(false);
   });
 
+  it('getViolationEliminationDeadline prefers later akt date over stale extension history', () => {
+    const akt = {
+      violations: [{ id: 'v1', title: 'Test' }],
+      actustranenDate: '2026-12-31T00:00:00.000Z',
+      date: '2026-06-01T00:00:00.000Z',
+    };
+    const el = {
+      isEliminated: false,
+      originalEliminationDate: '2026-06-01T00:00:00.000Z',
+      deadlineHistory: [
+        {
+          deadlineDate: '2026-06-15T00:00:00.000Z',
+          changeDate: '2026-06-16T00:00:00.000Z',
+          isOriginal: false,
+        },
+      ],
+    };
+    expect(AktUtils.getViolationEliminationDeadline(el, akt)).toBe('2026-12-31T00:00:00.000Z');
+    expect(AktUtils.isViolationEliminationOverdue(el, akt)).toBe(false);
+  });
+
+  it('getViolationEliminationDeadline keeps later per-violation extension', () => {
+    const akt = {
+      violations: [{ id: 'v1', title: 'Test' }],
+      actustranenDate: '2026-08-01T00:00:00.000Z',
+      date: '2026-06-01T00:00:00.000Z',
+    };
+    const el = {
+      isEliminated: false,
+      deadlineHistory: [
+        {
+          deadlineDate: '2026-10-01T00:00:00.000Z',
+          changeDate: '2026-06-20T00:00:00.000Z',
+          isOriginal: false,
+        },
+      ],
+    };
+    expect(AktUtils.getViolationEliminationDeadline(el, akt)).toBe('2026-10-01T00:00:00.000Z');
+  });
+
   it('findViolationElimination prefers eliminated duplicate', () => {
     const list = [
       { id: 'a', aktId: 'akt-1', violationId: 'v1', isEliminated: false },

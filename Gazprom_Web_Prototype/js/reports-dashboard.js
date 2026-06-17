@@ -473,24 +473,18 @@ const ReportsDashboard = (() => {
 
       const entries = [...byOrg.entries()].sort((a, b) => b[1].total - a[1].total);
       const max = entries[0][1].total || 1;
-      const TREEMAP_MIN_SIDE = 56;
-      const TREEMAP_MAX_SIDE = 152;
-      const treemapSide = (count) => {
-        const ratio = Math.sqrt(Math.max(count, 1) / max);
-        return Math.round(TREEMAP_MIN_SIDE + (TREEMAP_MAX_SIDE - TREEMAP_MIN_SIDE) * ratio);
-      };
+      const totalViolations = entries.reduce((sum, [, c]) => sum + c.total, 0);
 
       wrap.innerHTML = `<div class="reports-treemap">${entries
         .map(([org, counts]) => {
           const filterOrg = org === 'Организация не указана' ? '—' : org;
           const isActive = isContractorFilterActive(org, filterOrg);
           const color = orgBlockColor(counts);
-          const side = treemapSide(counts.total);
-          return `<button type="button" class="reports-treemap__cell${isActive ? ' reports-treemap__cell--active' : ''}" style="--treemap-side:${side}px;background:${color}" data-reports-org="${AktUtils.escapeHtml(filterOrg)}" title="${AktUtils.escapeHtml(org)} — ${counts.total}" aria-pressed="${isActive}" aria-label="Фильтр: ${AktUtils.escapeHtml(org)}, ${counts.total} нарушений">
-            <span class="reports-treemap__line">
-              <span class="reports-treemap__name">${AktUtils.escapeHtml(org)}</span>
-              <span class="reports-treemap__val">${counts.total}</span>
-            </span>
+          const widthPct = Math.max(18, Math.round((counts.total / totalViolations) * 100));
+          const grow = Math.max(1, Math.round((counts.total / max) * 100));
+          return `<button type="button" class="reports-treemap__cell${isActive ? ' reports-treemap__cell--active' : ''}" style="flex-grow:${grow};flex-basis:calc(${widthPct}% - 8px);background:${color}" data-reports-org="${AktUtils.escapeHtml(filterOrg)}" title="${AktUtils.escapeHtml(org)} — ${counts.total}" aria-pressed="${isActive}" aria-label="Фильтр: ${AktUtils.escapeHtml(org)}, ${counts.total} нарушений">
+            <span class="reports-treemap__name">${AktUtils.escapeHtml(org)}</span>
+            <span class="reports-treemap__val">${counts.total}</span>
           </button>`;
         })
         .join('')}</div>`;

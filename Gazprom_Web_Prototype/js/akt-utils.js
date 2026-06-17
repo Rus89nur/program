@@ -102,6 +102,19 @@ const AktUtils = (() => {
     );
   }
 
+  /** Поздняя из двух дат (по календарному дню) — актуально после сдвига срока в мастере. */
+  function pickLaterDeadline(aIso, bIso) {
+    if (!aIso) return bIso || null;
+    if (!bIso) return aIso || null;
+    const a = new Date(aIso);
+    const b = new Date(bIso);
+    if (Number.isNaN(a.getTime())) return bIso;
+    if (Number.isNaN(b.getTime())) return aIso;
+    a.setHours(0, 0, 0, 0);
+    b.setHours(0, 0, 0, 0);
+    return a >= b ? aIso : bIso;
+  }
+
   /** Срок устранения: для сокращённых — дата предоставления отчёта; для полных — actustranenDate. */
   function getEliminationDeadline(akt) {
     if (!akt) return null;
@@ -147,16 +160,20 @@ const AktUtils = (() => {
     const aktDeadline = getEliminationDeadline(akt);
     if (!el) return aktDeadline;
     const history = extensionDeadlineHistory(el.deadlineHistory);
+    let fromRecord = null;
     if (history.length > 0) {
       const sorted = [...history].sort(
         (a, b) =>
           new Date(b.changeDate || b.changedAt || 0).getTime() -
           new Date(a.changeDate || a.changedAt || 0).getTime()
       );
-      return sorted[0]?.deadlineDate || aktDeadline;
+      fromRecord = sorted[0]?.deadlineDate || null;
+    } else if (el.newEliminationDate) {
+      fromRecord = el.newEliminationDate;
+    } else {
+      fromRecord = el.originalEliminationDate || null;
     }
-    if (el.newEliminationDate) return el.newEliminationDate;
-    return aktDeadline || el.originalEliminationDate || null;
+    return pickLaterDeadline(aktDeadline, fromRecord);
   }
 
   function isViolationEliminationOverdue(el, akt) {
@@ -168,7 +185,7 @@ const AktUtils = (() => {
     const d = new Date(deadline);
     if (Number.isNaN(d.getTime())) return false;
     d.setHours(0, 0, 0, 0);
-    return today >= d;
+    return today > d;
   }
 
   /** Создать / обновить / дедуплицировать записи устранения для акта. */

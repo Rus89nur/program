@@ -46,19 +46,20 @@ const EliminationEditor = (() => {
     return item.totalViolations > 0 && !item.allEliminated;
   }
 
+  function actIsOverdue(item) {
+    return actIsOpen(item) && item.hasOverdue;
+  }
+
   function actIsInWork(item) {
     return actIsOpen(item) && !item.hasOverdue;
   }
 
   function applyStatusFilter(items) {
-    if (selectedFilter === 'overdue') {
-      return items.filter((i) => actIsOpen(i) && i.hasOverdue);
+    if (selectedFilter === 'overdue' || selectedFilter === 'open') {
+      return items.filter(actIsOverdue);
     }
     if (selectedFilter === 'done') {
       return items.filter(actIsDone);
-    }
-    if (selectedFilter === 'open') {
-      return items.filter(actIsOpen);
     }
     if (selectedFilter === 'inwork') {
       return items.filter(actIsInWork);
@@ -310,8 +311,8 @@ const EliminationEditor = (() => {
   function renderStats(items) {
     const total = items.length;
     const done = items.filter(actIsDone).length;
-    const open = items.filter(actIsOpen).length;
     const inwork = items.filter(actIsInWork).length;
+    const overdue = items.filter(actIsOverdue).length;
     const set = (id, val) => {
       const el = document.getElementById(id);
       if (el) el.textContent = String(val);
@@ -319,7 +320,7 @@ const EliminationEditor = (() => {
     set('elimStatTotal', total);
     set('elimStatDone', done);
     set('elimStatInwork', inwork);
-    set('elimStatOpen', open);
+    set('elimStatOpen', overdue);
     updateStatFilterActive();
   }
 
@@ -327,7 +328,9 @@ const EliminationEditor = (() => {
     document.querySelectorAll('.elim-stat-grid [data-elim-filter]').forEach((btn) => {
       const filter = btn.dataset.elimFilter;
       const active =
-        filter === selectedFilter || (filter === 'all' && selectedFilter === 'all');
+        (filter === 'all' && selectedFilter === 'all') ||
+        filter === selectedFilter ||
+        (filter === 'open' && selectedFilter === 'overdue');
       btn.classList.toggle('elim-stat-card--active', active);
       btn.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
@@ -502,7 +505,7 @@ const EliminationEditor = (() => {
   function filterEmptyMessage() {
     if (selectedFilter === 'overdue') return 'Нет просроченных актов';
     if (selectedFilter === 'done') return 'Нет устранённых актов';
-    if (selectedFilter === 'open') return 'Нет неустранённых актов';
+    if (selectedFilter === 'open') return 'Нет актов с истёкшим сроком';
     if (selectedFilter === 'inwork') return 'Нет актов в работе';
     return 'Нет актов для отображения';
   }
