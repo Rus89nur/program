@@ -22,6 +22,77 @@ const ViolationTypesEditor = (() => {
     return AktUtils.escapeHtml(String(s ?? ''));
   }
 
+  let activeMappedTip = null;
+
+  function hideMappedFromTip() {
+    if (activeMappedTip?.tip?.parentNode) {
+      activeMappedTip.tip.parentNode.removeChild(activeMappedTip.tip);
+    }
+    activeMappedTip = null;
+  }
+
+  function renderMappedFromBadge(catalog, toId) {
+    const n = ViolationTypes.countMappedFrom(catalog, toId);
+    if (n <= 0) return '';
+    const titles = ViolationTypes.getMappedFromTitles(catalog, toId);
+    const tipPlain =
+      (n === 1 ? 'Устаревший вид: ' : 'Устаревшие виды: ') + titles.join('; ');
+    return ` <span class="vt-badge vt-badge--ok vt-badge--has-tip" tabindex="0" title="${esc(tipPlain)}" data-vt-mapped-from="${esc(JSON.stringify(titles))}" aria-label="${esc(`${n} устаревших видов`)}">← ${n} устар.</span>`;
+  }
+
+  function bindMappedFromTips(root) {
+    if (!root) return;
+    root.querySelectorAll('.vt-badge--has-tip:not([data-tip-bound])').forEach((badge) => {
+      badge.dataset.tipBound = '1';
+      const showTip = () => {
+        hideMappedFromTip();
+        let titles = [];
+        try {
+          titles = JSON.parse(badge.dataset.vtMappedFrom || '[]');
+        } catch (_) {
+          titles = [];
+        }
+        if (!titles.length) return;
+
+        const tip = document.createElement('div');
+        tip.className = 'vt-mapped-tip-float';
+        tip.setAttribute('role', 'tooltip');
+        const heading = document.createElement('div');
+        heading.className = 'vt-mapped-tip-float__title';
+        heading.textContent = titles.length === 1 ? 'Устаревший вид' : 'Устаревшие виды';
+        tip.appendChild(heading);
+        const list = document.createElement('ul');
+        list.className = 'vt-mapped-tip-float__list';
+        titles.forEach((title) => {
+          const li = document.createElement('li');
+          li.textContent = title;
+          list.appendChild(li);
+        });
+        tip.appendChild(list);
+        document.body.appendChild(tip);
+
+        const rect = badge.getBoundingClientRect();
+        const tipRect = tip.getBoundingClientRect();
+        let left = rect.left + rect.width / 2 - tipRect.width / 2;
+        let top = rect.bottom + 8;
+        left = Math.max(8, Math.min(left, window.innerWidth - tipRect.width - 8));
+        if (top + tipRect.height > window.innerHeight - 8) {
+          top = Math.max(8, rect.top - tipRect.height - 8);
+        }
+        tip.style.left = `${left}px`;
+        tip.style.top = `${top}px`;
+        activeMappedTip = { tip, badge };
+      };
+      const hideTip = () => {
+        if (activeMappedTip?.badge === badge) hideMappedFromTip();
+      };
+      badge.addEventListener('mouseenter', showTip);
+      badge.addEventListener('mouseleave', hideTip);
+      badge.addEventListener('focus', showTip);
+      badge.addEventListener('blur', hideTip);
+    });
+  }
+
   async function loadCatalog() {
     catalog = await GazpromStore.get();
     if (!catalog) {
@@ -133,6 +204,7 @@ const ViolationTypesEditor = (() => {
     const body = document.getElementById('vtTabBody');
     if (!body || !catalog) return;
 
+    hideMappedFromTip();
     if (currentTab === 'active') renderActiveTab(body);
     else if (currentTab === 'archive') renderArchiveTab(body);
     else renderMapTab(body);
@@ -162,10 +234,7 @@ const ViolationTypesEditor = (() => {
               const standaloneBadge = t.standalone
                 ? ' <span class="vt-badge vt-badge--standalone">уникальный</span>'
                 : '';
-              const mappedBadge =
-                ViolationTypes.countMappedFrom(catalog, t.id) > 0
-                  ? ` <span class="vt-badge vt-badge--ok">← ${ViolationTypes.countMappedFrom(catalog, t.id)} устар.</span>`
-                  : '';
+              const mappedBadge = renderMappedFromBadge(catalog, t.id);
               return `<tr>
                 <td class="vt-cell-title">${esc(t.title)}${standaloneBadge}${mappedBadge}</td>
                 <td class="vt-col-count">${n || '—'}</td>
@@ -180,6 +249,7 @@ const ViolationTypesEditor = (() => {
       </table>
       </div>`;
 
+    bindMappedFromTips(body);
     body.querySelectorAll('[data-vt-archive]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.vtArchive;
@@ -436,7 +506,7 @@ const ViolationTypesEditor = (() => {
                     })
                     .map((t) => {
                       const isPending = t.status === ViolationTypes.STATUS_PENDING;
-                      const mappedFromN = ViolationTypes.countMappedFrom(catalog, t.id);
+                      const mappedFromBadge = renderMappedFromBadge(catalog, t.id);
                       const badges = [
                         isPending
                           ? '<span class="vt-badge vt-badge--warn">ожидает привязки</span>'
@@ -444,8 +514,8 @@ const ViolationTypesEditor = (() => {
                         t.standalone
                           ? '<span class="vt-badge vt-badge--standalone">уникальный</span>'
                           : '',
-                        mappedFromN > 0
-                          ? `<span class="vt-badge vt-badge--ok">← ${mappedFromN} устар.</span>`
+                        mappedFromBadge.trim()
+                          ? mappedFromBadge
                           : '',
                       ]
                         .filter(Boolean)
@@ -494,6 +564,7 @@ const ViolationTypesEditor = (() => {
         renderMapTab(body);
       });
     });
+    bindMappedFromTips(body);
     bindDeleteButtons(body);
     body.querySelector('#vtInlineAddType')?.addEventListener('click', () => handleAddType());
     body.querySelector('#vtInlineSaveMap')?.addEventListener('click', async () => {

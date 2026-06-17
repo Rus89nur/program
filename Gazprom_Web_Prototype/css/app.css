@@ -6858,6 +6858,36 @@
     .vt-badge--warn { background: #ffebee; color: var(--danger); }
     .vt-badge--count { background: var(--bg); color: var(--text-muted); }
     .vt-badge--standalone { background: #e8eaf6; color: #3949ab; }
+    .vt-badge--has-tip { cursor: help; }
+    .vt-mapped-tip-float {
+      position: fixed;
+      z-index: 10050;
+      max-width: min(360px, calc(100vw - 16px));
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #1e293b;
+      color: #f8fafc;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.45;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.28);
+      pointer-events: none;
+    }
+    .vt-mapped-tip-float__title {
+      margin-bottom: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #94a3b8;
+    }
+    .vt-mapped-tip-float__list {
+      margin: 0;
+      padding: 0 0 0 16px;
+    }
+    .vt-mapped-tip-float__list li + li {
+      margin-top: 4px;
+    }
     .vt-map-hint {
       margin: 0 0 10px;
       padding: 0 4px;

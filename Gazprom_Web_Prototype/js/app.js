@@ -181,7 +181,7 @@ function registerServiceWorker() {
       });
       return;
     }
-    navigator.serviceWorker.register('./sw.js?v=189')
+    navigator.serviceWorker.register('./sw.js?v=190')
       .then((reg) => {
         const pingUpdate = () => {
           reg.update().catch(() => {});
