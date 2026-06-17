@@ -99,7 +99,11 @@ const CatalogEditor = (() => {
     if (!cfg) return;
 
     if (typeKey === 'violations') {
-      ViolationRegistry.open();
+      if (typeof DefaultsBootstrap !== 'undefined' && typeof DefaultsBootstrap.openRegistryModal === 'function') {
+        DefaultsBootstrap.openRegistryModal();
+      } else {
+        ViolationRegistry.open();
+      }
       return;
     }
 
@@ -287,6 +291,7 @@ const CatalogEditor = (() => {
 
   function bindSettingsTiles() {
     document.querySelectorAll('[data-catalog]').forEach((tile) => {
+      if (tile.classList.contains('settings-tile--registry')) return;
       const key = tile.dataset.catalog;
       tile.addEventListener('click', () => open(key));
       tile.addEventListener('keydown', (e) => {

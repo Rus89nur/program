@@ -398,6 +398,45 @@ const DefaultsBootstrap = (() => {
       </button>`;
   }
 
+  function renderTemplateMarkersGuide() {
+    const host = document.getElementById('templateMarkersGuide');
+    if (!host || typeof DocGenerator?.getMarkerGuide !== 'function') return;
+
+    const groups = DocGenerator.getMarkerGuide();
+    host.innerHTML = groups
+      .map(
+        (group) => `
+      <details class="template-markers-group" open>
+        <summary class="template-markers-group__title">${escHtml(group.title)}</summary>
+        ${group.hint ? `<p class="template-markers-group__hint">${escHtml(group.hint)}</p>` : ''}
+        <div class="template-markers-table-wrap">
+          <table class="template-markers-table">
+            <thead>
+              <tr>
+                <th>Маркер</th>
+                <th>Что подставится</th>
+                <th>Откуда в приложении</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${group.items
+                .map(
+                  (item) => `
+                <tr>
+                  <td><code class="template-marker-code">${escHtml(item.key)}</code></td>
+                  <td>${escHtml(item.label)}</td>
+                  <td>${escHtml(item.source)}</td>
+                </tr>`
+                )
+                .join('')}
+            </tbody>
+          </table>
+        </div>
+      </details>`
+      )
+      .join('');
+  }
+
   async function deleteTemplatePreset(id) {
     const catalog = ensureLibraries(await GazpromStore.get());
     const idx = catalog.savedTemplates.findIndex((t) => t.id === id);
@@ -476,6 +515,7 @@ const DefaultsBootstrap = (() => {
     container.innerHTML = `
       <div class="preset-picker-grid" role="listbox" aria-label="Выбор шаблона акта">
         ${presets.map((p) => renderPresetCard(p, 'template')).join('')}
+        ${renderAddCard('template-create', 'Создать шаблон')}
         ${renderAddCard('template', 'Загрузить .docx')}
       </div>`;
 
@@ -503,6 +543,21 @@ const DefaultsBootstrap = (() => {
 
     container.querySelector('[data-preset-add="template"]')?.addEventListener('click', () => {
       document.getElementById('wordTemplateInput')?.click();
+    });
+
+    container.querySelector('[data-preset-add="template-create"]')?.addEventListener('click', async () => {
+      try {
+        if (typeof DocGenerator?.downloadBlankTemplate !== 'function') {
+          throw new Error('Модуль Word не загружен');
+        }
+        GazpromToast.info('Создаю пустой шаблон Word…');
+        await DocGenerator.downloadBlankTemplate();
+        GazpromToast.success(
+          'Файл скачан. Откройте в Word, отредактируйте и загрузите через «Загрузить .docx»'
+        );
+      } catch (err) {
+        GazpromToast.error(err?.message || 'Не удалось создать шаблон');
+      }
     });
   }
 
@@ -666,26 +721,43 @@ const DefaultsBootstrap = (() => {
   }
 
   async function refreshRegistryModal() {
-    const catalog = await GazpromStore.get();
     const statusEl = document.getElementById('registryModalStatus');
-    const count = catalog?.violationRegistry?.length || 0;
-    const label = registrySourceLabel(catalog);
+    const pickerEl = document.getElementById('registryPresetPicker');
 
-    if (statusEl) {
-      statusEl.textContent = count
-        ? `✅ Активный: ${label} (${count} записей)`
-        : 'Выберите реестр для работы';
-      statusEl.className = `defaults-status ${count ? 'defaults-status--ok' : 'defaults-status--warn'}`;
+    try {
+      const catalog = await GazpromStore.get();
+      const count = catalog?.violationRegistry?.length || 0;
+      const label = registrySourceLabel(catalog);
+
+      if (statusEl) {
+        statusEl.textContent = count
+          ? `✅ Активный: ${label} (${count} записей)`
+          : 'Выберите реестр для работы';
+        statusEl.className = `defaults-status ${count ? 'defaults-status--ok' : 'defaults-status--warn'}`;
+      }
+
+      await renderRegistryPicker(pickerEl, {
+        onSelected: afterRegistrySelected,
+      });
+    } catch (err) {
+      console.error('[RegistryModal] refresh error:', err);
+      if (statusEl) {
+        statusEl.textContent = '⚠️ Не удалось загрузить список реестров';
+        statusEl.className = 'defaults-status defaults-status--warn';
+      }
+      if (pickerEl) {
+        pickerEl.innerHTML = '<p class="backup-import-hint">Обновите страницу или проверьте подключение к интернету.</p>';
+      }
+      GazpromToast?.error?.('Не удалось открыть выбор реестра');
     }
-
-    await renderRegistryPicker(document.getElementById('registryPresetPicker'), {
-      onSelected: afterRegistrySelected,
-    });
   }
 
   function openRegistryModal() {
     const modal = document.getElementById('registryModal');
-    if (!modal) return;
+    if (!modal) {
+      GazpromToast?.error?.('Окно выбора реестра недоступно. Обновите страницу.');
+      return;
+    }
     modal.hidden = false;
     GazpromMobileOverlay?.lock?.();
     void refreshRegistryModal();
@@ -699,6 +771,9 @@ const DefaultsBootstrap = (() => {
     document.getElementById('registryModalClose')?.addEventListener('click', closeRegistryModal);
     modal.addEventListener('click', (e) => {
       if (e.target === modal) closeRegistryModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal && !modal.hidden) closeRegistryModal();
     });
 
     document.getElementById('vrOpenRegistryModalBtn')?.addEventListener('click', () => {
@@ -748,6 +823,7 @@ const DefaultsBootstrap = (() => {
     }
 
     await renderTemplatePicker(document.getElementById('templatePresetPicker'));
+    renderTemplateMarkersGuide();
     await renderSettingsTilePreviews(catalog);
   }
 

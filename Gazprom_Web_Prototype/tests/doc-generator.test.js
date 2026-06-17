@@ -76,4 +76,11 @@ describe('DocGenerator.buildTemplateData', () => {
       'a&lt;b</w:t><w:br/><w:t>&amp;c'
     );
   });
+
+  it('exposes marker guide for template modal', () => {
+    const guide = DocGenerator.getMarkerGuide();
+    expect(guide.length).toBeGreaterThan(3);
+    expect(guide.some((g) => g.items.some((i) => i.key === 'Number'))).toBe(true);
+    expect(guide.some((g) => g.items.some((i) => i.key === 'PoradNum'))).toBe(true);
+  });
 });

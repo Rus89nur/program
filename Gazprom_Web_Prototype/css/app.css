@@ -3679,6 +3679,75 @@
       gap: 8px;
       cursor: pointer;
     }
+
+    /* ——— Подсказка маркеров Word-шаблона ——— */
+    .template-markers-guide-host {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .template-markers-group {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .template-markers-group__title {
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      list-style: none;
+      background: var(--bg);
+    }
+    .template-markers-group__title::-webkit-details-marker { display: none; }
+    .template-markers-group__hint {
+      margin: 0;
+      padding: 0 12px 10px;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+    .template-markers-table-wrap {
+      overflow-x: auto;
+      padding: 0 8px 10px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .template-markers-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      min-width: 420px;
+    }
+    .template-markers-table th,
+    .template-markers-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+    }
+    .template-markers-table th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      background: var(--bg);
+    }
+    .template-marker-code {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .preset-card--template-create .preset-card__add-icon {
+      font-size: 22px;
+    }
+
     .preset-card__tag {
       align-self: flex-start;
       font-size: 10px;
@@ -3967,12 +4036,22 @@
       padding-bottom: 24px;
     }
 
+    .elim-top-row {
+      display: flex;
+      align-items: stretch;
+      gap: 20px;
+    }
+
     .elim-dashboard {
       display: flex;
       align-items: center;
       gap: 24px;
-      padding: 20px 24px;
-      flex-wrap: wrap;
+      padding: 20px 16px 20px 24px;
+      flex-wrap: nowrap;
+      width: fit-content;
+      max-width: 100%;
+      flex-shrink: 0;
+      margin-bottom: 0;
     }
 
     .elim-dashboard__chart-wrap {
@@ -4022,8 +4101,8 @@
     }
 
     .elim-dashboard__side {
-      flex: 1;
-      min-width: 200px;
+      flex: 0 0 auto;
+      min-width: 0;
       display: flex;
       flex-direction: column;
       gap: 16px;
@@ -4080,6 +4159,9 @@
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 16px;
+      flex: 1;
+      min-width: 0;
+      align-self: stretch;
     }
 
     .elim-stat-card {
@@ -4585,15 +4667,20 @@
     .elim-btn-history { background: var(--warning); border-color: var(--warning); color: #fff; }
 
     @media (max-width: 720px) {
+      .elim-top-row {
+        flex-direction: column;
+      }
       .elim-dashboard {
         flex-direction: column;
         align-items: stretch;
+        width: 100%;
       }
       .elim-dashboard__chart-wrap {
         margin: 0 auto;
       }
       .elim-stat-grid {
         grid-template-columns: 1fr;
+        flex: none;
       }
     }
 

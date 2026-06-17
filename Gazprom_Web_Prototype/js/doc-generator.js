@@ -7,6 +7,78 @@ const DocGenerator = (() => {
   const TEMPLATE_KEY = 'wordTemplate';
   const PIZZIP_LOCAL = './assets/vendor/pizzip.min.js';
   const DOCX_LOCAL = './assets/vendor/docxtemplater.js';
+  const BLANK_TEMPLATE_FILENAME = 'Шаблон_акта_пустой.docx';
+
+  /** Справочник маркеров для UI и подсказок в модале шаблона. */
+  const TEMPLATE_MARKER_GUIDE = [
+    {
+      id: 'scalar',
+      title: 'Поля акта — вставьте текстом в документ',
+      hint: 'Маркер пишется как обычный текст (без фигурных скобок). Word не должен разбивать его на части.',
+      items: [
+        { key: 'Number', label: 'Номер акта', source: 'Мастер → дата и номер' },
+        { key: 'DateReview', label: 'Дата проверки', source: 'Мастер → дата акта' },
+        { key: 'NameObject', label: 'Объект проверки', source: 'Мастер → объект (без кавычек)' },
+        { key: 'ReviewObject', label: 'Организация', source: 'Мастер → организация' },
+        { key: 'Comission', label: 'Состав комиссии', source: 'Справочник комиссии: должность — ФИО, через запятую' },
+        { key: 'Pedstav', label: 'Представители', source: 'Справочник представителей: должность — ФИО' },
+        { key: 'Conclusion', label: 'Выводы комиссии', source: 'Мастер → выводы' },
+        { key: 'ustranenDate', label: 'Срок устранения', source: 'Мастер → срок устранения' },
+        { key: 'predostavlenDate', label: 'Срок предоставления', source: 'Мастер → срок предоставления материалов' },
+        { key: 'UtverzderDate', label: 'Дата утверждения', source: 'Мастер → дата утверждения' },
+      ],
+    },
+    {
+      id: 'signatures',
+      title: 'Подписи — заменяются таблицей',
+      hint: 'Вставьте маркер на отдельной строке. При генерации появится таблица с ФИО и линией для подписи.',
+      items: [
+        { key: 'PredVoice', label: 'Подписи комиссии', source: 'Члены комиссии из справочника' },
+        { key: 'PedstavVoice', label: 'Подписи представителей', source: 'Представители из справочника' },
+      ],
+    },
+    {
+      id: 'violations',
+      title: 'Таблица нарушений — одна строка-образец',
+      hint: 'Создайте строку таблицы с маркерами. При генерации строка копируется для каждого нарушения акта.',
+      items: [
+        { key: 'PoradNum', label: '№ п/п', source: 'Порядковый номер в таблице' },
+        { key: 'TitleViolatation', label: 'Место нарушения', source: 'Поле «Место» в карточке нарушения' },
+        { key: 'ddescrVi', label: 'Формулировка', source: 'Текст нарушения из карточки / реестра' },
+        { key: 'ddescpitVi', label: 'Формулировка (запасной)', source: 'То же, если в шаблоне опечатка в маркере' },
+        { key: 'urlDoc', label: 'Нормативный документ', source: 'Ссылка на документ в карточке' },
+        { key: 'formula', label: 'Формулировка из правил', source: 'Поле «из правил» в нарушении' },
+      ],
+    },
+    {
+      id: 'photos',
+      title: 'Фототаблица — одна строка-образец',
+      hint: 'Строка с тремя ячейками. tempThree заменяется фотографиями из нарушений.',
+      items: [
+        { key: 'tempOne', label: '№ фото п/п', source: 'Порядковый номер строки с фото' },
+        { key: 'tempTwo', label: '№ пункта акта', source: 'Номер нарушения в акте' },
+        { key: 'tempThree', label: 'Фото', source: 'Снимки из карточек нарушений (JPEG)' },
+      ],
+    },
+    {
+      id: 'curly',
+      title: 'Альтернатива: синтаксис {скобок}',
+      hint: 'Если в шаблоне есть {name}, используется docxtemplater. Доступны те же поля: {Number}, {DateReview}, {violations}, {commission}…',
+      items: [
+        { key: '{Number}', label: 'Номер акта', source: 'Как Number' },
+        { key: '{DateReview}', label: 'Дата проверки', source: 'Как DateReview' },
+        { key: '{violations}', label: 'Массив нарушений', source: 'Цикл {#violations}…{/violations}' },
+        { key: '{Conclusion}', label: 'Выводы', source: 'Как Conclusion' },
+      ],
+    },
+  ];
+
+  function getMarkerGuide() {
+    return TEMPLATE_MARKER_GUIDE.map((g) => ({
+      ...g,
+      items: g.items.map((item) => ({ ...item })),
+    }));
+  }
 
   function loadScript(url, checkFn) {
     return new Promise((resolve, reject) => {
@@ -28,6 +100,167 @@ const DocGenerator = (() => {
     }
     await loadScript(PIZZIP_LOCAL, () => typeof PizZip !== 'undefined');
     await loadScript(DOCX_LOCAL, () => Boolean(window.docxtemplater || window.Docxtemplater));
+  }
+
+  async function ensurePizZip() {
+    await loadScript(PIZZIP_LOCAL, () => typeof PizZip !== 'undefined');
+  }
+
+  function downloadBlob(blob, fileName) {
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+  }
+
+  function wParagraph(text, { bold = false } = {}) {
+    const body = xmlEscape(String(text ?? ''));
+    const rPr = bold ? '<w:rPr><w:b/></w:rPr>' : '';
+    return `<w:p><w:r>${rPr}<w:t xml:space="preserve">${body}</w:t></w:r></w:p>`;
+  }
+
+  function wParagraphMarkers(text) {
+    return `<w:p><w:r><w:t xml:space="preserve">${String(text ?? '')}</w:t></w:r></w:p>`;
+  }
+
+  function wTableCell(text) {
+    return `<w:tc><w:tcPr><w:tcW w:w="2000" w:type="dxa"/></w:tcPr>${wParagraphMarkers(text)}</w:tc>`;
+  }
+
+  function wTableRow(cells) {
+    return `<w:tr>${cells.map((c) => wTableCell(c)).join('')}</w:tr>`;
+  }
+
+  function wTable(rows) {
+    return [
+      '<w:tbl>',
+      '<w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblBorders>',
+      '<w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/>',
+      '<w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/>',
+      '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/>',
+      '<w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/>',
+      '<w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/>',
+      '<w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/>',
+      '</w:tblBorders></w:tblPr>',
+      rows.join(''),
+      '</w:tbl>',
+    ].join('');
+  }
+
+  function buildBlankDocumentXml() {
+    const body = [
+      wParagraph('АКТ ПРОВЕРКИ № Number', { bold: true }),
+      wParagraph(''),
+      wParagraphMarkers('Дата проверки: DateReview'),
+      wParagraphMarkers('Организация: ReviewObject'),
+      wParagraphMarkers('Объект проверки: NameObject'),
+      wParagraphMarkers('Комиссия: Comission'),
+      wParagraphMarkers('Представители: Pedstav'),
+      wParagraph(''),
+      wParagraph('Выводы комиссии:', { bold: true }),
+      wParagraphMarkers('Conclusion'),
+      wParagraph(''),
+      wParagraph('Нарушения (таблица — оставьте одну строку с маркерами):', { bold: true }),
+      wTable([
+        wTableRow(['№', 'Место', 'Формулировка', 'Документ', 'Из правил']),
+        wTableRow(['PoradNum', 'TitleViolatation', 'ddescrVi', 'urlDoc', 'formula']),
+      ]),
+      wParagraph(''),
+      wParagraph('Подписи комиссии (маркер заменится таблицей):', { bold: true }),
+      wParagraphMarkers('PredVoice'),
+      wParagraph(''),
+      wParagraph('Подписи представителей:', { bold: true }),
+      wParagraphMarkers('PedstavVoice'),
+      wParagraph(''),
+      wParagraphMarkers('Срок устранения: ustranenDate'),
+      wParagraphMarkers('Срок предоставления: predostavlenDate'),
+      wParagraphMarkers('Дата утверждения: UtverzderDate'),
+      wParagraph(''),
+      wParagraph('Фототаблица (одна строка-образец):', { bold: true }),
+      wTable([
+        wTableRow(['№ фото', '№ пункта', 'Фото']),
+        wTableRow(['tempOne', 'tempTwo', 'tempThree']),
+      ]),
+      wParagraph(''),
+      wParagraph('Отредактируйте оформление в Word, сохраните .docx и загрузите в приложение.', { bold: false }),
+      '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134"/></w:sectPr>',
+    ].join('');
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>${body}</w:body>
+</w:document>`;
+  }
+
+  function buildBlankTemplateZip() {
+    const zip = new PizZip();
+    zip.file(
+      '[Content_Types].xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+</Types>`
+    );
+    zip.file(
+      '_rels/.rels',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`
+    );
+    zip.file('word/document.xml', buildBlankDocumentXml());
+    zip.file(
+      'word/_rels/document.xml.rels',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`
+    );
+    zip.file(
+      'word/styles.xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/></w:rPr></w:rPrDefault></w:docDefaults>
+</w:styles>`
+    );
+    const now = new Date().toISOString();
+    zip.file(
+      'docProps/core.xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>Шаблон акта</dc:title>
+  <dc:creator>Gazprom Web</dc:creator>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created>
+</cp:coreProperties>`
+    );
+    zip.file(
+      'docProps/app.xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">
+  <Application>Gazprom Web</Application>
+</Properties>`
+    );
+    return zip;
+  }
+
+  async function downloadBlankTemplate() {
+    await ensurePizZip();
+    const zip = buildBlankTemplateZip();
+    const blob = zip.generate({
+      type: 'blob',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    downloadBlob(blob, BLANK_TEMPLATE_FILENAME);
   }
 
   async function loadTemplateBlob(catalogOverride) {
@@ -755,15 +988,8 @@ const DocGenerator = (() => {
     }
 
     // Скачиваем файл — автоматически открывается в Word на Mac/Windows
-    const blobUrl = URL.createObjectURL(blob);
     const fileName = `Акт_${akt.number}_${AktUtils.toDateInputValue(akt.date)}.docx`;
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    downloadBlob(blob, fileName);
     GazpromToast.success(`Акт № ${akt.number} сформирован — открывается в Word`);
   }
 
@@ -786,6 +1012,9 @@ const DocGenerator = (() => {
     getTemplateName,
     buildTemplateData,
     toWordMultilineTextXml,
+    getMarkerGuide,
+    downloadBlankTemplate,
+    BLANK_TEMPLATE_FILENAME,
     TEMPLATE_KEY,
   };
 })();

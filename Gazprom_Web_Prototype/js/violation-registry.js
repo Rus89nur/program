@@ -177,12 +177,18 @@ const ViolationRegistry = (() => {
   /* ——— Вход в экран ——— */
 
   function open() {
-    if (typeof DefaultsBootstrap !== 'undefined') {
+    if (typeof DefaultsBootstrap !== 'undefined' && typeof DefaultsBootstrap.openRegistryModal === 'function') {
       DefaultsBootstrap.openRegistryModal();
+      return;
     }
+    GazpromToast?.error?.('Модуль выбора реестра не загружен. Обновите страницу (Сборка на главной).');
   }
 
   function openRegistryModal() {
+    if (typeof DefaultsBootstrap !== 'undefined' && typeof DefaultsBootstrap.openRegistryModal === 'function') {
+      DefaultsBootstrap.openRegistryModal();
+      return;
+    }
     open();
   }
 
