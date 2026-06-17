@@ -124,6 +124,23 @@ describe('ViolationTypes', () => {
     expect(catalog.violationTypes).toHaveLength(before - 1);
   });
 
+  it('deleteType не восстанавливает удалённый seed-вид', () => {
+    const catalog = {
+      akts: [],
+      violationTypes: [
+        { id: 'seed1', title: 'Новый вид Smart Forms', status: 'pending' },
+      ],
+      typeMappings: {},
+      dismissedMappingSeeds: [],
+    };
+    VT.ensureCatalog(catalog);
+    const r = VT.deleteType(catalog, 'seed1');
+    expect(r.ok).toBe(true);
+    VT.ensureCatalog(catalog);
+    expect(VT.getPendingTypes(catalog).some((t) => t.title === 'Новый вид Smart Forms')).toBe(false);
+    expect(catalog.dismissedMappingSeeds).toContain('Новый вид Smart Forms');
+  });
+
   it('restoreType возвращает вид из архива в активные', () => {
     const catalog = {
       akts: [],

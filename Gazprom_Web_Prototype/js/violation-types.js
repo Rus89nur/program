@@ -46,6 +46,25 @@ const ViolationTypes = (() => {
       : [];
   }
 
+  function getDismissedMappingSeeds(catalog) {
+    if (!Array.isArray(catalog?.dismissedMappingSeeds)) {
+      if (catalog) catalog.dismissedMappingSeeds = [];
+      return new Set();
+    }
+    return new Set(
+      catalog.dismissedMappingSeeds.map((t) => String(t || '').trim()).filter(Boolean)
+    );
+  }
+
+  function dismissMappingSeed(catalog, title) {
+    const normalized = String(title || '').trim();
+    if (!normalized || !catalog) return false;
+    const dismissed = getDismissedMappingSeeds(catalog);
+    if (dismissed.has(normalized)) return false;
+    catalog.dismissedMappingSeeds = [...dismissed, normalized];
+    return true;
+  }
+
   function collectVidCounts(catalog) {
     const counts = new Map();
     const add = (value) => {
@@ -104,10 +123,11 @@ const ViolationTypes = (() => {
     if (!seeds.length) return false;
     const types = getTypes(catalog);
     const existingTitles = new Set(types.map((t) => t.title));
+    const dismissed = getDismissedMappingSeeds(catalog);
     let changed = false;
     for (const title of seeds) {
       const normalized = String(title || '').trim();
-      if (!normalized || existingTitles.has(normalized)) continue;
+      if (!normalized || existingTitles.has(normalized) || dismissed.has(normalized)) continue;
       types.push({
         id: AktUtils.uuid(),
         title: normalized,
@@ -130,6 +150,10 @@ const ViolationTypes = (() => {
     }
     if (!catalog.typeMappings || typeof catalog.typeMappings !== 'object') {
       catalog.typeMappings = {};
+      changed = true;
+    }
+    if (!Array.isArray(catalog.dismissedMappingSeeds)) {
+      catalog.dismissedMappingSeeds = [];
       changed = true;
     }
 
@@ -259,6 +283,11 @@ const ViolationTypes = (() => {
     const usage = usageCount(catalog, t);
     if (usage > 0) {
       return { ok: false, reason: 'in_use', count: usage };
+    }
+
+    const seedTitles = new Set(mappingSeedTypes());
+    if (t.status === STATUS_PENDING && seedTitles.has(t.title)) {
+      dismissMappingSeed(catalog, t.title);
     }
 
     const types = getTypes(catalog).filter((x) => x.id !== id);
@@ -419,6 +448,7 @@ const ViolationTypes = (() => {
     setMapping,
     clearMapping,
     isMappedToActive,
+    dismissMappingSeed,
     buildKindStats,
     migrateStoredVids,
     formatVidDisplay,

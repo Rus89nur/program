@@ -29,6 +29,7 @@ const ViolationTypesEditor = (() => {
         akts: [],
         violationTypes: [],
         typeMappings: {},
+        dismissedMappingSeeds: [],
       };
     }
     if (ViolationTypes.ensureCatalog(catalog)) {
@@ -227,7 +228,11 @@ const ViolationTypesEditor = (() => {
 
   function bindDeleteButtons(root) {
     root.querySelectorAll('[data-vt-delete]').forEach((btn) => {
-      btn.addEventListener('click', () => handleDeleteType(btn.dataset.vtDelete));
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        void handleDeleteType(btn.dataset.vtDelete);
+      });
     });
   }
 

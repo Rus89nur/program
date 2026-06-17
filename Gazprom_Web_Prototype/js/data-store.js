@@ -22,6 +22,7 @@ const GazpromStore = (() => {
       violationRegistry: [],
       violationTypes: [],
       typeMappings: {},
+      dismissedMappingSeeds: [],
       trash: [],
       editableAkt: null,
       editableAktReference: null,
