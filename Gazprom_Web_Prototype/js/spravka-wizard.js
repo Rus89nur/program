@@ -210,15 +210,10 @@ const SpravkaWizard = (() => {
 
   function renderObjectDetailsHtml() {
     const selected = draft.objectsCheck || [];
-    if (!selected.length) {
-      return '<p class="wizard-hint">Выберите объекты из справочника ниже</p>';
-    }
+    if (!selected.length) return '';
     return selected.map((obj, idx) => `
       <div class="spravka-object-card" data-sp-object-card="${obj.id}">
-        <div class="spravka-object-card__head">
-          <h4 class="spravka-object-card__title">${idx + 1}. ${AktUtils.escapeHtml(obj.title)}</h4>
-          <button type="button" class="btn-ghost btn-sm spravka-object-card__remove" data-sp-remove-object="${AktUtils.escapeHtml(String(obj.id))}" title="Убрать из справки">Убрать</button>
-        </div>
+        <h4 style="margin:0 0 12px;font-size:14px">${idx + 1}. ${AktUtils.escapeHtml(obj.title)}</h4>
         <div class="form-row">
           <div class="form-group">
             <label for="spObjCode_${obj.id}">Код объекта</label>
@@ -238,33 +233,40 @@ const SpravkaWizard = (() => {
     const objects = getCatalogObjects();
     const selectedIds = new Set((draft.objectsCheck || []).map((o) => String(o.id)));
 
-    const catalogItems = objects
-      .filter((o) => !selectedIds.has(String(o.id)))
-      .map((o) => `
-        <button type="button" class="spravka-obj-pick" data-sp-add-object="${AktUtils.escapeHtml(String(o.id))}" title="Добавить в справку">
-          <span class="spravka-obj-pick__title">${AktUtils.escapeHtml(o.title)}</span>
-          ${o.subTitle ? `<span class="spravka-obj-pick__sub">${AktUtils.escapeHtml(o.subTitle)}</span>` : ''}
-        </button>
-      `)
+    const selectedChips = (draft.objectsCheck || [])
+      .map(
+        (o) =>
+          `<span class="chip chip-removable" data-sp-remove-object="${AktUtils.escapeHtml(String(o.id))}" title="Нажмите, чтобы убрать">${AktUtils.escapeHtml(o.title)}${o.subTitle ? ' — ' + AktUtils.escapeHtml(o.subTitle) : ''}</span>`
+      )
       .join('');
 
-    const selectedCount = (draft.objectsCheck || []).length;
+    const catalogChips = objects
+      .filter((o) => !selectedIds.has(String(o.id)))
+      .map(
+        (o) =>
+          `<span class="chip chip-catalog" data-sp-add-object="${AktUtils.escapeHtml(String(o.id))}" title="Нажмите, чтобы добавить">${AktUtils.escapeHtml(o.title)}${o.subTitle ? ' — ' + AktUtils.escapeHtml(o.subTitle) : ''}</span>`
+      )
+      .join('');
+
+    const catalogBlock = objects.length
+      ? `<div class="chip-list">${catalogChips || '<span class="wizard-hint">Все из справочника уже добавлены</span>'}</div>`
+      : '<p class="wizard-hint">Справочник объектов пуст — добавьте через кнопку справа.</p>';
+
+    const detailsBlock = renderObjectDetailsHtml();
 
     return `
       <h3>Объекты строительства</h3>
       <p class="wizard-hint">Можно выбрать несколько объектов — в отличие от полного акта проверки</p>
-      ${selectedCount ? `<p class="spravka-obj-selected-count">Выбрано объектов: <strong>${selectedCount}</strong></p>` : ''}
-      <div class="spravka-object-cards">
-        ${renderObjectDetailsHtml()}
-      </div>
+      <div class="chip-list" id="spObjectChips">${selectedChips || '<span class="wizard-hint">Выберите объект из справочника</span>'}</div>
       <div class="commission-divider"></div>
       <div class="commission-catalog-section">
         <div class="commission-catalog-header">
-          <span class="commission-catalog-label">Добавить из справочника</span>
-          <button type="button" class="btn-ghost" id="spNewObjectBtn">+ В справочник</button>
+          <span class="commission-catalog-label">Выбрать из справочника</span>
+          <button type="button" class="btn-ghost" id="spNewObjectBtn">+ Новый объект</button>
         </div>
-        <div class="spravka-obj-pick-list">${catalogItems || '<p class="wizard-hint">Все объекты уже добавлены</p>'}</div>
+        ${catalogBlock}
       </div>
+      ${detailsBlock ? `<div class="spravka-object-cards">${detailsBlock}</div>` : ''}
     `;
   }
 
@@ -484,22 +486,6 @@ const SpravkaWizard = (() => {
     render();
   }
 
-  function handleSpravkaRootClick(e) {
-    const addBtn = e.target.closest('[data-sp-add-object]');
-    if (addBtn) {
-      e.preventDefault();
-      e.stopPropagation();
-      addObjectById(addBtn.getAttribute('data-sp-add-object'));
-      return;
-    }
-    const removeBtn = e.target.closest('[data-sp-remove-object]');
-    if (removeBtn) {
-      e.preventDefault();
-      e.stopPropagation();
-      removeObjectById(removeBtn.getAttribute('data-sp-remove-object'));
-    }
-  }
-
   function bindPanelEvents() {
     panelsHost()?.querySelectorAll('input, select, textarea').forEach((el) => {
       el.addEventListener('input', scheduleAutosave);
@@ -508,6 +494,13 @@ const SpravkaWizard = (() => {
 
     document.getElementById('spNewObjectBtn')?.addEventListener('click', () => {
       WizardModals.openQuickAdd('object');
+    });
+
+    panelsHost()?.querySelectorAll('[data-sp-add-object]').forEach((chip) => {
+      chip.addEventListener('click', () => addObjectById(chip.dataset.spAddObject));
+    });
+    panelsHost()?.querySelectorAll('[data-sp-remove-object]').forEach((chip) => {
+      chip.addEventListener('click', () => removeObjectById(chip.dataset.spRemoveObject));
     });
 
     document.getElementById('spWorkerAddOrg')?.addEventListener('click', () => {
@@ -608,8 +601,6 @@ const SpravkaWizard = (() => {
   function bindChrome() {
     if (chromeBound) return;
     chromeBound = true;
-    const root = document.getElementById('spravkaRoot');
-    root?.addEventListener('click', handleSpravkaRootClick);
     document.getElementById('spravkaPrev')?.addEventListener('click', async () => {
       if (step === 0) return;
       commitStep(step);
