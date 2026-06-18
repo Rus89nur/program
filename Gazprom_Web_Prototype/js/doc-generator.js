@@ -1426,6 +1426,360 @@ const DocGenerator = (() => {
     );
   }
 
+  /* ——— Мастер шаблонов: модель → OOXML ——— */
+
+  const BUILDER_DEFAULT_FONT = 'Times New Roman';
+  const BUILDER_DEFAULT_SIZE = 12;
+
+  function builderUid() {
+    return `b_${Math.random().toString(36).slice(2, 11)}`;
+  }
+
+  function builderTextRun(text, opts = {}) {
+    return {
+      kind: 'text',
+      text: String(text ?? ''),
+      font: opts.font || BUILDER_DEFAULT_FONT,
+      sizePt: opts.sizePt || BUILDER_DEFAULT_SIZE,
+      bold: Boolean(opts.bold),
+    };
+  }
+
+  function builderMarkerRun(key) {
+    return { kind: 'marker', key: String(key) };
+  }
+
+  function builderParagraph(runs, align = 'left') {
+    const list = Array.isArray(runs) && runs.length ? runs : [builderTextRun('')];
+    return { type: 'paragraph', id: builderUid(), align, runs: list };
+  }
+
+  function builderTableRow(cells) {
+    return cells.map((runs) => ({ runs: Array.isArray(runs) ? runs : [builderTextRun(String(runs ?? ''))] }));
+  }
+
+  function builderTable(rows) {
+    return { type: 'table', id: builderUid(), rows: rows.map((cells) => builderTableRow(cells)) };
+  }
+
+  const AKT_STRUCTURE_PRESETS = [
+    {
+      id: 'akt-text',
+      title: 'Только текст',
+      description: 'Заголовок и поля акта без таблиц',
+      previewHtml:
+        '<div class="tb-preview-page"><strong>АКТ № Number</strong><p>Дата: <mark>DateReview</mark></p><p>Объект: <mark>NameObject</mark></p><p>Выводы: <mark>Conclusion</mark></p></div>',
+    },
+    {
+      id: 'akt-violations',
+      title: 'Таблица нарушений',
+      description: 'Текст + таблица с маркерами нарушений',
+      previewHtml:
+        '<div class="tb-preview-page"><strong>АКТ</strong><table class="tb-preview-table"><tr><th>№</th><th>Место</th><th>Текст</th></tr><tr><td><mark>PoradNum</mark></td><td><mark>TitleViolatation</mark></td><td><mark>ddescrVi</mark></td></tr></table></div>',
+    },
+    {
+      id: 'akt-violations-photo',
+      title: 'Нарушения и фото',
+      description: 'Таблица нарушений и фототаблица',
+      previewHtml:
+        '<div class="tb-preview-page"><table class="tb-preview-table"><tr><th>№</th><th>Формулировка</th></tr><tr><td><mark>PoradNum</mark></td><td><mark>ddescrVi</mark></td></tr></table><table class="tb-preview-table tb-preview-table--photo"><tr><th>№</th><th>Пункт</th><th>Фото</th></tr><tr><td><mark>tempOne</mark></td><td><mark>tempTwo</mark></td><td><mark>tempThree</mark></td></tr></table></div>',
+    },
+    {
+      id: 'akt-signatures',
+      title: 'С подписями',
+      description: 'Полный акт с таблицей нарушений и блоками подписей',
+      previewHtml:
+        '<div class="tb-preview-page"><strong>АКТ</strong><table class="tb-preview-table"><tr><td><mark>PoradNum</mark></td><td><mark>ddescrVi</mark></td></tr></table><p>Подписи: <mark>PredVoice</mark></p><p><mark>PedstavVoice</mark></p></div>',
+    },
+  ];
+
+  const SPRAVKA_STRUCTURE_PRESETS = [
+    {
+      id: 'spravka-text',
+      title: 'Только текст',
+      description: 'Заголовок и поля справки',
+      previewHtml:
+        '<div class="tb-preview-page"><strong>СПРАВКА ПБ</strong><p>Дата: <mark>DateReview</mark></p><p>Объекты: <mark>ObjectsTitles</mark></p><p><mark>RemarksRMM</mark></p></div>',
+    },
+    {
+      id: 'spravka-objects',
+      title: 'Таблица объектов',
+      description: 'Текст + таблица объектов строительства',
+      previewHtml:
+        '<div class="tb-preview-page"><table class="tb-preview-table"><tr><th>№</th><th>Объект</th></tr><tr><td><mark>ObjNum</mark></td><td><mark>ObjTitle</mark></td></tr></table></div>',
+    },
+    {
+      id: 'spravka-workers',
+      title: 'Таблица работников',
+      description: 'Текст + таблица организаций и численности',
+      previewHtml:
+        '<div class="tb-preview-page"><table class="tb-preview-table"><tr><th>№</th><th>Орг.</th><th>ПБ</th></tr><tr><td><mark>OrgNum</mark></td><td><mark>OrgName</mark></td><td><mark>OrgPbCount</mark></td></tr></table><p>Итого: <mark>OrgPbTotal</mark></p></div>',
+    },
+    {
+      id: 'spravka-violations',
+      title: 'Таблица нарушений',
+      description: 'Текст + таблица нарушений',
+      previewHtml:
+        '<div class="tb-preview-page"><table class="tb-preview-table"><tr><th>№</th><th>Формулировка</th></tr><tr><td><mark>PoradNum</mark></td><td><mark>ddescrVi</mark></td></tr></table></div>',
+    },
+    {
+      id: 'spravka-full',
+      title: 'Полный набор',
+      description: 'Все таблицы: объекты, работники, нарушения',
+      previewHtml:
+        '<div class="tb-preview-page"><table class="tb-preview-table"><tr><td><mark>ObjNum</mark></td><td><mark>ObjTitle</mark></td></tr></table><table class="tb-preview-table"><tr><td><mark>OrgNum</mark></td><td><mark>OrgName</mark></td></tr></table><table class="tb-preview-table"><tr><td><mark>PoradNum</mark></td><td><mark>ddescrVi</mark></td></tr></table></div>',
+    },
+  ];
+
+  function getBuilderStructurePresets(templateType) {
+    return templateType === 'spravka'
+      ? SPRAVKA_STRUCTURE_PRESETS.map((p) => ({ ...p }))
+      : AKT_STRUCTURE_PRESETS.map((p) => ({ ...p }));
+  }
+
+  function buildAktBlocksForStructure(structureId) {
+    const t = builderTextRun;
+    const m = builderMarkerRun;
+    const blocks = [
+      builderParagraph([t('АКТ ПРОВЕРКИ № ', { bold: true }), m('Number')], 'center'),
+      builderParagraph([]),
+      builderParagraph([t('Дата проверки: '), m('DateReview')]),
+      builderParagraph([t('Организация: '), m('ReviewObject')]),
+      builderParagraph([t('Объект проверки: '), m('NameObject')]),
+      builderParagraph([t('Комиссия: '), m('Comission')]),
+      builderParagraph([t('Представители: '), m('Pedstav')]),
+      builderParagraph([]),
+      builderParagraph([t('Выводы комиссии:', { bold: true })]),
+      builderParagraph([m('Conclusion')]),
+    ];
+
+    if (structureId === 'akt-violations' || structureId === 'akt-violations-photo' || structureId === 'akt-signatures') {
+      blocks.push(
+        builderParagraph([]),
+        builderParagraph([t('Нарушения (таблица — одна строка с маркерами):', { bold: true })]),
+        builderTable([
+          [t('№', { bold: true }), t('Место', { bold: true }), t('Формулировка', { bold: true }), t('Документ', { bold: true }), t('Из правил', { bold: true })],
+          [m('PoradNum'), m('TitleViolatation'), m('ddescrVi'), m('urlDoc'), m('formula')],
+        ])
+      );
+    }
+
+    if (structureId === 'akt-violations-photo') {
+      blocks.push(
+        builderParagraph([]),
+        builderParagraph([t('Фототаблица (одна строка-образец):', { bold: true })]),
+        builderTable([
+          [t('№ фото', { bold: true }), t('№ пункта', { bold: true }), t('Фото', { bold: true })],
+          [m('tempOne'), m('tempTwo'), m('tempThree')],
+        ])
+      );
+    }
+
+    if (structureId === 'akt-signatures') {
+      blocks.push(
+        builderParagraph([]),
+        builderParagraph([t('Подписи комиссии:', { bold: true })]),
+        builderParagraph([m('PredVoice')]),
+        builderParagraph([]),
+        builderParagraph([t('Подписи представителей:', { bold: true })]),
+        builderParagraph([m('PedstavVoice')]),
+        builderParagraph([]),
+        builderParagraph([t('Срок устранения: '), m('ustranenDate')]),
+        builderParagraph([t('Срок предоставления: '), m('predostavlenDate')]),
+        builderParagraph([t('Дата утверждения: '), m('UtverzderDate')])
+      );
+    }
+
+    return blocks;
+  }
+
+  function buildSpravkaBlocksForStructure(structureId) {
+    const t = builderTextRun;
+    const m = builderMarkerRun;
+    const blocks = [
+      builderParagraph([t('СПРАВКА О СОСТОЯНИИ ПРОИЗВОДСТВЕННОЙ БЕЗОПАСНОСТИ', { bold: true })], 'center'),
+      builderParagraph([]),
+      builderParagraph([t('Дата: '), m('DateReview')]),
+      builderParagraph([t('Объекты: '), m('ObjectsTitles')]),
+      builderParagraph([t('Субподрядчики: '), m('SubcontractorsList')]),
+    ];
+
+    const withObjects = ['spravka-objects', 'spravka-full'].includes(structureId);
+    const withWorkers = ['spravka-workers', 'spravka-full'].includes(structureId);
+    const withViolations = ['spravka-violations', 'spravka-full'].includes(structureId);
+
+    if (withObjects) {
+      blocks.push(
+        builderParagraph([]),
+        builderParagraph([t('Объекты (таблица — одна строка с маркерами):', { bold: true })]),
+        builderTable([
+          [t('№', { bold: true }), t('Объект', { bold: true }), t('Код / адрес', { bold: true }), t('Генподрядчик', { bold: true })],
+          [m('ObjNum'), m('ObjTitle'), m('ObjSubtitle'), m('ObjSubtitle2')],
+        ])
+      );
+    }
+
+    if (withWorkers) {
+      blocks.push(
+        builderParagraph([]),
+        builderParagraph([t('Работники (таблица — одна строка с маркерами):', { bold: true })]),
+        builderTable([
+          [t('№', { bold: true }), t('Организация', { bold: true }), t('Спец. ПБ', { bold: true }), t('Работники', { bold: true })],
+          [m('OrgNum'), m('OrgName'), m('OrgPbCount'), m('OrgWorkersCount')],
+        ]),
+        builderParagraph([t('Итого спец. ПБ: '), m('OrgPbTotal')]),
+        builderParagraph([t('Итого работников: '), m('OrgWorkersTotal')])
+      );
+    }
+
+    if (withViolations) {
+      blocks.push(
+        builderParagraph([]),
+        builderParagraph([t('Нарушения (таблица — одна строка с маркерами):', { bold: true })]),
+        builderTable([
+          [t('№', { bold: true }), t('Формулировка', { bold: true })],
+          [m('PoradNum'), m('ddescrVi')],
+        ])
+      );
+    }
+
+    blocks.push(
+      builderParagraph([]),
+      builderParagraph([t('Замечания по РММ:', { bold: true })]),
+      builderParagraph([m('RemarksRMM')]),
+      builderParagraph([]),
+      builderParagraph([t('Компенсирующие мероприятия:', { bold: true })]),
+      builderParagraph([m('Conclusion')])
+    );
+
+    return blocks;
+  }
+
+  function buildInitialBuilderModel(templateType, structureId) {
+    const type = templateType === 'spravka' ? 'spravka' : 'akt';
+    const blocks =
+      type === 'spravka'
+        ? buildSpravkaBlocksForStructure(structureId || 'spravka-text')
+        : buildAktBlocksForStructure(structureId || 'akt-text');
+    return {
+      templateType: type,
+      structureId: structureId || (type === 'spravka' ? 'spravka-text' : 'akt-text'),
+      blocks: blocks.map((b) => ({
+        ...b,
+        id: b.id || builderUid(),
+        runs: b.runs ? b.runs.map((r) => ({ ...r })) : undefined,
+        rows: b.rows
+          ? b.rows.map((row) => row.map((cell) => ({ runs: cell.runs.map((r) => ({ ...r })) })))
+          : undefined,
+      })),
+    };
+  }
+
+  function wRunFromBuilderRun(run) {
+    if (!run) return '';
+    if (run.kind === 'marker') {
+      return `<w:r><w:t xml:space="preserve">${xmlEscape(run.key)}</w:t></w:r>`;
+    }
+    const rPrParts = [];
+    if (run.bold) rPrParts.push('<w:b/>');
+    if (run.font) {
+      const f = xmlEscape(run.font);
+      rPrParts.push(`<w:rFonts w:ascii="${f}" w:hAnsi="${f}" w:cs="${f}"/>`);
+    }
+    if (run.sizePt) rPrParts.push(`<w:sz w:val="${Math.round(Number(run.sizePt) * 2)}"/>`);
+    const rPr = rPrParts.length ? `<w:rPr>${rPrParts.join('')}</w:rPr>` : '';
+    const text = xmlEscape(String(run.text ?? ''));
+    return `<w:r>${rPr}<w:t xml:space="preserve">${text}</w:t></w:r>`;
+  }
+
+  function wParagraphFromBuilderBlock(block) {
+    const alignTag = {
+      center: '<w:jc w:val="center"/>',
+      right: '<w:jc w:val="right"/>',
+      both: '<w:jc w:val="both"/>',
+    }[block.align];
+    const pPr = alignTag ? `<w:pPr>${alignTag}</w:pPr>` : '';
+    const runs = (block.runs || []).map(wRunFromBuilderRun).join('');
+    const body = runs || '<w:r><w:t xml:space="preserve"></w:t></w:r>';
+    return `<w:p>${pPr}${body}</w:p>`;
+  }
+
+  function wTableCellFromBuilderCell(cell) {
+    const runs = (cell?.runs || []).map(wRunFromBuilderRun).join('');
+    const inner = runs
+      ? `<w:p>${runs}</w:p>`
+      : '<w:p><w:r><w:t xml:space="preserve"></w:t></w:r></w:p>';
+    return `<w:tc><w:tcPr><w:tcW w:w="2000" w:type="dxa"/></w:tcPr>${inner}</w:tc>`;
+  }
+
+  function wTableFromBuilderBlock(block) {
+    const rows = (block.rows || []).map(
+      (row) => `<w:tr>${row.map((cell) => wTableCellFromBuilderCell(cell)).join('')}</w:tr>`
+    );
+    return wTable(rows);
+  }
+
+  function buildDocumentXmlFromBuilderModel(model) {
+    const blocks = model?.blocks || [];
+    const bodyParts = blocks.map((block) => {
+      if (block.type === 'table') return wTableFromBuilderBlock(block);
+      return wParagraphFromBuilderBlock(block);
+    });
+    bodyParts.push(
+      '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134"/></w:sectPr>'
+    );
+    const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>${bodyParts.join('')}</w:body>
+</w:document>`;
+    assertValidDocumentXml(xml);
+    return xml;
+  }
+
+  function countMarkersInBuilderModel(model) {
+    let count = 0;
+    (model?.blocks || []).forEach((block) => {
+      if (block.type === 'paragraph') {
+        (block.runs || []).forEach((r) => {
+          if (r.kind === 'marker') count += 1;
+        });
+      } else if (block.type === 'table') {
+        (block.rows || []).forEach((row) => {
+          row.forEach((cell) => {
+            (cell.runs || []).forEach((r) => {
+              if (r.kind === 'marker') count += 1;
+            });
+          });
+        });
+      }
+    });
+    return count;
+  }
+
+  async function buildDocxBlobFromBuilderModel(model) {
+    await ensurePizZip();
+    const zip =
+      model?.templateType === 'spravka' ? buildBlankSpravkaTemplateZip() : buildBlankTemplateZip();
+    const xml = buildDocumentXmlFromBuilderModel(model);
+    zip.file('word/document.xml', xml);
+    const title =
+      model?.templateType === 'spravka' ? 'Шаблон справки по ПБ' : 'Шаблон акта';
+    const now = new Date().toISOString();
+    zip.file(
+      'docProps/core.xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>${xmlEscape(title)}</dc:title>
+  <dc:creator>Gazprom Web</dc:creator>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created>
+</cp:coreProperties>`
+    );
+    return zip.generate({
+      type: 'blob',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+  }
+
   return {
     saveTemplate,
     generateFromAkt,
@@ -1446,6 +1800,17 @@ const DocGenerator = (() => {
     SPRAVKA_DEFAULT_TEMPLATE,
     hasSpravkaTemplate,
     getSpravkaTemplateName,
+    getBuilderStructurePresets,
+    buildInitialBuilderModel,
+    buildDocumentXmlFromBuilderModel,
+    buildDocxBlobFromBuilderModel,
+    countMarkersInBuilderModel,
+    builderTextRun,
+    builderMarkerRun,
+    builderParagraph,
+    builderTable,
+    BUILDER_DEFAULT_FONT,
+    BUILDER_DEFAULT_SIZE,
   };
 })();
 

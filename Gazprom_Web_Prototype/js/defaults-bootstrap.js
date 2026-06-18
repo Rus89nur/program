@@ -699,6 +699,7 @@ const DefaultsBootstrap = (() => {
     container.innerHTML = `
       <div class="preset-picker-grid" role="listbox" aria-label="Выбор шаблона акта">
         ${presets.map((p) => renderPresetCard(p, 'template')).join('')}
+        ${renderAddCard('template-builder', 'Мастер шаблона')}
         ${renderAddCard('template-create', 'Создать шаблон')}
         ${renderAddCard('template', 'Загрузить .docx')}
       </div>`;
@@ -729,6 +730,11 @@ const DefaultsBootstrap = (() => {
       GazpromFileUtils?.triggerFilePicker?.(document.getElementById('wordTemplateInput'));
     });
 
+    container.querySelector('[data-preset-add="template-builder"]')?.addEventListener('click', () => {
+      closeAktTemplateModal();
+      TemplateBuilderWizard?.open?.({ templateType: 'akt' });
+    });
+
     container.querySelector('[data-preset-add="template-create"]')?.addEventListener('click', async () => {
       try {
         const gen = getDocGenerator();
@@ -757,6 +763,7 @@ const DefaultsBootstrap = (() => {
     container.innerHTML = `
       <div class="preset-picker-grid" role="listbox" aria-label="Выбор шаблона справки">
         ${presets.map((p) => renderPresetCard(p, 'spravka-template')).join('')}
+        ${renderAddCard('spravka-template-builder', 'Мастер шаблона')}
         ${renderAddCard('spravka-template-create', 'Создать шаблон')}
         ${renderAddCard('spravka-template', 'Загрузить .docx')}
       </div>`;
@@ -785,6 +792,11 @@ const DefaultsBootstrap = (() => {
 
     container.querySelector('[data-preset-add="spravka-template"]')?.addEventListener('click', () => {
       GazpromFileUtils?.triggerFilePicker?.(document.getElementById('spravkaTemplateInput'));
+    });
+
+    container.querySelector('[data-preset-add="spravka-template-builder"]')?.addEventListener('click', () => {
+      closeSpravkaTemplateModal();
+      TemplateBuilderWizard?.open?.({ templateType: 'spravka' });
     });
 
     container.querySelector('[data-preset-add="spravka-template-create"]')?.addEventListener('click', async () => {
@@ -915,6 +927,48 @@ const DefaultsBootstrap = (() => {
     await writeSpravkaTemplateToCatalog(catalog, b64, file.name, { presetId: saved.id, source: 'custom' });
     await GazpromStore.set(catalog, { skipPhotoIngest: true });
     GazpromStore.invalidateCache();
+  }
+
+  async function blobToBase64(blob) {
+    const buf = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  }
+
+  async function saveBuilderTemplate(blob, fileName, templateType) {
+    const b64 = await blobToBase64(blob);
+    const catalog = ensureLibraries((await GazpromStore.get()) || { akts: [] });
+    const type = templateType === 'spravka' ? 'spravka' : 'akt';
+
+    if (type === 'spravka') {
+      let saved = catalog.savedSpravkaTemplates.find((t) => t.name === fileName);
+      if (!saved) {
+        saved = { id: AktUtils.uuid(), name: fileName, data: b64, createdAt: new Date().toISOString() };
+        catalog.savedSpravkaTemplates.push(saved);
+      } else {
+        saved.data = b64;
+        saved.createdAt = new Date().toISOString();
+      }
+      await writeSpravkaTemplateToCatalog(catalog, b64, fileName, { presetId: saved.id, source: 'custom' });
+    } else {
+      let saved = catalog.savedTemplates.find((t) => t.name === fileName);
+      if (!saved) {
+        saved = { id: AktUtils.uuid(), name: fileName, data: b64, createdAt: new Date().toISOString() };
+        catalog.savedTemplates.push(saved);
+      } else {
+        saved.data = b64;
+        saved.createdAt = new Date().toISOString();
+      }
+      await writeTemplateToCatalog(catalog, b64, fileName, { presetId: saved.id, source: 'custom' });
+    }
+
+    await GazpromStore.set(catalog, { skipPhotoIngest: true });
+    GazpromStore.invalidateCache();
+    await GazpromUI?.refreshAll?.();
+    if (type === 'spravka') await refreshSpravkaTemplateModal();
+    else await refreshAktTemplateModal();
   }
 
   async function saveCustomRegistryPreset(name, items) {
@@ -1245,6 +1299,7 @@ const DefaultsBootstrap = (() => {
     applyRegistryPreset,
     saveCustomTemplate,
     saveCustomSpravkaTemplate,
+    saveBuilderTemplate,
     saveCustomRegistryPreset,
     markRegistryCustom,
     registrySourceLabel,
