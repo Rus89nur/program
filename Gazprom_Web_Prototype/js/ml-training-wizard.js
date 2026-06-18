@@ -97,20 +97,12 @@ const MlTrainingWizard = (() => {
   }
 
   function ensurePhotoLightbox() {
-    let box = document.getElementById('photoLightbox');
-    if (
-      box &&
-      (!box.querySelector('.photo-lightbox-img') ||
-        !box.querySelector('.photo-lightbox-close'))
-    ) {
-      box.remove();
-      box = null;
-    }
+    let box = document.getElementById('mlPhotoLightbox');
     if (box) return box;
 
     box = document.createElement('div');
-    box.id = 'photoLightbox';
-    box.className = 'photo-lightbox';
+    box.id = 'mlPhotoLightbox';
+    box.className = 'photo-lightbox ml-photo-lightbox';
     box.innerHTML = `
       <button type="button" class="photo-lightbox-close" aria-label="Закрыть">×</button>
       <div class="photo-lightbox-inner">
@@ -134,7 +126,13 @@ const MlTrainingWizard = (() => {
       GazpromMobileOverlay?.scheduleRecoverViewportLayout?.();
     };
 
-    box.querySelector('.photo-lightbox-close')?.addEventListener('click', hideLightbox);
+    box.querySelector('.photo-lightbox-close')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      hideLightbox();
+    });
+    box.querySelector('.photo-lightbox-inner')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
     box.addEventListener('click', (e) => {
       if (e.target === box) hideLightbox();
     });
@@ -142,7 +140,7 @@ const MlTrainingWizard = (() => {
     if (!photoLightboxBound) {
       photoLightboxBound = true;
       document.addEventListener('keydown', (e) => {
-        const lb = document.getElementById('photoLightbox');
+        const lb = document.getElementById('mlPhotoLightbox');
         if (e.key === 'Escape' && lb?.classList.contains('show')) {
           lb.classList.remove('show');
           GazpromMobileOverlay?.unlock?.();
@@ -152,6 +150,28 @@ const MlTrainingWizard = (() => {
 
     box._mlHide = hideLightbox;
     return box;
+  }
+
+  function resolvePhotoUrlFromEl(el) {
+    if (!el) return '';
+    const fromData = el.dataset?.mlPhotoUrl || el.querySelector('[data-ml-photo-url]')?.dataset?.mlPhotoUrl;
+    if (fromData) return fromData;
+    const img = el.querySelector('img');
+    return img?.currentSrc || img?.src || '';
+  }
+
+  function openPhotoLightboxFromEl(el) {
+    const url = resolvePhotoUrlFromEl(el);
+    if (!url) return;
+    if (el.classList.contains('ml-grid-photo')) {
+      openPhotoLightbox(url, detailPhotoUrls);
+      return;
+    }
+    if (el.classList.contains('ml-thumb')) {
+      openPhotoLightbox(url, testPhotos);
+      return;
+    }
+    openPhotoLightbox(url);
   }
 
   function openPhotoLightbox(src, gallery) {
@@ -195,11 +215,15 @@ const MlTrainingWizard = (() => {
       GazpromMobileOverlay?.lock?.();
     }
     box.classList.add('show');
+    requestAnimationFrame(() => {
+      if (imgEl && list[idx]) imgEl.src = list[idx];
+    });
   }
 
-  function markPhotoOpenable(container) {
+  function markPhotoOpenable(container, url) {
     if (!container) return;
     container.classList.add('ml-photo-open');
+    if (url) container.dataset.mlPhotoUrl = url;
     container.setAttribute('role', 'button');
     container.setAttribute('tabindex', '0');
     container.setAttribute('aria-label', 'Открыть фото');
@@ -520,7 +544,7 @@ const MlTrainingWizard = (() => {
     cardPhotoUrl = url || null;
     setPhotoElement(photoEl, url, 'ml-big-photo__img');
     if (url && photoEl) {
-      markPhotoOpenable(photoEl);
+      markPhotoOpenable(photoEl, url);
     }
     currentPredictions = url ? await MlImageService.predict(url) : [];
     const predsHost = document.getElementById('mlCardPreds');
@@ -622,23 +646,6 @@ const MlTrainingWizard = (() => {
         await paint();
       });
     });
-    grid.querySelectorAll('.ml-grid-photo').forEach((wrap) => {
-      const open = () => {
-        const url = wrap.dataset.mlPhotoUrl;
-        if (!url) return;
-        openPhotoLightbox(url, detailPhotoUrls);
-      };
-      wrap.addEventListener('click', (e) => {
-        if (e.target.closest('.ml-grid-del')) return;
-        open();
-      });
-      wrap.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          open();
-        }
-      });
-    });
   }
 
   async function hydrateTestPhotos() {
@@ -688,23 +695,6 @@ const MlTrainingWizard = (() => {
           bindPredPick(preds, (title) => {
             selectedTestTitle = title;
           });
-        }
-      });
-    });
-    row.querySelectorAll('.ml-thumb').forEach((wrap) => {
-      const open = () => {
-        const url = wrap.dataset.mlPhotoUrl;
-        if (!url) return;
-        openPhotoLightbox(url, testPhotos);
-      };
-      wrap.addEventListener('click', (e) => {
-        if (e.target.closest('.ml-thumb-del')) return;
-        open();
-      });
-      wrap.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          open();
         }
       });
     });
@@ -882,26 +872,22 @@ const MlTrainingWizard = (() => {
     const photoEl = document.getElementById('mlCardPhoto');
     let touchX = 0;
     let touchY = 0;
-    photoEl?.addEventListener('click', () => {
-      if (cardPhotoUrl) openPhotoLightbox(cardPhotoUrl);
-    });
-    photoEl?.addEventListener('keydown', (e) => {
-      if ((e.key === 'Enter' || e.key === ' ') && cardPhotoUrl) {
-        e.preventDefault();
-        openPhotoLightbox(cardPhotoUrl);
-      }
-    });
+    let touchMoved = false;
     photoEl?.addEventListener('touchstart', (e) => {
+      touchMoved = false;
       touchX = e.changedTouches[0]?.clientX || 0;
       touchY = e.changedTouches[0]?.clientY || 0;
+    });
+    photoEl?.addEventListener('touchmove', () => {
+      touchMoved = true;
     });
     photoEl?.addEventListener('touchend', (e) => {
       const tx = e.changedTouches[0]?.clientX || 0;
       const ty = e.changedTouches[0]?.clientY || 0;
       const dx = tx - touchX;
       const dy = ty - touchY;
-      if (Math.abs(dx) < 15 && Math.abs(dy) < 15) {
-        if (cardPhotoUrl) openPhotoLightbox(cardPhotoUrl);
+      if (!touchMoved && Math.abs(dx) < 15 && Math.abs(dy) < 15) {
+        openPhotoLightboxFromEl(photoEl);
         return;
       }
       if (dx < -40) goCard(1, false);
@@ -1016,7 +1002,21 @@ const MlTrainingWizard = (() => {
         if (e.target.closest('#mlLoadActsBtn')) {
           e.preventDefault();
           void handleLoadActs();
+          return;
         }
+        if (e.target.closest('.ml-grid-del, .ml-thumb-del')) return;
+        const photoEl = e.target.closest('.ml-photo-open');
+        if (photoEl) {
+          e.preventDefault();
+          openPhotoLightboxFromEl(photoEl);
+        }
+      });
+      root.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const photoEl = e.target.closest('.ml-photo-open');
+        if (!photoEl || e.target.closest('.ml-grid-del, .ml-thumb-del')) return;
+        e.preventDefault();
+        openPhotoLightboxFromEl(photoEl);
       });
     }
   }
