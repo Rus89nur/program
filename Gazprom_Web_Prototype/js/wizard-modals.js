@@ -170,6 +170,13 @@ const WizardModals = (() => {
       catalog && typeof ViolationTypes !== 'undefined'
         ? ViolationTypes.resolveVid(catalog, rawVid)
         : String(rawVid || '').trim();
+    if (
+      catalog &&
+      typeof ViolationTypes !== 'undefined' &&
+      ViolationTypes.isBuiltinVidTitle(resolved)
+    ) {
+      return;
+    }
     if (!resolved) return;
     if (!Array.from(vidEl.options).some((o) => o.value === resolved)) {
       const opt = document.createElement('option');
@@ -580,10 +587,16 @@ const WizardModals = (() => {
           const formulaEl = document.getElementById('mvFormula');
           if (titleEl)   titleEl.value   = item.title            || '';
           if (urlEl)     urlEl.value     = item.subTitle         || '';
-          const resolvedItemVid =
+          let resolvedItemVid =
             catalog && typeof ViolationTypes !== 'undefined'
               ? ViolationTypes.resolveVid(catalog, item.vid)
               : (item.vid || '');
+          if (
+            typeof ViolationTypes !== 'undefined' &&
+            ViolationTypes.isBuiltinVidTitle(resolvedItemVid)
+          ) {
+            resolvedItemVid = '';
+          }
           const vidEl = document.getElementById('mvVid');
           if (vidEl) {
             if (resolvedItemVid && !Array.from(vidEl.options).some((o) => o.value === resolvedItemVid)) {

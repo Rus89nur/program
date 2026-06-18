@@ -56,16 +56,31 @@ describe('ViolationTypes', () => {
     expect(catalog.violationTypes[0].title).toBe('Мой вид');
   });
 
-  it('getVidSelectTitles включает виды из реестра', () => {
+  it('purgeBuiltinRegistryVids очищает устаревшие виды в реестре', () => {
     const catalog = {
       akts: [],
       violationTypes: [],
-      violationRegistry: [{ id: 'r1', title: 'Тест', vid: 'Вид из реестра' }],
+      violationRegistry: [
+        { id: 'r1', title: 'Тест', vid: 'Пожарная безопасность' },
+        { id: 'r2', title: 'Тест 2', vid: 'Мой новый вид' },
+      ],
+      typeMappings: {},
+    };
+    expect(VT.purgeBuiltinRegistryVids(catalog)).toBe(true);
+    expect(catalog.violationRegistry[0].vid).toBe('');
+    expect(catalog.violationRegistry[1].vid).toBe('Мой новый вид');
+  });
+
+  it('getVidSelectTitles не подтягивает все виды из реестра', () => {
+    const catalog = {
+      akts: [],
+      violationTypes: [{ id: '1', title: 'Новый вид', status: 'active' }],
+      violationRegistry: [{ id: 'r1', title: 'Тест', vid: 'Пожарная безопасность' }],
       typeMappings: {},
       violationTypesPurgedV2: true,
     };
     const titles = VT.getVidSelectTitles(catalog, '');
-    expect(titles).toContain('Вид из реестра');
+    expect(titles).toEqual(['Новый вид']);
   });
 
   it('getVidSelectTitles включает resolved vid вне активного списка', () => {

@@ -53,6 +53,30 @@ const ViolationTypes = (() => {
     return true;
   }
 
+  /** Однократно сбросить устаревшие виды в записях реестра (из встроенного Excel). */
+  function purgeBuiltinRegistryVids(catalog) {
+    if (!catalog || catalog.registryBuiltinVidsPurgedV2) return false;
+    const builtin = builtinTypeTitles();
+    let changed = false;
+    for (const item of catalog.violationRegistry || []) {
+      const raw = String(item.vid || '').trim();
+      if (!raw) continue;
+      const resolved = resolveVid(catalog, raw);
+      if (builtin.has(raw) || builtin.has(resolved)) {
+        item.vid = '';
+        changed = true;
+      }
+    }
+    catalog.registryBuiltinVidsPurgedV2 = true;
+    return changed;
+  }
+
+  function isBuiltinVidTitle(vid) {
+    const s = String(vid || '').trim();
+    if (!s) return false;
+    return builtinTypeTitles().has(s);
+  }
+
   function mappingSeedTypes() {
     return typeof ViolationTemplates !== 'undefined' &&
       Array.isArray(ViolationTemplates.MAPPING_SEED_TYPES)
@@ -172,6 +196,7 @@ const ViolationTypes = (() => {
     }
 
     if (purgeBuiltinDefaults(catalog)) changed = true;
+    if (purgeBuiltinRegistryVids(catalog)) changed = true;
     if (syncOrphanVids(catalog)) changed = true;
     if (syncMappingsFromTypes(catalog)) changed = true;
 
@@ -478,13 +503,15 @@ const ViolationTypes = (() => {
     return [...titles].sort((a, b) => a.localeCompare(b, 'ru'));
   }
 
-  /** Список для select: активные виды + привязки из реестра + текущее значение. */
+  /** Список для select: только активные виды классификатора + текущее значение. */
   function getVidSelectTitles(catalog, rawVid) {
     ensureCatalog(catalog);
     const resolved = resolveVid(catalog, rawVid);
-    const merged = new Set([...getRegistryVidTitles(catalog), ...getActiveTitles(catalog)]);
-    if (resolved) merged.add(resolved);
-    return [...merged].sort((a, b) => a.localeCompare(b, 'ru'));
+    const active = getActiveTitles(catalog);
+    if (resolved && !active.includes(resolved) && !isBuiltinVidTitle(resolved)) {
+      return [resolved, ...active];
+    }
+    return active;
   }
 
   /** Добавить вид в классификатор при сохранении привязки (если ещё нет). */
@@ -533,5 +560,8 @@ const ViolationTypes = (() => {
     getVidSelectTitles,
     ensureActiveType,
     purgeBuiltinDefaults,
+    purgeBuiltinRegistryVids,
+    isBuiltinVidTitle,
+    builtinTypeTitles,
   };
 })();
