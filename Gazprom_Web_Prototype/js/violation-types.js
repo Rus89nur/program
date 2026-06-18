@@ -53,6 +53,32 @@ const ViolationTypes = (() => {
     return true;
   }
 
+  /** Цепочка replacedBy/typeMappings без ensureCatalog (для purgeBuiltinRegistryVids). */
+  function resolveVidChain(catalog, vid) {
+    const raw = String(vid || '').trim();
+    if (!raw) return '';
+    if (!catalog) return raw;
+
+    let current = findByTitle(catalog, raw);
+    if (!current) return raw;
+
+    const mappings = getMappings(catalog);
+    const visited = new Set();
+    while (current) {
+      if (visited.has(current.id)) break;
+      visited.add(current.id);
+
+      if (current.status === STATUS_ACTIVE) return current.title;
+
+      const nextId = current.replacedBy || mappings[current.id];
+      if (!nextId) return current.title;
+
+      current = findById(catalog, nextId);
+      if (!current) return raw;
+    }
+    return raw;
+  }
+
   /** Однократно сбросить устаревшие виды в записях реестра (из встроенного Excel). */
   function purgeBuiltinRegistryVids(catalog) {
     if (!catalog || catalog.registryBuiltinVidsPurgedV2) return false;
@@ -61,7 +87,7 @@ const ViolationTypes = (() => {
     for (const item of catalog.violationRegistry || []) {
       const raw = String(item.vid || '').trim();
       if (!raw) continue;
-      const resolved = resolveVid(catalog, raw);
+      const resolved = resolveVidChain(catalog, raw);
       if (builtin.has(raw) || builtin.has(resolved)) {
         item.vid = '';
         changed = true;
@@ -251,23 +277,7 @@ const ViolationTypes = (() => {
     if (!catalog) return raw;
 
     ensureCatalog(catalog);
-    let current = findByTitle(catalog, raw);
-    if (!current) return raw;
-
-    const visited = new Set();
-    while (current) {
-      if (visited.has(current.id)) break;
-      visited.add(current.id);
-
-      if (current.status === STATUS_ACTIVE) return current.title;
-
-      const nextId = current.replacedBy || getMappings(catalog)[current.id];
-      if (!nextId) return current.title;
-
-      current = findById(catalog, nextId);
-      if (!current) return raw;
-    }
-    return raw;
+    return resolveVidChain(catalog, vid);
   }
 
   function usageCount(catalog, typeOrId) {

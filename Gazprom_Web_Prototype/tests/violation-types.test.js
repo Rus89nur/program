@@ -71,6 +71,18 @@ describe('ViolationTypes', () => {
     expect(catalog.violationRegistry[1].vid).toBe('Мой новый вид');
   });
 
+  it('ensureCatalog не переполняет стек при реестре со встроенными видами (импорт бэкапа)', () => {
+    const catalog = {
+      akts: [{ violations: [{ vid: 'Старый вид' }] }],
+      violationRegistry: [{ id: 'r1', title: 'Тест', vid: 'Пожарная безопасность' }],
+      violationTypes: [],
+      typeMappings: {},
+    };
+    expect(() => VT.ensureCatalog(catalog)).not.toThrow();
+    expect(catalog.violationRegistry[0].vid).toBe('');
+    expect(catalog.registryBuiltinVidsPurgedV2).toBe(true);
+  });
+
   it('getVidSelectTitles не подтягивает все виды из реестра', () => {
     const catalog = {
       akts: [],
