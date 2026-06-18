@@ -75,7 +75,7 @@ const MlTrainingWizard = (() => {
   }
 
   async function refreshData() {
-    stats = await MlImageService.getStatistics();
+    stats = await MlImageService.getStatistics({ skipAccuracy: true });
     entries = await MlImageService.allTrainingEntries();
     cardIndex = Math.min(await MlImageService.getCardIndex(), Math.max(0, entries.length - 1));
     if (cardIndex < 0) cardIndex = 0;
@@ -533,14 +533,22 @@ const MlTrainingWizard = (() => {
         'Будут загружены фото из истории и текущего акта. Продолжить?'
       );
       if (!ok) return;
+
       loading = true;
       loadCancelled = false;
       const box = document.getElementById('mlLoadProgress');
       const text = document.getElementById('mlLoadProgressText');
+      const loadBtn = document.getElementById('mlLoadActsBtn');
+      if (loadBtn) loadBtn.disabled = true;
       box?.removeAttribute('hidden');
-      await MlImageService.loadFromActs((cur, total, added, _stats, jobIdx, jobTotal, scanned, phase) => {
-        if (loadCancelled) return;
-        if (!text) return;
+      if (text) text.textContent = 'Подготовка…';
+
+      const onLoadProgress = (cur, total, added, _stats, jobIdx, jobTotal, scanned, phase) => {
+        if (loadCancelled || !text) return;
+        if (phase === 'start') {
+          text.textContent = 'Чтение актов…';
+          return;
+        }
         if (phase === 'scan') {
           text.textContent = `Сканирование актов… найдено ${scanned} фото`;
           return;
@@ -549,7 +557,9 @@ const MlTrainingWizard = (() => {
           text.textContent =
             jobTotal > 0
               ? `Актов: ${total}. Найдено ${scanned} фото. К загрузке: ${jobTotal}`
-              : `Актов: ${total}. Все ${scanned} фото уже в базе`;
+              : scanned > 0
+                ? `Актов: ${total}. Все ${scanned} фото уже в базе`
+                : `Актов: ${total}. В актах нет фото`;
           return;
         }
         if (phase === 'import' && jobTotal > 0) {
@@ -557,20 +567,29 @@ const MlTrainingWizard = (() => {
           return;
         }
         text.textContent = `Актов: ${total}. Фото в базе ML: ${added}`;
-      });
-      loading = false;
-      if (loadCancelled || MlImageService.isLoadFromActsAborted?.()) {
-        GazpromToast.info('Загрузка отменена');
+      };
+
+      try {
+        const result = await MlImageService.loadFromActs(onLoadProgress);
+        if (loadCancelled || MlImageService.isLoadFromActsAborted?.() || result === null) {
+          GazpromToast.info('Загрузка отменена');
+          return;
+        }
+        const s = result || (await MlImageService.getStatistics({ skipAccuracy: true }));
+        if (s.totalPhotos > 0) {
+          GazpromToast.success(`Загружено: ${s.autoCount} фото из ${s.processedAktsCount} актов`);
+        } else if (s.processedAktsCount > 0) {
+          GazpromToast.info('Фото в актах есть, но не удалось прочитать изображения');
+        } else {
+          GazpromToast.info('В актах нет фото с нарушениями');
+        }
+      } catch (err) {
+        console.error('[MlTrainingWizard] loadFromActs', err);
+        GazpromToast.error(err?.message || 'Ошибка загрузки из актов');
+      } finally {
+        loading = false;
         await paint();
-        return;
       }
-      const s = await MlImageService.getStatistics();
-      GazpromToast.success(
-        s.totalPhotos > 0
-          ? `Загружено: ${s.autoCount} фото из ${s.processedAktsCount} актов`
-          : 'В актах нет фото или они не удалось прочитать'
-      );
-      await paint();
     });
     document.getElementById('mlLoadCancelBtn')?.addEventListener('click', () => {
       loadCancelled = true;

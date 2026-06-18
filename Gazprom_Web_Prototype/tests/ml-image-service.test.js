@@ -58,6 +58,10 @@ describe('MlImageService', () => {
     expect(MlImageService.normalizePhotoRef({ id: 'photo:abc', mode: 'existing' })).toBe('photo:abc');
   });
 
+  it('normalizePhotoRef extracts base64 from iOS-style photo object', () => {
+    expect(MlImageService.normalizePhotoRef({ data: '/9j/abc' })).toBe('/9j/abc');
+  });
+
   it('predictFromFeature returns equal split for same photo in base', async () => {
     const feature = new Float32Array(32 * 32).fill(0.5);
     const entries = [

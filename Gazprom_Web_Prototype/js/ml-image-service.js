@@ -138,8 +138,22 @@ const MlImageService = (() => {
   function normalizePhotoRef(ref) {
     if (!ref) return null;
     if (typeof ref === 'string') return ref;
-    if (typeof ref === 'object' && ref.id) return String(ref.id);
+    if (typeof ref === 'object') {
+      if (ref.id) return String(ref.id);
+      if (typeof ref.data === 'string' && ref.data) return ref.data;
+    }
     return null;
+  }
+
+  function collectViolationPhotoRefs(violation) {
+    const raw = violation?.photo || violation?.photos || [];
+    if (!Array.isArray(raw)) return [];
+    const out = [];
+    for (const ref of raw) {
+      const normalized = normalizePhotoRef(ref);
+      if (normalized) out.push(normalized);
+    }
+    return out;
   }
 
   async function ensurePhotoRef(ref, dataUrl) {
@@ -180,6 +194,7 @@ const MlImageService = (() => {
       out.push(akt);
     };
     for (const akt of catalog?.akts || []) push(akt);
+    for (const akt of catalog?.trash || []) push(akt);
     if (catalog?.editableAkt?.akt) push(catalog.editableAkt.akt);
     return out;
   }
@@ -202,20 +217,28 @@ const MlImageService = (() => {
 
   async function loadAllEntries() {
     if (entriesCache) return entriesCache;
-    const list = await GazpromIdb.transaction(STORE_SAMPLES, 'readonly', (tx) =>
-      new Promise((resolve, reject) => {
-        const store = tx.objectStore(STORE_SAMPLES);
-        const req = store.getAll();
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror = () => reject(req.error);
-      })
-    );
-    entriesCache = list.map((e) => ({
-      ...e,
-      photoRef: normalizePhotoRef(e.photoRef) || e.photoRef,
-      feature: deserializeFeature(e.feature),
-    }));
-    return entriesCache;
+    try {
+      const list = await GazpromIdb.transaction(STORE_SAMPLES, 'readonly', (tx) =>
+        new Promise((resolve, reject) => {
+          const store = tx.objectStore(STORE_SAMPLES);
+          const req = store.getAll();
+          req.onsuccess = () => resolve(req.result || []);
+          req.onerror = () => reject(req.error);
+        })
+      );
+      entriesCache = list.map((e) => ({
+        ...e,
+        photoRef: normalizePhotoRef(e.photoRef) || e.photoRef,
+        feature: deserializeFeature(e.feature),
+      }));
+      return entriesCache;
+    } catch (err) {
+      if (/object store|not found/i.test(String(err?.message || err?.name || ''))) {
+        entriesCache = [];
+        return entriesCache;
+      }
+      throw err;
+    }
   }
 
   function invalidateCache() {
@@ -438,6 +461,11 @@ const MlImageService = (() => {
 
   async function loadFromActs(onProgress) {
     loadFromActsAborted = false;
+    if (typeof onProgress === 'function') {
+      onProgress(0, 0, 0, null, 0, 0, 0, 'start');
+    }
+    await yieldMain();
+
     const catalog = await GazpromStore.get();
     const registry = await getRegistryViolations();
     const allAkts = collectAllAkts(catalog);
@@ -451,7 +479,7 @@ const MlImageService = (() => {
     for (const akt of allAkts) {
       if (isLoadFromActsAborted()) return null;
       for (const violation of akt.violations || []) {
-        const photos = violation.photo || [];
+        const photos = collectViolationPhotoRefs(violation);
         if (!photos.length) continue;
         let normalizedTitle = findMatchingViolationTitle(violation.title, registry);
         if (!normalizedTitle) {
@@ -459,10 +487,8 @@ const MlImageService = (() => {
           normalizedTitle = trimmed || null;
         }
         if (!normalizedTitle) continue;
-        for (const ref of photos) {
-          if (!ref) continue;
-          const originalRef = normalizePhotoRef(ref) || ref;
-          if (!originalRef) continue;
+        for (const originalRef of photos) {
+          if (isLoadFromActsAborted()) return null;
           scannedPhotos += 1;
           const key = jobKey(originalRef, normalizedTitle);
           currentPhotoSet.add(key);
@@ -475,6 +501,10 @@ const MlImageService = (() => {
           }
         }
       }
+    }
+
+    if (typeof onProgress === 'function' && scannedPhotos > 0) {
+      onProgress(0, totalAkts, 0, null, 0, 0, scannedPhotos, 'scan');
     }
 
     const toRemove = entries.filter(
@@ -561,7 +591,7 @@ const MlImageService = (() => {
     const catalog = await GazpromStore.get();
     const allAkts = collectAllAkts(catalog);
     const processedAktsCount = allAkts.filter((a) =>
-      (a.violations || []).some((v) => (v.photo || []).length > 0)
+      (a.violations || []).some((v) => collectViolationPhotoRefs(v).length > 0)
     ).length;
     const accuracy = options.skipAccuracy ? null : await computeAccuracy(entries);
     return {
