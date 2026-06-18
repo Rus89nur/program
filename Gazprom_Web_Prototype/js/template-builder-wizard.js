@@ -62,6 +62,16 @@ const TemplateBuilderWizard = (() => {
     return guide.filter((g) => g.id !== 'curly');
   }
 
+  function getMarkerLabel(key) {
+    const gen = getDocGen();
+    if (!gen?.getMarkerLabel) return key;
+    return gen.getMarkerLabel(key, templateType);
+  }
+
+  function markerChipTitle(item) {
+    return `${item.label} (${item.key}) — ${item.source}`;
+  }
+
   function renderStepper() {
     const labels = ['Тип и структура', 'Редактор', 'Сохранение'];
     return `
@@ -84,12 +94,12 @@ const TemplateBuilderWizard = (() => {
         <button type="button" class="template-builder-type-card${templateType === 'akt' ? ' template-builder-type-card--active' : ''}" data-tb-type="akt">
           <span class="template-builder-type-card__icon">📄</span>
           <strong>Акт проверки</strong>
-          <span class="template-builder-type-card__hint">Number, DateReview, таблица нарушений…</span>
+          <span class="template-builder-type-card__hint">Номер, дата, объект, нарушения…</span>
         </button>
         <button type="button" class="template-builder-type-card${templateType === 'spravka' ? ' template-builder-type-card__active' : ''}" data-tb-type="spravka">
           <span class="template-builder-type-card__icon">📋</span>
           <strong>Справка по ПБ</strong>
-          <span class="template-builder-type-card__hint">ObjectsTitles, OrgName, ddescrVi…</span>
+          <span class="template-builder-type-card__hint">Объекты, организации, нарушения…</span>
         </button>
       </div>`;
   }
@@ -130,7 +140,7 @@ const TemplateBuilderWizard = (() => {
     return `
       <aside class="template-builder-palette" aria-label="Маркеры шаблона">
         <h4 class="template-builder-palette__title">Маркеры</h4>
-        <p class="template-builder-palette__hint">Перетащите маркер в документ или нажмите для вставки в позицию курсора.</p>
+        <p class="template-builder-palette__hint">Перетащите поле в документ или нажмите для вставки. В Word сохранится служебный маркер автоматически.</p>
         ${groups
           .map(
             (group) => `
@@ -140,10 +150,10 @@ const TemplateBuilderWizard = (() => {
               ${group.items
                 .map(
                   (item) => `
-                <span class="template-marker-code template-builder-marker-chip"
+                <span class="template-builder-marker-chip"
                   draggable="true"
                   data-marker-key="${escHtml(item.key)}"
-                  title="${escHtml(item.source)}">${escHtml(item.key)}</span>`
+                  title="${escHtml(markerChipTitle(item))}">${escHtml(item.label)}</span>`
                 )
                 .join('')}
             </div>
@@ -155,7 +165,8 @@ const TemplateBuilderWizard = (() => {
 
   function renderRunHtml(run) {
     if (run.kind === 'marker') {
-      return `<span class="template-marker-code template-builder-doc-marker" contenteditable="false" data-marker-key="${escHtml(run.key)}">${escHtml(run.key)}</span>`;
+      const label = getMarkerLabel(run.key);
+      return `<span class="template-builder-doc-marker" contenteditable="false" data-marker-key="${escHtml(run.key)}" title="${escHtml(run.key)}">${escHtml(label)}</span>`;
     }
     const style = [
       run.bold ? 'font-weight:bold' : '',
@@ -274,12 +285,12 @@ const TemplateBuilderWizard = (() => {
     const markerCount = getDocGen()?.countMarkersInBuilderModel?.(model) ?? 0;
     return `
       <div class="template-builder-step template-builder-step--save">
-        <p class="template-builder-lead">Проверьте название и сохраните шаблон. Маркеров в документе: <strong>${markerCount}</strong>.</p>
+        <p class="template-builder-lead">Проверьте название и сохраните шаблон. Полей для подстановки: <strong>${markerCount}</strong>.</p>
         <label class="template-builder-save-field">
           <span>Название файла</span>
           <input type="text" id="tbTemplateName" class="template-builder-input" value="${escHtml(defaultName)}" autocomplete="off">
         </label>
-        ${markerCount === 0 ? '<p class="template-builder-warn">⚠ Добавьте хотя бы один маркер — иначе шаблон не будет подставлять данные.</p>' : ''}
+        ${markerCount === 0 ? '<p class="template-builder-warn">⚠ Добавьте хотя бы одно поле (объект, дата и т.д.) — иначе шаблон не будет подставлять данные.</p>' : ''}
         <div class="template-builder-save-actions">
           <button type="button" class="btn-primary" id="tbSaveApply">Сохранить и применить</button>
           <button type="button" class="btn-secondary" id="tbDownloadOnly">Скачать .docx</button>
@@ -345,7 +356,8 @@ const TemplateBuilderWizard = (() => {
       }
       if (node.nodeType !== Node.ELEMENT_NODE) return;
       if (node.classList?.contains('template-builder-doc-marker')) {
-        runs.push({ kind: 'marker', key: node.dataset.markerKey || node.textContent.trim() });
+        const key = node.dataset.markerKey;
+        if (key) runs.push({ kind: 'marker', key });
         return;
       }
       if (node.dataset?.runKind === 'text') {
@@ -407,10 +419,11 @@ const TemplateBuilderWizard = (() => {
     }
     range.deleteContents();
     const chip = document.createElement('span');
-    chip.className = 'template-marker-code template-builder-doc-marker';
+    chip.className = 'template-builder-doc-marker';
     chip.contentEditable = 'false';
     chip.dataset.markerKey = markerKey;
-    chip.textContent = markerKey;
+    chip.title = markerKey;
+    chip.textContent = getMarkerLabel(markerKey);
     range.insertNode(chip);
     range.setStartAfter(chip);
     range.collapse(true);

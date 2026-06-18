@@ -8188,10 +8188,33 @@
 
     .template-builder-marker-chip {
       cursor: grab;
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 8px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.3;
+      border: 1px solid rgba(0, 82, 155, 0.15);
     }
 
     .template-builder-marker-chip:active {
       cursor: grabbing;
+    }
+
+    .template-builder-doc-marker {
+      display: inline;
+      padding: 1px 6px;
+      margin: 0 1px;
+      border-radius: 6px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: inherit;
+      font-weight: 600;
+      vertical-align: baseline;
+      border: 1px dashed rgba(0, 82, 155, 0.35);
+      white-space: nowrap;
     }
 
     .template-builder-editor {
@@ -8315,11 +8338,6 @@
     .template-builder-doc-cell:empty::before {
       content: attr(data-placeholder);
       color: #aaa;
-    }
-
-    .template-builder-doc-marker {
-      margin: 0 1px;
-      vertical-align: baseline;
     }
 
     .template-builder-save-field {

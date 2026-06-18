@@ -140,6 +140,25 @@ const DocGenerator = (() => {
     }));
   }
 
+  function collectMarkerLabels(guide) {
+    const map = Object.create(null);
+    (guide || []).forEach((g) => {
+      (g.items || []).forEach((item) => {
+        map[item.key] = item.label;
+      });
+    });
+    return map;
+  }
+
+  function getMarkerLabelMap(templateType) {
+    const guide = templateType === 'spravka' ? getSpravkaMarkerGuide() : getMarkerGuide();
+    return collectMarkerLabels(guide);
+  }
+
+  function getMarkerLabel(key, templateType = 'akt') {
+    return getMarkerLabelMap(templateType)[key] || key;
+  }
+
   function loadScript(url, checkFn) {
     return new Promise((resolve, reject) => {
       if (checkFn()) return resolve();
@@ -1468,28 +1487,28 @@ const DocGenerator = (() => {
       title: 'Только текст',
       description: 'Заголовок и поля акта без таблиц',
       previewHtml:
-        '<div class="tb-preview-page"><strong>АКТ № Number</strong><p>Дата: <mark>DateReview</mark></p><p>Объект: <mark>NameObject</mark></p><p>Выводы: <mark>Conclusion</mark></p></div>',
+        '<div class="tb-preview-page"><strong>АКТ № Номер акта</strong><p>Дата: <mark>Дата проверки</mark></p><p>Объект: <mark>Объект проверки</mark></p><p>Выводы: <mark>Выводы комиссии</mark></p></div>',
     },
     {
       id: 'akt-violations',
       title: 'Таблица нарушений',
       description: 'Текст + таблица с маркерами нарушений',
       previewHtml:
-        '<div class="tb-preview-page"><strong>АКТ</strong><table class="tb-preview-table"><tr><th>№</th><th>Место</th><th>Текст</th></tr><tr><td><mark>PoradNum</mark></td><td><mark>TitleViolatation</mark></td><td><mark>ddescrVi</mark></td></tr></table></div>',
+        '<div class="tb-preview-page"><strong>АКТ</strong><table class="tb-preview-table"><tr><th>№</th><th>Место</th><th>Текст</th></tr><tr><td><mark>№ п/п</mark></td><td><mark>Место нарушения</mark></td><td><mark>Формулировка</mark></td></tr></table></div>',
     },
     {
       id: 'akt-violations-photo',
       title: 'Нарушения и фото',
       description: 'Таблица нарушений и фототаблица',
       previewHtml:
-        '<div class="tb-preview-page"><table class="tb-preview-table"><tr><th>№</th><th>Формулировка</th></tr><tr><td><mark>PoradNum</mark></td><td><mark>ddescrVi</mark></td></tr></table><table class="tb-preview-table tb-preview-table--photo"><tr><th>№</th><th>Пункт</th><th>Фото</th></tr><tr><td><mark>tempOne</mark></td><td><mark>tempTwo</mark></td><td><mark>tempThree</mark></td></tr></table></div>',
+        '<div class="tb-preview-page"><table class="tb-preview-table"><tr><th>№</th><th>Формулировка</th></tr><tr><td><mark>№ п/п</mark></td><td><mark>Формулировка</mark></td></tr></table><table class="tb-preview-table tb-preview-table--photo"><tr><th>№</th><th>Пункт</th><th>Фото</th></tr><tr><td><mark>№ фото п/п</mark></td><td><mark>№ пункта акта</mark></td><td><mark>Фото</mark></td></tr></table></div>',
     },
     {
       id: 'akt-signatures',
       title: 'С подписями',
       description: 'Полный акт с таблицей нарушений и блоками подписей',
       previewHtml:
-        '<div class="tb-preview-page"><strong>АКТ</strong><table class="tb-preview-table"><tr><td><mark>PoradNum</mark></td><td><mark>ddescrVi</mark></td></tr></table><p>Подписи: <mark>PredVoice</mark></p><p><mark>PedstavVoice</mark></p></div>',
+        '<div class="tb-preview-page"><strong>АКТ</strong><table class="tb-preview-table"><tr><td><mark>№ п/п</mark></td><td><mark>Формулировка</mark></td></tr></table><p>Подписи: <mark>Подписи комиссии</mark></p><p><mark>Подписи представителей</mark></p></div>',
     },
   ];
 
@@ -1499,35 +1518,35 @@ const DocGenerator = (() => {
       title: 'Только текст',
       description: 'Заголовок и поля справки',
       previewHtml:
-        '<div class="tb-preview-page"><strong>СПРАВКА ПБ</strong><p>Дата: <mark>DateReview</mark></p><p>Объекты: <mark>ObjectsTitles</mark></p><p><mark>RemarksRMM</mark></p></div>',
+        '<div class="tb-preview-page"><strong>СПРАВКА ПБ</strong><p>Дата: <mark>Дата справки</mark></p><p>Объекты: <mark>Объекты строительства</mark></p><p><mark>Замечания по РММ</mark></p></div>',
     },
     {
       id: 'spravka-objects',
       title: 'Таблица объектов',
       description: 'Текст + таблица объектов строительства',
       previewHtml:
-        '<div class="tb-preview-page"><table class="tb-preview-table"><tr><th>№</th><th>Объект</th></tr><tr><td><mark>ObjNum</mark></td><td><mark>ObjTitle</mark></td></tr></table></div>',
+        '<div class="tb-preview-page"><table class="tb-preview-table"><tr><th>№</th><th>Объект</th></tr><tr><td><mark>№ п/п</mark></td><td><mark>Название объекта</mark></td></tr></table></div>',
     },
     {
       id: 'spravka-workers',
       title: 'Таблица работников',
       description: 'Текст + таблица организаций и численности',
       previewHtml:
-        '<div class="tb-preview-page"><table class="tb-preview-table"><tr><th>№</th><th>Орг.</th><th>ПБ</th></tr><tr><td><mark>OrgNum</mark></td><td><mark>OrgName</mark></td><td><mark>OrgPbCount</mark></td></tr></table><p>Итого: <mark>OrgPbTotal</mark></p></div>',
+        '<div class="tb-preview-page"><table class="tb-preview-table"><tr><th>№</th><th>Орг.</th><th>ПБ</th></tr><tr><td><mark>№ п/п</mark></td><td><mark>Организация</mark></td><td><mark>Специалисты ПБ</mark></td></tr></table><p>Итого: <mark>Итого специалистов ПБ</mark></p></div>',
     },
     {
       id: 'spravka-violations',
       title: 'Таблица нарушений',
       description: 'Текст + таблица нарушений',
       previewHtml:
-        '<div class="tb-preview-page"><table class="tb-preview-table"><tr><th>№</th><th>Формулировка</th></tr><tr><td><mark>PoradNum</mark></td><td><mark>ddescrVi</mark></td></tr></table></div>',
+        '<div class="tb-preview-page"><table class="tb-preview-table"><tr><th>№</th><th>Формулировка</th></tr><tr><td><mark>№ п/п</mark></td><td><mark>Формулировка</mark></td></tr></table></div>',
     },
     {
       id: 'spravka-full',
       title: 'Полный набор',
       description: 'Все таблицы: объекты, работники, нарушения',
       previewHtml:
-        '<div class="tb-preview-page"><table class="tb-preview-table"><tr><td><mark>ObjNum</mark></td><td><mark>ObjTitle</mark></td></tr></table><table class="tb-preview-table"><tr><td><mark>OrgNum</mark></td><td><mark>OrgName</mark></td></tr></table><table class="tb-preview-table"><tr><td><mark>PoradNum</mark></td><td><mark>ddescrVi</mark></td></tr></table></div>',
+        '<div class="tb-preview-page"><table class="tb-preview-table"><tr><td><mark>№ п/п</mark></td><td><mark>Название объекта</mark></td></tr></table><table class="tb-preview-table"><tr><td><mark>№ п/п</mark></td><td><mark>Организация</mark></td></tr></table><table class="tb-preview-table"><tr><td><mark>№ п/п</mark></td><td><mark>Формулировка</mark></td></tr></table></div>',
     },
   ];
 
@@ -1791,6 +1810,8 @@ const DocGenerator = (() => {
     toWordMultilineTextXml,
     getMarkerGuide,
     getSpravkaMarkerGuide,
+    getMarkerLabelMap,
+    getMarkerLabel,
     downloadBlankTemplate,
     downloadBlankSpravkaTemplate,
     BLANK_TEMPLATE_FILENAME,
