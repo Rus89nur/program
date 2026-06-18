@@ -399,7 +399,6 @@ const WizardModals = (() => {
       </div>
       <div class="form-group">
         <label class="form-label">Фотофиксация</label>
-        <input type="file" id="mvPhotoInput" accept="image/*" multiple hidden>
         <div class="photo-grid" id="mvPhotoGrid">${renderModalPhotos()}</div>
       </div>
     `;
@@ -595,7 +594,11 @@ const WizardModals = (() => {
 
     document.getElementById('mvSave')?.addEventListener('click', saveViolation);
     document.getElementById('mvDelete')?.addEventListener('click', deleteViolation);
-    document.getElementById('mvPhotoInput')?.addEventListener('change', onPhotoPick);
+    const photoInput = document.getElementById('mvPhotoInput');
+    if (photoInput && !photoInput.dataset.bound) {
+      photoInput.dataset.bound = '1';
+      photoInput.addEventListener('change', onPhotoPick);
+    }
     bindModalPhotoClicks();
     hydrateModalPhotoThumbs();
   }
@@ -638,7 +641,7 @@ const WizardModals = (() => {
       });
     });
     document.querySelector('#mvPhotoGrid .mv-photo-add-slot')?.addEventListener('click', () => {
-      document.getElementById('mvPhotoInput')?.click();
+      GazpromFileUtils?.triggerFilePicker?.(document.getElementById('mvPhotoInput'));
     });
   }
 
@@ -646,7 +649,11 @@ const WizardModals = (() => {
     const files = [...(e.target.files || [])];
     const maxInputBytes = 40 * 1024 * 1024;
     for (const file of files) {
-      if (!file.type.startsWith('image/')) continue;
+      const isImage =
+        typeof GazpromFileUtils !== 'undefined'
+          ? GazpromFileUtils.isImageFile(file)
+          : file.type.startsWith('image/');
+      if (!isImage) continue;
       if (file.size > maxInputBytes) {
         GazpromToast.error(`Файл ${file.name} слишком большой (макс. 40 МБ)`);
         continue;

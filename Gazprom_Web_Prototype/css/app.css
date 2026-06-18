@@ -1623,6 +1623,7 @@
       align-items: center;
       margin-bottom: 12px;
     }
+    .gazprom-file-input,
     .backup-file-input {
       position: absolute;
       width: 1px;
@@ -1635,6 +1636,14 @@
       white-space: nowrap;
       border: 0;
       opacity: 0;
+    }
+    #gazpromFileInputs {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      clip-path: inset(50%);
     }
     .backup-file-select-label {
       display: inline-flex;

@@ -21,7 +21,7 @@ const GazpromIdb = (() => {
   function mapStorageError(err) {
     if (!err) {
       return new Error(
-        'IndexedDB: транзакция прервана (Safari). Попробуйте импорт без фото или освободите память.'
+        'IndexedDB: транзакция прервана. Попробуйте импорт без фото или освободите память браузера.'
       );
     }
     const name = err.name || '';
@@ -32,7 +32,7 @@ const GazpromIdb = (() => {
     }
     if (name === 'UnknownError' || /database/i.test(String(err.message))) {
       return new Error(
-        'Safari не смог сохранить данные. Отключите «Частный доступ», не используйте режим инкогнито и повторите импорт.'
+        'Браузер не смог сохранить данные. Отключите режим инкогнито / «частный доступ» и повторите импорт.'
       );
     }
     return err instanceof Error ? err : new Error(String(err));

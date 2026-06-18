@@ -1,9 +1,12 @@
 {
+  "id": "./",
   "name": "АПК_ГИ — акты проверок",
   "short_name": "АПК_ГИ",
   "description": "Веб-приложение актов проверок Р.И. Шелудько",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
   "background_color": "#f1f5f9",
   "theme_color": "#0d47a1",
   "lang": "ru",

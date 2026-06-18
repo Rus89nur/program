@@ -107,6 +107,10 @@ const DocGenerator = (() => {
   }
 
   function downloadBlob(blob, fileName) {
+    if (typeof GazpromFileUtils !== 'undefined') {
+      GazpromFileUtils.downloadBlob(blob, fileName);
+      return;
+    }
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;

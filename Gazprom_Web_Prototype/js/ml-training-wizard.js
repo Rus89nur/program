@@ -333,7 +333,6 @@ const MlTrainingWizard = (() => {
         <div class="card ml-action-card">
           <h4>📦 Массовая загрузка</h4>
           <p>Выберите много фото — каждое привяжется к лучшему прогнозу модели.</p>
-          <input type="file" id="mlMassInput" accept="image/*" multiple hidden>
           <button type="button" class="btn-secondary" id="mlMassPickBtn" ${loading ? 'disabled' : ''}>Выбрать фото</button>
           <button type="button" class="btn-primary" id="mlMassBindBtn" hidden>Привязать автоматически</button>
           <p id="mlMassCount" class="ml-muted"></p>
@@ -411,7 +410,6 @@ const MlTrainingWizard = (() => {
       <div class="ml-test-grid">
         <div class="card">
           <h4>🧪 Лаборатория — тест фото</h4>
-          <input type="file" id="mlTestInput" accept="image/*" multiple hidden>
           <div class="ml-photo-row" id="mlTestPhotoRow"></div>
           <button type="button" class="btn-secondary btn-sm" id="mlTestPickBtn">+ Добавить фото</button>
           <div class="ml-section-title">Результаты распознавания</div>
@@ -824,14 +822,20 @@ const MlTrainingWizard = (() => {
     });
 
     const massInput = document.getElementById('mlMassInput');
-    document.getElementById('mlMassPickBtn')?.addEventListener('click', () => massInput?.click());
-    massInput?.addEventListener('change', () => {
-      massFiles = [...(massInput.files || [])];
-      const countEl = document.getElementById('mlMassCount');
-      const bindBtn = document.getElementById('mlMassBindBtn');
-      if (countEl) countEl.textContent = massFiles.length ? `Выбрано: ${massFiles.length} фото` : '';
-      if (bindBtn) bindBtn.hidden = !massFiles.length;
+    document.getElementById('mlMassPickBtn')?.addEventListener('click', () => {
+      GazpromFileUtils?.triggerFilePicker?.(massInput);
     });
+    if (massInput && !massInput.dataset.bound) {
+      massInput.dataset.bound = '1';
+      massInput.addEventListener('change', () => {
+        massFiles = [...(massInput.files || [])];
+        const countEl = document.getElementById('mlMassCount');
+        const bindBtn = document.getElementById('mlMassBindBtn');
+        if (countEl) countEl.textContent = massFiles.length ? `Выбрано: ${massFiles.length} фото` : '';
+        if (bindBtn) bindBtn.hidden = !massFiles.length;
+        massInput.value = '';
+      });
+    }
     document.getElementById('mlMassBindBtn')?.addEventListener('click', async () => {
       if (!massFiles.length || loading) return;
       loading = true;
@@ -921,22 +925,27 @@ const MlTrainingWizard = (() => {
     });
 
     const testInput = document.getElementById('mlTestInput');
-    document.getElementById('mlTestPickBtn')?.addEventListener('click', () => testInput?.click());
-    testInput?.addEventListener('change', async () => {
-      const files = [...(testInput.files || [])];
-      for (const file of files.slice(0, 10)) {
-        const url = await new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload = () => res(r.result);
-          r.onerror = rej;
-          r.readAsDataURL(file);
-        });
-        testPhotos.push(url);
-      }
-      testInput.value = '';
-      await runTestPredict();
-      await paint();
+    document.getElementById('mlTestPickBtn')?.addEventListener('click', () => {
+      GazpromFileUtils?.triggerFilePicker?.(testInput);
     });
+    if (testInput && !testInput.dataset.bound) {
+      testInput.dataset.bound = '1';
+      testInput.addEventListener('change', async () => {
+        const files = [...(testInput.files || [])];
+        for (const file of files.slice(0, 10)) {
+          const url = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(r.result);
+            r.onerror = rej;
+            r.readAsDataURL(file);
+          });
+          testPhotos.push(url);
+        }
+        testInput.value = '';
+        await runTestPredict();
+        await paint();
+      });
+    }
 
     document.getElementById('mlTestManualBtn')?.addEventListener('click', () => {
       openManualPick((title) => {

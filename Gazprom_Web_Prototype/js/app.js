@@ -349,7 +349,7 @@ function setBackupLoading(on, text = 'Импорт…') {
 }
 
 function openBackupFilePicker() {
-  document.getElementById('backupFileInput')?.click();
+  GazpromFileUtils?.triggerFilePicker?.(document.getElementById('backupFileInput'));
 }
 
 function openBackupModal() {
@@ -690,7 +690,10 @@ function init() {
 
   const backupFileInput = document.getElementById('backupFileInput');
   if (backupFileInput) {
-    const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
+    const isCoarsePointer =
+      typeof GazpromFileUtils !== 'undefined'
+        ? GazpromFileUtils.isCoarsePointer()
+        : window.matchMedia('(pointer: coarse)').matches;
     backupFileInput.accept = isCoarsePointer ? GazpromBackup.ACCEPT_MOBILE : GazpromBackup.ACCEPT;
   }
   backupFileInput?.addEventListener('change', (e) => {

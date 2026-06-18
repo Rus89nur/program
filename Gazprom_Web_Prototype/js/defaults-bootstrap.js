@@ -555,7 +555,7 @@ const DefaultsBootstrap = (() => {
     });
 
     container.querySelector('[data-preset-add="template"]')?.addEventListener('click', () => {
-      document.getElementById('wordTemplateInput')?.click();
+      GazpromFileUtils?.triggerFilePicker?.(document.getElementById('wordTemplateInput'));
     });
 
     container.querySelector('[data-preset-add="template-create"]')?.addEventListener('click', async () => {
@@ -634,7 +634,7 @@ const DefaultsBootstrap = (() => {
     });
 
     container.querySelector('[data-preset-add="registry"]')?.addEventListener('click', () => {
-      document.getElementById('vrPickerImportInput')?.click();
+      GazpromFileUtils?.triggerFilePicker?.(document.getElementById('vrPickerImportInput'));
       const opts = document.getElementById('vrPickerImportOptions');
       if (opts) opts.hidden = false;
     });

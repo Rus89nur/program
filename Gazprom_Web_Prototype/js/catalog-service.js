@@ -109,13 +109,20 @@ const CatalogService = (() => {
     const blob = new Blob([JSON.stringify(exportData, null, 2)], {
       type: 'application/json',
     });
-    const a = document.createElement('a');
     const date = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '').replace('T', '_');
     const suffix = options.filenameSuffix ? `_${options.filenameSuffix}` : '';
+    const fileName = `gazprom${suffix}_${date}.gazprombackup`;
+    if (typeof GazpromFileUtils !== 'undefined') {
+      GazpromFileUtils.downloadBlob(blob, fileName);
+      return;
+    }
+    const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `gazprom${suffix}_${date}.gazprombackup`;
+    a.download = fileName;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
   }
 
   return {
