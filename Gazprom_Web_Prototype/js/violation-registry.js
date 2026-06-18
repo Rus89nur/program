@@ -19,13 +19,13 @@ const ViolationRegistry = (() => {
     return catalog?.[LIST_KEY] || [];
   }
 
-  async function saveAll(list, { markCustom = true } = {}) {
+  async function saveAll(list, { markCustom = true, keepDraft = true } = {}) {
     const catalog = await GazpromStore.get();
     catalog[LIST_KEY] = list;
     if (markCustom && typeof DefaultsBootstrap !== 'undefined') {
       DefaultsBootstrap.markRegistryCustom(catalog);
     }
-    await GazpromStore.set(catalog);
+    await GazpromStore.set(catalog, { skipPhotoIngest: true, keepDraft });
     GazpromStore.invalidateCache();
   }
 
@@ -162,10 +162,26 @@ const ViolationRegistry = (() => {
 
   async function exportToExcel() {
     const xlsx = await loadXlsx();
+    const catalog = await GazpromStore.get();
+    if (catalog && typeof ViolationTypes !== 'undefined') ViolationTypes.ensureCatalog(catalog);
     const list = await getAll();
+    const formatVid = (raw) => {
+      if (!raw) return '';
+      if (catalog && typeof ViolationTypes !== 'undefined') {
+        return ViolationTypes.resolveVid(catalog, raw) || raw;
+      }
+      return raw;
+    };
     const rows = [
       ['№', 'Формулировка несоответствия', 'Ссылка на нормативный документ', 'Примечание', 'Вид нарушения', 'Формулировка из правил'],
-      ...list.map((v) => [v.number || '', v.title || '', v.subTitle || '', v.description || '', v.vid || '', v.formulaFromRules || '']),
+      ...list.map((v) => [
+        v.number || '',
+        v.title || '',
+        v.subTitle || '',
+        v.description || '',
+        formatVid(v.vid),
+        v.formulaFromRules || '',
+      ]),
     ];
     const ws = xlsx.utils.aoa_to_sheet(rows);
     ws['!cols'] = [{ wch: 5 }, { wch: 60 }, { wch: 50 }, { wch: 30 }, { wch: 40 }, { wch: 50 }];
@@ -373,12 +389,16 @@ const ViolationRegistry = (() => {
 
     GazpromStore.get().then((catalog) => {
       if (catalog && typeof ViolationTypes !== 'undefined') ViolationTypes.ensureCatalog(catalog);
+      const resolvedVid =
+        catalog && typeof ViolationTypes !== 'undefined'
+          ? ViolationTypes.resolveVid(catalog, item?.vid)
+          : (item?.vid || '');
       const vidTypes =
         catalog && typeof ViolationTypes !== 'undefined'
-          ? ViolationTypes.getActiveTitles(catalog)
+          ? ViolationTypes.getVidSelectTitles(catalog, item?.vid)
           : ViolationTemplates.VIOLATION_TYPES;
       const vidOptions = vidTypes
-        .map((v) => `<option value="${escHtml(v)}" ${item?.vid === v ? 'selected' : ''}>${escHtml(v)}</option>`)
+        .map((v) => `<option value="${escHtml(v)}" ${resolvedVid === v ? 'selected' : ''}>${escHtml(v)}</option>`)
         .join('');
       renderOpenFormBody(item, vidOptions);
     });

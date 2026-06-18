@@ -1055,6 +1055,7 @@ const WizardController = (() => {
 
       await GazpromStore.saveWizardDraft(draftCopy, reference);
       draft = draftCopy;
+      catalog = await GazpromStore.get();
     });
     saveDraftChain = op.catch((err) => {
       console.error('[wizard saveDraft]', err);

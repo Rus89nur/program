@@ -6,6 +6,7 @@ const WizardModals = (() => {
 
   let ctx = null;
   let editingViolationId = null;
+  let linkedRegistryItemId = null;
   let modalPhotos = [];
   let savingViolation = false;
   let violationFormInitial = null;
@@ -153,10 +154,30 @@ const WizardModals = (() => {
       GazpromMobileOverlay.scheduleRecoverViewportLayout?.();
     }
     editingViolationId = null;
+    linkedRegistryItemId = null;
     modalPhotos = [];
     savingViolation = false;
     violationFormInitial = null;
     window.__gazpromSavingViolation = false;
+  }
+
+  /** Подставить сохранённый вид в select (после mount DOM). */
+  function applyViolationVidSelect(rawVid) {
+    const vidEl = document.getElementById('mvVid');
+    if (!vidEl) return;
+    const catalog = ctx?.getCatalog?.();
+    const resolved =
+      catalog && typeof ViolationTypes !== 'undefined'
+        ? ViolationTypes.resolveVid(catalog, rawVid)
+        : String(rawVid || '').trim();
+    if (!resolved) return;
+    if (!Array.from(vidEl.options).some((o) => o.value === resolved)) {
+      const opt = document.createElement('option');
+      opt.value = resolved;
+      opt.textContent = resolved;
+      vidEl.insertBefore(opt, vidEl.options[1] || null);
+    }
+    vidEl.value = resolved;
   }
 
   function setSaveButtonsBusy(busy, label = 'Сохранение…') {
@@ -312,14 +333,18 @@ const WizardModals = (() => {
         .join('');
     }
 
+    const resolvedVid =
+      catalog && typeof ViolationTypes !== 'undefined'
+        ? ViolationTypes.resolveVid(catalog, v?.vid)
+        : (v?.vid || '');
     const vidTitles =
       catalog && typeof ViolationTypes !== 'undefined'
-        ? ViolationTypes.getActiveTitles(catalog)
+        ? ViolationTypes.getVidSelectTitles(catalog, v?.vid)
         : ViolationTemplates.VIOLATION_TYPES;
     const vidOpts = vidTitles
       .map(
         (t) =>
-          `<option value="${AktUtils.escapeHtml(t)}" ${v?.vid === t ? 'selected' : ''}>${AktUtils.escapeHtml(t)}</option>`
+          `<option value="${AktUtils.escapeHtml(t)}" ${resolvedVid === t ? 'selected' : ''}>${AktUtils.escapeHtml(t)}</option>`
       )
       .join('');
 
@@ -340,17 +365,21 @@ const WizardModals = (() => {
           </div>`;
       }
       return items
-        .map(
-          (r, i) => `
+        .map((r, i) => {
+          const displayVid =
+            catalog && typeof ViolationTypes !== 'undefined'
+              ? ViolationTypes.resolveVid(catalog, r.vid)
+              : (r.vid || '');
+          return `
           <div class="viol-registry-result-item" data-reg-id="${AktUtils.escapeHtml(r.id)}">
             <span class="vr-result-num">${r.number || i + 1}</span>
             <div class="vr-result-body">
               <div class="vr-result-title">${AktUtils.escapeHtml(r.title)}</div>
               ${r.subTitle ? `<div class="vr-result-sub">📄 ${AktUtils.escapeHtml(r.subTitle)}</div>` : ''}
-              ${r.vid ? `<span class="vr-result-vid">${AktUtils.escapeHtml(r.vid)}</span>` : ''}
+              ${displayVid ? `<span class="vr-result-vid">${AktUtils.escapeHtml(displayVid)}</span>` : ''}
             </div>
-          </div>`
-        )
+          </div>`;
+        })
         .join('');
     }
 
@@ -410,6 +439,8 @@ const WizardModals = (() => {
     `;
 
     open(violationId ? 'Редактирование нарушения' : 'Новое нарушение', body, footer);
+    linkedRegistryItemId = null;
+    if (v?.vid) applyViolationVidSelect(v.vid);
     violationFormInitial = readViolationFormSnapshot();
 
     // Track the registry item that was last selected to detect manual edits
@@ -548,11 +579,25 @@ const WizardModals = (() => {
           const formulaEl = document.getElementById('mvFormula');
           if (titleEl)   titleEl.value   = item.title            || '';
           if (urlEl)     urlEl.value     = item.subTitle         || '';
-          document.getElementById('mvVid').value = item.vid || '';
+          const resolvedItemVid =
+            catalog && typeof ViolationTypes !== 'undefined'
+              ? ViolationTypes.resolveVid(catalog, item.vid)
+              : (item.vid || '');
+          const vidEl = document.getElementById('mvVid');
+          if (vidEl) {
+            if (resolvedItemVid && !Array.from(vidEl.options).some((o) => o.value === resolvedItemVid)) {
+              const opt = document.createElement('option');
+              opt.value = resolvedItemVid;
+              opt.textContent = resolvedItemVid;
+              vidEl.insertBefore(opt, vidEl.options[1] || null);
+            }
+            vidEl.value = resolvedItemVid;
+          }
           if (formulaEl) formulaEl.value = item.formulaFromRules || '';
 
-          // Store snapshot for change detection
-          selectedRegistryItem = { ...item };
+          linkedRegistryItemId = item.id || null;
+          // Store snapshot for change detection (resolved vid — как в форме)
+          selectedRegistryItem = { ...item, vid: resolvedItemVid };
 
           document.querySelectorAll('#mvRegistryResults .viol-registry-result-item').forEach((x) =>
             x.classList.remove('selected')
@@ -720,7 +765,11 @@ const WizardModals = (() => {
     try {
       await withSaveTimeout((async () => {
         const mesto = readFieldRaw('mvMesto');
-        const vid = document.getElementById('mvVid')?.value || '';
+        const prevViolation = editingViolationId
+          ? (ctx.getDraft()?.violations || []).find((x) => x.id === editingViolationId)
+          : null;
+        const vidFromSelect = document.getElementById('mvVid')?.value?.trim() || '';
+        const vid = vidFromSelect || prevViolation?.vid || '';
         const urlToPravilo = readFieldRaw('mvUrl');
         const formulaRaw = readFieldRaw('mvFormula');
         const formulaFromRules = formulaRaw !== '' ? formulaRaw : null;
@@ -731,13 +780,14 @@ const WizardModals = (() => {
         if (!draft) throw new Error('Черновик акта недоступен');
 
         const payload = {
+          ...(prevViolation || {}),
           id: violationId,
           title,
           mesto,
           urlToPravilo,
           photo: photoRefs,
           vid,
-          formulaFromRules: formulaFromRules || null,
+          formulaFromRules: formulaRaw !== '' ? formulaRaw : null,
         };
 
         if (editingViolationId) {
@@ -750,6 +800,10 @@ const WizardModals = (() => {
 
         ctx.setDraft(draft);
         await ctx.saveDraft();
+
+        if (linkedRegistryItemId && vid) {
+          await ViolationRegistry.updateItem(linkedRegistryItemId, { vid });
+        }
 
         const saved = (ctx.getDraft()?.violations || []).find((x) => x.id === violationId);
         if (!saved) {
@@ -890,7 +944,7 @@ const WizardModals = (() => {
 
     const vidTitles =
       catalog && typeof ViolationTypes !== 'undefined'
-        ? ViolationTypes.getActiveTitles(catalog)
+        ? ViolationTypes.getVidSelectTitles(catalog, '')
         : ViolationTemplates.VIOLATION_TYPES;
     const vidOpts = vidTitles
       .map((t) => `<option value="${AktUtils.escapeHtml(t)}">${AktUtils.escapeHtml(t)}</option>`)
@@ -1049,6 +1103,8 @@ const WizardModals = (() => {
         titleEl.value = title;
         scheduleViolationTextareaResize();
       }
+      const vidEl = document.getElementById('mvVid');
+      if (vidEl && vid) vidEl.value = vid;
 
       // Clear search and refresh registry results in violation editor
       const searchEl = document.getElementById('mvRegistrySearch');

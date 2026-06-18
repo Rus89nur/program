@@ -128,7 +128,7 @@ const GazpromStore = (() => {
     return cache;
   }
 
-  async function set(data, { skipPhotoIngest = true, verifyWrite = false } = {}) {
+  async function set(data, { skipPhotoIngest = true, verifyWrite = false, keepDraft = false } = {}) {
     let toSave = data;
     if (!skipPhotoIngest && data && typeof PhotoStore !== 'undefined') {
       toSave = await PhotoStore.ingestCatalog(AktUtils.clone(data));
@@ -136,8 +136,10 @@ const GazpromStore = (() => {
     try {
       await GazpromIdb.transaction(STORE, 'readwrite', (tx) => {
         tx.objectStore(STORE).put(toSave, KEY);
-        tx.objectStore(STORE).delete(DRAFT_KEY);
-        tx.objectStore(STORE).delete(SPRAVKA_DRAFT_KEY);
+        if (!keepDraft) {
+          tx.objectStore(STORE).delete(DRAFT_KEY);
+          tx.objectStore(STORE).delete(SPRAVKA_DRAFT_KEY);
+        }
       });
     } catch (putErr) {
       throw putErr;

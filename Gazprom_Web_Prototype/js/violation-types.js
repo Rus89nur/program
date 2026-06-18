@@ -455,6 +455,17 @@ const ViolationTypes = (() => {
     };
   }
 
+  /** Список названий для select: активные + выбранное (если устаревшее/не в списке). */
+  function getVidSelectTitles(catalog, rawVid) {
+    ensureCatalog(catalog);
+    const resolved = resolveVid(catalog, rawVid);
+    const active = getActiveTitles(catalog);
+    if (resolved && !active.includes(resolved)) {
+      return [resolved, ...active];
+    }
+    return active;
+  }
+
   return {
     STATUS_ACTIVE,
     STATUS_ARCHIVED,
@@ -490,5 +501,6 @@ const ViolationTypes = (() => {
     buildKindStats,
     migrateStoredVids,
     formatVidDisplay,
+    getVidSelectTitles,
   };
 })();

@@ -42,6 +42,20 @@ describe('ViolationTypes', () => {
     expect(VT.getPendingTypes(catalog).length).toBe(2);
   });
 
+  it('getVidSelectTitles включает resolved vid вне активного списка', () => {
+    const catalog = {
+      akts: [],
+      violationTypes: [
+        { id: 'a1', title: 'Пожароопасные работы', status: 'archived' },
+        { id: 'a2', title: 'Нарушение требований пожарной безопасности', status: 'active' },
+      ],
+      typeMappings: {},
+    };
+    const titles = VT.getVidSelectTitles(catalog, 'Пожароопасные работы');
+    expect(titles[0]).toBe('Пожароопасные работы');
+    expect(titles).toContain('Нарушение требований пожарной безопасности');
+  });
+
   it('resolveVid следует цепочке replacedBy', () => {
     const catalog = {
       akts: [],
