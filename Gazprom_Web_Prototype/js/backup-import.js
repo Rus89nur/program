@@ -71,6 +71,8 @@ const GazpromBackup = (() => {
       trash,
       editableAkt,
       editableAktReference: raw.editableAktReference || null,
+      spravkas: raw.spravkas || [],
+      editableSpravka: raw.editableSpravka || null,
       scheduleItems: raw.scheduleItems || [],
       violationEliminations: raw.violationEliminations || [],
       violationRegistry: raw.violationRegistry || [],

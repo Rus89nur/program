@@ -7,6 +7,7 @@ const GazpromStore = (() => {
   const KEY = 'current';
   /** Лёгкий черновик мастера — без перезаписи всего каталога с сотнями фото. */
   const DRAFT_KEY = 'wizardDraft';
+  const SPRAVKA_DRAFT_KEY = 'spravkaDraft';
 
   let cache = null;
 
@@ -26,6 +27,8 @@ const GazpromStore = (() => {
       trash: [],
       editableAkt: null,
       editableAktReference: null,
+      spravkas: [],
+      editableSpravka: null,
       descriptionTemplates: ['', '', ''],
     };
   }
@@ -47,19 +50,37 @@ const GazpromStore = (() => {
     return out;
   }
 
+  function mergeSpravkaDraft(catalog, draftRec) {
+    if (!draftRec?.spravka) return catalog;
+    const spravka = draftRec.spravka;
+    const out = { ...catalog, spravkas: [...(catalog.spravkas || [])] };
+    out.editableSpravka = {
+      spravka,
+      lastModified: draftRec.lastModified || new Date().toISOString(),
+    };
+    const idx = out.spravkas.findIndex((s) => s.id === spravka.id);
+    if (idx >= 0) out.spravkas[idx] = spravka;
+    else out.spravkas.push(spravka);
+    return out;
+  }
+
   async function readCatalogFromDb() {
     return GazpromIdb.transaction(STORE, 'readonly', (tx) =>
       new Promise((resolve, reject) => {
         const store = tx.objectStore(STORE);
         const mainReq = store.get(KEY);
         const draftReq = store.get(DRAFT_KEY);
+        const spravkaDraftReq = store.get(SPRAVKA_DRAFT_KEY);
         let main = null;
         let draftRec = null;
-        let pending = 2;
+        let spravkaDraftRec = null;
+        let pending = 3;
         const finish = () => {
           pending -= 1;
           if (pending > 0) return;
-          resolve(mergeWizardDraft(main || emptyCatalog(), draftRec));
+          let out = mergeWizardDraft(main || emptyCatalog(), draftRec);
+          out = mergeSpravkaDraft(out, spravkaDraftRec);
+          resolve(out);
         };
         mainReq.onsuccess = () => {
           main = mainReq.result;
@@ -71,6 +92,11 @@ const GazpromStore = (() => {
           finish();
         };
         draftReq.onerror = () => reject(draftReq.error);
+        spravkaDraftReq.onsuccess = () => {
+          spravkaDraftRec = spravkaDraftReq.result;
+          finish();
+        };
+        spravkaDraftReq.onerror = () => reject(spravkaDraftReq.error);
       })
     );
   }
@@ -111,6 +137,7 @@ const GazpromStore = (() => {
       await GazpromIdb.transaction(STORE, 'readwrite', (tx) => {
         tx.objectStore(STORE).put(toSave, KEY);
         tx.objectStore(STORE).delete(DRAFT_KEY);
+        tx.objectStore(STORE).delete(SPRAVKA_DRAFT_KEY);
       });
     } catch (putErr) {
       throw putErr;
@@ -129,6 +156,20 @@ const GazpromStore = (() => {
       );
     }
     cache = fromDb;
+  }
+
+  /** Быстрое сохранение черновика справки по ПБ. */
+  async function saveSpravkaDraft(spravka) {
+    const record = {
+      spravka,
+      lastModified: new Date().toISOString(),
+    };
+    await GazpromIdb.transaction(STORE, 'readwrite', (tx) => {
+      tx.objectStore(STORE).put(record, SPRAVKA_DRAFT_KEY);
+    });
+    if (cache) {
+      cache = mergeSpravkaDraft(cache, record);
+    }
   }
 
   /** Быстрое сохранение только текущего черновика акта (для мастера на телефоне). */
@@ -231,6 +272,7 @@ const GazpromStore = (() => {
     get,
     set,
     saveWizardDraft,
+    saveSpravkaDraft,
     persistCatalog,
     clear,
     hasData,

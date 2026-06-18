@@ -95,6 +95,8 @@ const CatalogService = (() => {
       trash: data.trash || [],
       editableAkt: data.editableAkt || null,
       editableAktReference: data.editableAktReference || null,
+      spravkas: data.spravkas || [],
+      editableSpravka: data.editableSpravka || null,
       scheduleItems: data.scheduleItems || [],
       violationEliminations: data.violationEliminations || [],
       violationRegistry: data.violationRegistry || [],

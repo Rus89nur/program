@@ -390,7 +390,92 @@ const DocGenerator = (() => {
     return lowercaseFirstLetterFallback(text);
   }
 
-  function buildTemplateData(akt) {
+  function splitSubtitleLines(subTitle) {
+    const parts = String(subTitle || '').split(/\r?\n/);
+    return {
+      line1: parts[0] || '',
+      line2: parts.slice(1).join('\n'),
+    };
+  }
+
+  function buildSpravkaObjects(source) {
+    return (source.objectsCheck || []).map((o, i) => {
+      const sub = splitSubtitleLines(o.subTitle);
+      const title = AktUtils.stripSurroundingQuotes(o.title || '');
+      const codeRaw = String(o.objectCode || '').trim();
+      const gpRaw = String(o.gpLine || '').trim();
+      return {
+        n: i + 1,
+        ObjNum: i + 1,
+        title: o.title || '',
+        subtitle: o.subTitle || '',
+        ObjTitle: title,
+        ObjSubtitle: codeRaw ? `(код ${codeRaw})` : sub.line1,
+        ObjSubtitle2: gpRaw || sub.line2,
+      };
+    });
+  }
+
+  function buildSpravkaWorkerOrgs(source) {
+    const rows = source.workerRows;
+    if (Array.isArray(rows) && rows.length) {
+      return rows.map((row, i) => ({
+        OrgNum: i + 1,
+        OrgName: row.orgName || '',
+        OrgPbCount: String(row.pbCount ?? ''),
+        OrgWorkersCount: String(row.workersCount ?? ''),
+      }));
+    }
+    return (source.organizations || []).map((o, i) => ({
+      OrgNum: i + 1,
+      OrgName: o.title || '',
+      OrgPbCount: '',
+      OrgWorkersCount: '',
+    }));
+  }
+
+  function buildSpravkaTemplateData(spravka, catalog = null) {
+    const source = {
+      objectsCheck: spravka.objectsCheck || [],
+      violations: spravka.violations || [],
+      workerRows: spravka.workerRows || [],
+      subcontractorsList: spravka.subcontractorsList || '',
+      remarksRMM: spravka.remarksRMM || '',
+      conclusion: spravka.conclusion || '',
+      date: spravka.date,
+    };
+    const objects = buildSpravkaObjects(source);
+    const objectsTitles = objects.map((o) => `«${o.ObjTitle}»`).join(', ');
+    const workerOrgs = buildSpravkaWorkerOrgs(source);
+    const pbTotal = workerOrgs.reduce((s, r) => s + (parseInt(r.OrgPbCount, 10) || 0), 0);
+    const workersTotal = workerOrgs.reduce((s, r) => s + (parseInt(r.OrgWorkersCount, 10) || 0), 0);
+    const violations = (source.violations || []).map((v, i) => ({
+      PoradNum: i + 1,
+      TitleViolatation: v.mesto || '',
+      ddescrVi: v.title || '',
+      ddescpitVi: v.title || '',
+      urlDoc: v.urlToPravilo || '',
+      formula: v.formulaFromRules || '',
+    }));
+
+    return {
+      DateReview: AktUtils.formatDateShort(source.date),
+      NameObject: objects[0]?.ObjTitle || '',
+      ObjectsTitles: objectsTitles,
+      SubcontractorsList: source.subcontractorsList || '',
+      RemarksRMM: source.remarksRMM || '',
+      Conclusion: source.conclusion || '',
+      objects,
+      workerOrgs,
+      violations,
+      OrgPbTotal: String(pbTotal),
+      OrgWorkersTotal: String(workersTotal),
+      violationCount: violations.length,
+      objectCount: objects.length,
+    };
+  }
+
+  function buildTemplateData(akt, catalog = null) {
     function formatFioForSign(fio) {
       const raw = String(fio || '').trim();
       if (!raw) return '';
@@ -454,9 +539,13 @@ const DocGenerator = (() => {
       urlToPravilo: v.urlToPravilo || '',
     }));
 
-    const objects = (akt.objectsCheck || []).map((o, i) => ({
-      n: i + 1, title: o.title || '', subtitle: o.subTitle || '',
-    }));
+    const objects = buildSpravkaObjects(akt);
+    const objectsTitles = objects.map((o) => `«${o.ObjTitle}»`).join(', ');
+
+    const workerOrgs = buildSpravkaWorkerOrgs({
+      workerRows: akt.workerRows,
+      organizations: catalog?.organizations,
+    });
 
     const commission = commissionList.map((p, i) => {
       const job = jobTitleInText(p.jobTitle);
@@ -499,6 +588,12 @@ const DocGenerator = (() => {
       predJob:   jobTitleInText(pred?.jobTitle),
       commission,
       objects,
+      ObjectsTitles:    objectsTitles,
+      SubcontractorsList: '',
+      RemarksRMM:       akt.description || '',
+      workerOrgs,
+      OrgPbTotal:       '',
+      OrgWorkersTotal:  '',
       violationCount: violations.length,
       objectCount:    objects.length,
     };
@@ -518,6 +613,9 @@ const DocGenerator = (() => {
     'ddescpitVi',
     'urlDoc',
     'formula',
+    'ObjSubtitle',
+    'ObjSubtitle2',
+    'RemarkText',
   ]);
 
   function buildSignatureTableXml(lines) {
@@ -989,6 +1087,7 @@ const DocGenerator = (() => {
     'PredVoice',
     'PedstavVoice',
     'Conclusion',
+    'RemarksRMM',
     'ddescrVi',
     'ddescpitVi',
   ]);
@@ -1005,6 +1104,66 @@ const DocGenerator = (() => {
     return result;
   }
 
+  const SPRAVKA_TEMPLATE_KEY = 'spravkaTemplate';
+  const SPRAVKA_DEFAULT_TEMPLATE = './assets/defaults/Шаблон_справки_ПБ.docx';
+
+  async function loadSpravkaTemplateBlob(catalogOverride) {
+    const catalog = catalogOverride || (await GazpromStore.get());
+    const b64 = catalog?.[SPRAVKA_TEMPLATE_KEY];
+    if (b64) {
+      const bin = atob(b64);
+      const arr = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      return arr;
+    }
+    const res = await fetch(SPRAVKA_DEFAULT_TEMPLATE, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Шаблон справки не найден. Положите Шаблон_справки_ПБ.docx в assets/defaults/');
+    return new Uint8Array(await res.arrayBuffer());
+  }
+
+  async function generateFromSpravka(spravka, catalogOverride) {
+    await ensureLibs();
+    const catalog = catalogOverride || (await GazpromStore.get());
+    const templateBytes = await loadSpravkaTemplateBlob(catalog);
+    const zip = new PizZip(templateBytes);
+    let xml = zip.files['word/document.xml']?.asText() || '';
+    const tplData = buildSpravkaTemplateData(spravka, catalog);
+
+    xml = expandTableRows(xml, 'ObjTitle', tplData.objects, { ObjTitle: 'ObjTitle' });
+    xml = expandTableRows(xml, 'ObjNum', tplData.objects, {
+      ObjNum: 'ObjNum',
+      ObjTitle: 'ObjTitle',
+      ObjSubtitle: 'ObjSubtitle',
+      ObjSubtitle2: 'ObjSubtitle2',
+    });
+    xml = expandTableRows(xml, 'OrgNum', tplData.workerOrgs, {
+      OrgNum: 'OrgNum',
+      OrgName: 'OrgName',
+      OrgPbCount: 'OrgPbCount',
+      OrgWorkersCount: 'OrgWorkersCount',
+    });
+    xml = expandTableRows(xml, 'PoradNum', tplData.violations, {
+      PoradNum: 'PoradNum',
+      ddescrVi: 'ddescrVi',
+      ddescpitVi: 'ddescpitVi',
+    });
+    xml = replaceScalarMarkers(xml, tplData, [
+      'DateReview', 'NameObject', 'ObjectsTitles', 'SubcontractorsList',
+      'RemarksRMM', 'Conclusion', 'OrgPbTotal', 'OrgWorkersTotal',
+      'ddescrVi', 'ddescpitVi',
+    ]);
+
+    assertValidDocumentXml(xml);
+    zip.file('word/document.xml', xml);
+    const blob = zip.generate({
+      type: 'blob',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    const fileName = `Справка_ПБ_${AktUtils.toDateInputValue(spravka.date)}.docx`;
+    downloadBlob(blob, fileName);
+    GazpromToast.success('Справка сформирована — открывается в Word');
+  }
+
   async function generateFromAkt(akt, catalogOverride) {
     await ensureLibs();
 
@@ -1018,7 +1177,8 @@ const DocGenerator = (() => {
 
     const hasCurlyTokens = /\{[a-zA-Z]/.test(xml);
 
-    const tplData = buildTemplateData(akt);
+    const catalog = catalogOverride || (await GazpromStore.get());
+    const tplData = buildTemplateData(akt, catalog);
     let blob;
 
     if (hasCurlyTokens) {
@@ -1040,7 +1200,24 @@ const DocGenerator = (() => {
       });
     } else {
       // Шаблон использует plain-text маркеры — прямая XML-замена
-      // 1. Сначала раскрываем строки таблицы нарушений
+      // 1. Таблицы справки: объекты, работники
+      xml = expandTableRows(xml, 'ObjTitle', tplData.objects, {
+        ObjTitle: 'ObjTitle',
+      });
+      xml = expandTableRows(xml, 'ObjNum', tplData.objects, {
+        ObjNum: 'ObjNum',
+        ObjTitle: 'ObjTitle',
+        ObjSubtitle: 'ObjSubtitle',
+        ObjSubtitle2: 'ObjSubtitle2',
+      });
+      xml = expandTableRows(xml, 'OrgNum', tplData.workerOrgs, {
+        OrgNum: 'OrgNum',
+        OrgName: 'OrgName',
+        OrgPbCount: 'OrgPbCount',
+        OrgWorkersCount: 'OrgWorkersCount',
+      });
+
+      // 2. Строки таблицы нарушений
       xml = expandTableRows(xml, 'PoradNum', tplData.violations, {
         PoradNum:         'PoradNum',
         TitleViolatation: 'TitleViolatation',
@@ -1050,19 +1227,21 @@ const DocGenerator = (() => {
         formula:          'formula',
       });
 
-      // 2. Фототаблица (tempOne / tempTwo / tempThree)
+      // 3. Фототаблица (tempOne / tempTwo / tempThree)
       const photoResult = await processPhotoTable(xml, zip, akt.violations || [], templateBytes);
       xml = photoResult.xml;
 
-      // 3. Подписи комиссии и представителей
+      // 4. Подписи комиссии и представителей
       xml = applySignatureTables(xml, tplData, photoResult.photoTableEnd);
 
-      // 4. Заменяем скалярные маркеры
+      // 5. Заменяем скалярные маркеры
       xml = replaceScalarMarkers(xml, tplData, [
         'Number', 'DateReview', 'NameObject', 'ReviewObject',
         'Comission', 'Pedstav', 'Conclusion',
         'ustranenDate', 'predostavlenDate',
         'UtverzderDate', 'utverzderDate',
+        'ObjectsTitles', 'SubcontractorsList', 'RemarksRMM',
+        'OrgPbTotal', 'OrgWorkersTotal',
         'ddescrVi', 'ddescpitVi',  // FIX 4: чистим если остались вне таблицы
       ]);
 
@@ -1095,14 +1274,17 @@ const DocGenerator = (() => {
   return {
     saveTemplate,
     generateFromAkt,
+    generateFromSpravka,
     hasTemplate,
     getTemplateName,
     buildTemplateData,
+    buildSpravkaTemplateData,
     toWordMultilineTextXml,
     getMarkerGuide,
     downloadBlankTemplate,
     BLANK_TEMPLATE_FILENAME,
     TEMPLATE_KEY,
+    SPRAVKA_TEMPLATE_KEY,
   };
 })();
 

@@ -7681,3 +7681,19 @@
     .ml-pick-item:hover { background: var(--primary-soft); }
     .settings-tile--ml .tile-count:not(:empty)::before { content: ''; }
     .settings-tile--ml .tile-count:not(:empty)::after { content: ' фото'; font-size: 11px; }
+
+    .spravka-object-card {
+      padding: 14px 16px;
+      background: var(--surface-elevated, #f8fafc);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .spravka-workers-table .form-control--sm {
+      min-height: 34px;
+      padding: 6px 8px;
+      font-size: 13px;
+    }
+    .spravka-workers-total td {
+      font-weight: 600;
+      background: var(--surface-elevated, #f8fafc);
+    }

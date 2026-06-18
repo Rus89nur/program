@@ -151,7 +151,7 @@ const GazpromMobileOverlay = (() => {
     if (screen.id === 'screen-history') return screen.querySelector('#historyList');
     if (screen.id === 'screen-elimination') return screen.querySelector('#eliminationCardList');
     if (screen.id === 'screen-settings') return screen.querySelector('.settings-grid');
-    if (screen.id === 'screen-wizard') return screen.querySelector('.wizard-layout');
+    if (screen.id === 'screen-wizard' || screen.id === 'screen-spravka') return screen.querySelector('.wizard-layout');
     return screen;
   };
 
@@ -291,7 +291,7 @@ const GazpromMobileOverlay = (() => {
     const isBootLayout = trigger === 'boot' || trigger === 'recoverViewportLayout';
     const isWizardPanelRender =
       trigger === 'wizard-render' || trigger.startsWith('wizard-step-');
-    const isWizardScreen = sid === 'screen-wizard';
+    const isWizardScreen = sid === 'screen-wizard' || sid === 'screen-spravka';
 
     if (trigger.startsWith('goTo-') || trigger.startsWith('wizard-step-')) {
       navBlockByScreen.delete(sid);
@@ -377,7 +377,8 @@ const GazpromMobileOverlay = (() => {
 
   /** Тихая подстройка padding после остановки скролла — без принудительного scrollTop в цикле. */
   const bumpScrollClearanceAtRest = () => {
-    if (document.querySelector('.screen.active')?.id === 'screen-wizard') return 0;
+    const active = document.querySelector('.screen.active')?.id;
+    if (active === 'screen-wizard' || active === 'screen-spravka') return 0;
     const overlapPx = measureScrollOverlap();
     if (overlapPx <= 0) return 0;
     const main = mainEl();

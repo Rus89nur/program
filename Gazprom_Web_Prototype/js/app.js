@@ -14,6 +14,7 @@ const syncAppBuildLabel = () => {
 const titles = {
   home: 'Главная',
   wizard: 'Редактируемый акт',
+  spravka: 'Справка по ПБ',
   history: 'История',
   reports: 'Отчёты',
   elimination: 'Устранение',
@@ -52,6 +53,13 @@ function goTo(screenId, options = {}) {
       preserveStep: options.preserveStep ?? wasWizard,
       preserveDraft: options.preserveDraft ?? wasWizard,
       forceNew: options.forceNew,
+    });
+  }
+  if (screenId === 'spravka') {
+    SpravkaWizard.open({
+      spravkaId: options.spravkaId ?? null,
+      preserveStep: options.preserveStep === true,
+      forceNew: options.forceNew === true,
     });
   }
   if (screenId === 'violations') {
@@ -634,10 +642,15 @@ function init() {
     if (!el) return;
     const opts = {};
     if (el.dataset.wizardNew === '1') opts.forceNew = true;
+    if (el.dataset.spravkaNew === '1') opts.forceNew = true;
     if (el.dataset.aktId) opts.aktId = el.dataset.aktId;
     const target = el.dataset.go;
     if (target === 'wizard' && opts.forceNew) {
       goTo('wizard', opts);
+      return;
+    }
+    if (target === 'spravka' && opts.forceNew) {
+      goTo('spravka', opts);
       return;
     }
     goTo(target, opts);

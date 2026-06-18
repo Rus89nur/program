@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '205';</script>
+  <script>window.GAZPROM_ASSET_V = '206';</script>
   <script>
   (function () {
     if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
@@ -98,7 +98,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=173" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=174" id="appCss">
   <script>
   (function () {
     var css = document.getElementById('appCss');
@@ -156,7 +156,7 @@
       </button>
       <div class="sidebar-footer" id="sidebarAppBuild" aria-label="Версия веб-приложения">
         <span class="sidebar-footer__brand">программа НЕТ</span>
-        Сборка: <span data-app-build>web-205</span> · PWA
+        Сборка: <span data-app-build>web-206</span> · PWA
       </div>
     </aside>
 
@@ -202,9 +202,13 @@
           <div class="home-akt-actions">
             <button class="btn-primary home-akt-actions__primary" type="button" data-go="wizard">Создать полный акт</button>
             <div class="home-akt-actions__secondary">
+              <button class="btn-secondary home-akt-actions__sub" type="button" id="homeSpravkaBtn" data-go="spravka">Создать справку по ПБ</button>
               <button class="btn-secondary home-akt-actions__sub" type="button" id="homeShortAktBtn">Начать новый сокращённый Акт</button>
               <div class="home-akt-actions__extra" id="homeSubAction" hidden>
                 <button class="btn-secondary home-akt-actions__sub" type="button" data-go="wizard" data-wizard-new="1">Начать новый полный Акт</button>
+              </div>
+              <div class="home-akt-actions__extra" id="homeSpravkaSubAction" hidden>
+                <button class="btn-secondary home-akt-actions__sub" type="button" data-go="spravka" data-spravka-new="1">Начать новую справку</button>
               </div>
             </div>
           </div>
@@ -223,7 +227,7 @@
             <div class="stat-label">Черновиков</div>
           </div>
         </div>
-        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-205</p>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-206</p>
       </section>
 
       <section class="screen" id="screen-wizard">
@@ -304,6 +308,87 @@
           </div>
         </div>
         <button type="button" class="viol-add-fab" id="wizardViolFab" hidden aria-label="Добавить нарушение" title="Добавить нарушение">
+          <svg class="viol-add-fab__icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+        </button>
+      </section>
+
+      <section class="screen" id="screen-spravka">
+        <div class="wizard-stepper" id="spravkaStepper">
+          <button class="wizard-step current" data-step="0" type="button">
+            <span class="wizard-step-num">1</span>
+            <span class="wizard-step-label">Дата</span>
+          </button>
+          <div class="wizard-connector"></div>
+          <button class="wizard-step" data-step="1" type="button">
+            <span class="wizard-step-num">2</span>
+            <span class="wizard-step-label">Объекты</span>
+          </button>
+          <div class="wizard-connector"></div>
+          <button class="wizard-step" data-step="2" type="button">
+            <span class="wizard-step-num">3</span>
+            <span class="wizard-step-label">Субподрядчики</span>
+          </button>
+          <div class="wizard-connector"></div>
+          <button class="wizard-step" data-step="3" type="button">
+            <span class="wizard-step-num">4</span>
+            <span class="wizard-step-label">Работники</span>
+          </button>
+          <div class="wizard-connector"></div>
+          <button class="wizard-step" data-step="4" type="button">
+            <span class="wizard-step-num">5</span>
+            <span class="wizard-step-label">Нарушения</span>
+          </button>
+          <div class="wizard-connector"></div>
+          <button class="wizard-step" data-step="5" type="button">
+            <span class="wizard-step-num">6</span>
+            <span class="wizard-step-label">РММ</span>
+          </button>
+          <div class="wizard-connector"></div>
+          <button class="wizard-step" data-step="6" type="button">
+            <span class="wizard-step-num">7</span>
+            <span class="wizard-step-label">Генерация</span>
+          </button>
+        </div>
+
+        <div id="spravkaEmpty" class="wizard-empty card" hidden>
+          <h3>Мастер справки недоступен</h3>
+          <p>Не удалось загрузить каталог. Обновите страницу или импортируйте резервную копию в <strong>Настройках</strong>.</p>
+          <button type="button" class="btn-primary" data-go="settings">Перейти в настройки</button>
+        </div>
+
+        <div id="spravkaRoot">
+          <div class="wizard-toolbar">
+            <button type="button" class="btn-ghost" id="spravkaNewBtn">+ Новая справка</button>
+            <span id="spravkaDirtyBadge" class="wizard-dirty-badge" hidden>● Не сохранено</span>
+          </div>
+          <div class="wizard-layout">
+            <div>
+              <div id="spravkaPanels"></div>
+              <div class="wizard-footer">
+                <button class="btn-primary" type="button" id="spravkaPrev">← Назад</button>
+                <button class="btn-primary" type="button" id="spravkaNext">Далее →</button>
+              </div>
+            </div>
+            <div class="summary-panel summary-panel--collapsed" id="spravkaSummaryPanel">
+              <div class="card" id="spravkaSummaryCard">
+                <button type="button" class="summary-panel__toggle" id="spravkaSummaryToggle" aria-expanded="false" aria-controls="spravkaSummaryBody">
+                  <span class="summary-panel__title">Сводка справки</span>
+                  <span class="summary-panel__chevron" aria-hidden="true">▾</span>
+                </button>
+                <div class="summary-panel__body" id="spravkaSummaryBody">
+                  <div class="summary-row" data-summary-key="date"><span>Дата</span><span>—</span></div>
+                  <div class="summary-row" data-summary-key="objects"><span>Объекты</span><span>0</span></div>
+                  <div class="summary-row" data-summary-key="workers"><span>Организации</span><span>0</span></div>
+                  <div class="summary-row" data-summary-key="violations"><span>Нарушения</span><span>0</span></div>
+                  <div class="summary-row summary-row--last" data-summary-key="status"><span>Статус</span><span>Черновик</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="viol-add-fab" id="spravkaViolFab" hidden aria-label="Добавить нарушение" title="Добавить нарушение">
           <svg class="viol-add-fab__icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
             <path d="M12 5v14M5 12h14"/>
           </svg>
@@ -524,7 +609,7 @@
           <div class="card settings-tile settings-tile--ml" role="button" tabindex="0"><div class="icon">🤖</div><h4>Обучение модели</h4><p>ML по фото нарушений</p><span class="tile-count" data-ml-photos></span></div>
         </div>
         <div class="card settings-app-update" id="settingsAppUpdate">
-          <p class="settings-app-update__label">Версия приложения: <strong id="settingsAppBuild">web-205</strong></p>
+          <p class="settings-app-update__label">Версия приложения: <strong id="settingsAppBuild">web-206</strong></p>
           <p class="settings-app-update__avail" id="settingsAppUpdateAvail" hidden></p>
           <p class="settings-app-update__hint">Если после обновления на сайте ничего не меняется — нажмите кнопку ниже (сбросит кэш PWA).</p>
           <button type="button" class="btn-secondary btn-sm" id="appForceRefreshBtn">Обновить приложение</button>
@@ -735,7 +820,7 @@
   })();
   </script>
   <script src="js/idb-connection.js?v=22"></script>
-  <script src="js/data-store.js?v=26"></script>
+  <script src="js/data-store.js?v=27"></script>
   <script src="js/photo-store.js?v=31"></script>
   <script src="js/toast.js"></script>
   <script src="js/mobile-overlay.js?v=34"></script>
@@ -744,15 +829,15 @@
   <script src="js/violation-templates.js?v=21"></script>
   <script src="js/violation-types.js?v=6"></script>
   <script src="js/violation-types-editor.js?v=12"></script>
-  <script src="js/ml-image-service.js?v=1"></script>
-  <script src="js/ml-training-wizard.js?v=1"></script>
-  <script src="js/doc-generator.js?v=39"></script>
+  <script src="js/ml-image-service.js?v=2"></script>
+  <script src="js/ml-training-wizard.js?v=2"></script>
+  <script src="js/doc-generator.js?v=40"></script>
   <script src="js/defaults-bootstrap.js?v=9"></script>
   <script src="js/violation-registry.js?v=13"></script>
   <script src="js/catalog-service.js"></script>
   <script src="js/backup-import.js?v=30"></script>
   <script src="js/akt-search.js"></script>
-  <script src="js/ui-bindings.js?v=32"></script>
+  <script src="js/ui-bindings.js?v=33"></script>
   <script src="js/catalog-editor.js?v=13"></script>
   <script src="js/schedule-editor.js?v=2"></script>
   <script src="js/elimination-editor.js?v=12"></script>
@@ -760,7 +845,9 @@
   <script src="js/reports-dashboard.js?v=17"></script>
   <script src="js/wizard-modals.js?v=43"></script>
   <script src="js/wizard.js?v=57"></script>
+  <script src="js/spravka-utils.js?v=1"></script>
+  <script src="js/spravka-wizard.js?v=1"></script>
   <script src="js/short-akt-form.js?v=4"></script>
-  <script src="js/app.js?v=148"></script>
+  <script src="js/app.js?v=149"></script>
 </body>
 </html>
