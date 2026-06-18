@@ -633,6 +633,13 @@
       font-size: 13px;
       font-weight: 600;
     }
+    button.chip {
+      border: none;
+      font: inherit;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+    }
     .chip button {
       background: none;
       border: none;

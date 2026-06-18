@@ -109,6 +109,18 @@ const SpravkaWizard = (() => {
     }
   }
 
+  function getCatalogObjects() {
+    return (catalog?.objects || []).map((o, index) => {
+      const id = o.id || o._id || `legacy-obj-${index}`;
+      return { ...o, id: String(id) };
+    });
+  }
+
+  function findCatalogObject(id) {
+    const key = String(id || '');
+    return getCatalogObjects().find((o) => String(o.id) === key);
+  }
+
   function commitObjectDetails() {
     (draft.objectsCheck || []).forEach((obj) => {
       const codeEl = document.getElementById(`spObjCode_${obj.id}`);
@@ -220,16 +232,16 @@ const SpravkaWizard = (() => {
   }
 
   function renderStepObjects() {
-    const objects = catalog.objects || [];
-    const selectedIds = new Set((draft.objectsCheck || []).map((o) => o.id));
+    const objects = getCatalogObjects();
+    const selectedIds = new Set((draft.objectsCheck || []).map((o) => String(o.id)));
 
     const selectedChips = (draft.objectsCheck || [])
-      .map((o) => `<span class="chip chip-removable" data-remove-object="${o.id}" title="Убрать">${AktUtils.escapeHtml(o.title)}</span>`)
+      .map((o) => `<button type="button" class="chip chip-removable" data-sp-remove-object="${AktUtils.escapeHtml(String(o.id))}" title="Убрать">${AktUtils.escapeHtml(o.title)}</button>`)
       .join('');
 
     const catalogChips = objects
-      .filter((o) => !selectedIds.has(o.id))
-      .map((o) => `<span class="chip chip-catalog" data-add-object="${o.id}" title="Добавить">${AktUtils.escapeHtml(o.title)}${o.subTitle ? ' — ' + AktUtils.escapeHtml(o.subTitle) : ''}</span>`)
+      .filter((o) => !selectedIds.has(String(o.id)))
+      .map((o) => `<button type="button" class="chip chip-catalog" data-sp-add-object="${AktUtils.escapeHtml(String(o.id))}" title="Добавить">${AktUtils.escapeHtml(o.title)}${o.subTitle ? ' — ' + AktUtils.escapeHtml(o.subTitle) : ''}</button>`)
       .join('');
 
     return `
@@ -423,18 +435,26 @@ const SpravkaWizard = (() => {
   }
 
   function addObjectById(id) {
-    const obj = (catalog.objects || []).find((o) => o.id === id);
-    if (!obj) return;
-    if ((draft.objectsCheck || []).some((o) => o.id === id)) return;
-    draft.objectsCheck = [...(draft.objectsCheck || []), SpravkaUtils.normalizeObjectEntry({ ...obj })];
+    commitObjectDetails();
+    const obj = findCatalogObject(id);
+    if (!obj) {
+      GazpromToast.error('Объект не найден в справочнике');
+      return;
+    }
+    const objId = String(obj.id);
+    if ((draft.objectsCheck || []).some((o) => String(o.id) === objId)) return;
+    draft.objectsCheck = [...(draft.objectsCheck || []), SpravkaUtils.normalizeObjectEntry({ ...obj, id: objId })];
     scheduleAutosave();
     render();
+    updateSummary();
   }
 
   function removeObjectById(id) {
-    draft.objectsCheck = (draft.objectsCheck || []).filter((o) => o.id !== id);
+    commitObjectDetails();
+    draft.objectsCheck = (draft.objectsCheck || []).filter((o) => String(o.id) !== String(id));
     scheduleAutosave();
     render();
+    updateSummary();
   }
 
   function addWorkerFromOrg(orgId) {
@@ -458,6 +478,20 @@ const SpravkaWizard = (() => {
     render();
   }
 
+  function handleSpravkaRootClick(e) {
+    const addChip = e.target.closest('[data-sp-add-object]');
+    if (addChip) {
+      e.preventDefault();
+      addObjectById(addChip.getAttribute('data-sp-add-object'));
+      return;
+    }
+    const removeChip = e.target.closest('[data-sp-remove-object]');
+    if (removeChip) {
+      e.preventDefault();
+      removeObjectById(removeChip.getAttribute('data-sp-remove-object'));
+    }
+  }
+
   function bindPanelEvents() {
     panelsHost()?.querySelectorAll('input, select, textarea').forEach((el) => {
       el.addEventListener('input', scheduleAutosave);
@@ -466,13 +500,6 @@ const SpravkaWizard = (() => {
 
     document.getElementById('spNewObjectBtn')?.addEventListener('click', () => {
       WizardModals.openQuickAdd('object');
-    });
-
-    panelsHost()?.querySelectorAll('[data-add-object]').forEach((chip) => {
-      chip.addEventListener('click', () => addObjectById(chip.dataset.addObject));
-    });
-    panelsHost()?.querySelectorAll('[data-remove-object]').forEach((chip) => {
-      chip.addEventListener('click', () => removeObjectById(chip.dataset.removeObject));
     });
 
     document.getElementById('spWorkerAddOrg')?.addEventListener('click', () => {
@@ -573,6 +600,8 @@ const SpravkaWizard = (() => {
   function bindChrome() {
     if (chromeBound) return;
     chromeBound = true;
+    const root = document.getElementById('spravkaRoot');
+    root?.addEventListener('click', handleSpravkaRootClick);
     document.getElementById('spravkaPrev')?.addEventListener('click', async () => {
       if (step === 0) return;
       commitStep(step);
@@ -651,6 +680,7 @@ const SpravkaWizard = (() => {
     } else {
       initDraft();
     }
+    draft.objectsCheck = SpravkaUtils.ensureObjectFields(draft.objectsCheck);
     if (!options.preserveStep) step = 0;
     render();
     bindChrome();
