@@ -113,6 +113,7 @@ const SpravkaUtils = (() => {
     applyCurrentEditable,
     upsertInCatalog,
     ensureObjectFields,
+    normalizeObjectEntry,
     normalizeWorkerRow,
     workerTotals,
     toAktShapeForDoc,

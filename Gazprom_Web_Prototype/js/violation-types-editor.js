@@ -706,7 +706,7 @@ const ViolationTypesEditor = (() => {
 
     const close = () => {
       overlay.remove();
-      GazpromMobileOverlay.unlock();
+      window.GazpromMobileOverlay?.unlock?.();
     };
 
     overlay.querySelector('.vt-wizard-close')?.addEventListener('click', close);
@@ -841,7 +841,7 @@ const ViolationTypesEditor = (() => {
     };
 
     document.body.appendChild(overlay);
-    GazpromMobileOverlay.lock();
+    window.GazpromMobileOverlay?.lock?.();
     paintStep();
   }
 

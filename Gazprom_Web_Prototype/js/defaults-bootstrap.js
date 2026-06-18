@@ -724,7 +724,7 @@ const DefaultsBootstrap = (() => {
     const modal = document.getElementById('registryModal');
     if (!modal) return;
     modal.hidden = true;
-    GazpromMobileOverlay?.unlock?.();
+    window.GazpromMobileOverlay?.unlock?.();
     const opts = document.getElementById('vrPickerImportOptions');
     if (opts) opts.hidden = true;
   }
@@ -778,7 +778,7 @@ const DefaultsBootstrap = (() => {
       return;
     }
     modal.hidden = false;
-    GazpromMobileOverlay?.lock?.();
+    window.GazpromMobileOverlay?.lock?.();
     void refreshRegistryModal();
   }
 
@@ -826,7 +826,7 @@ const DefaultsBootstrap = (() => {
     const modal = document.getElementById('templateModal');
     if (!modal) return;
     modal.hidden = true;
-    GazpromMobileOverlay?.unlock?.();
+    window.GazpromMobileOverlay?.unlock?.();
   }
 
   async function refreshTemplateModal() {
@@ -850,7 +850,7 @@ const DefaultsBootstrap = (() => {
     const modal = document.getElementById('templateModal');
     if (!modal) return;
     modal.hidden = false;
-    GazpromMobileOverlay?.lock?.();
+    window.GazpromMobileOverlay?.lock?.();
     void refreshTemplateModal().then(() => {
       requestAnimationFrame(() => renderTemplateMarkersGuide());
     });

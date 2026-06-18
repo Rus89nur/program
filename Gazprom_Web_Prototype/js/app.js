@@ -396,6 +396,7 @@ async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
       parsed: preview,
       importWithoutPhotos,
     });
+
     GazpromStore.invalidateCache();
     await GazpromUI.refreshAll();
     const photoMsg =
