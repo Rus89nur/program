@@ -699,7 +699,6 @@ const DefaultsBootstrap = (() => {
     container.innerHTML = `
       <div class="preset-picker-grid" role="listbox" aria-label="Выбор шаблона акта">
         ${presets.map((p) => renderPresetCard(p, 'template')).join('')}
-        ${renderAddCard('template-builder', 'Мастер шаблона')}
         ${renderAddCard('template-create', 'Создать шаблон')}
         ${renderAddCard('template', 'Загрузить .docx')}
       </div>`;
@@ -730,11 +729,6 @@ const DefaultsBootstrap = (() => {
       GazpromFileUtils?.triggerFilePicker?.(document.getElementById('wordTemplateInput'));
     });
 
-    container.querySelector('[data-preset-add="template-builder"]')?.addEventListener('click', () => {
-      closeAktTemplateModal();
-      TemplateBuilderWizard?.open?.({ templateType: 'akt' });
-    });
-
     container.querySelector('[data-preset-add="template-create"]')?.addEventListener('click', async () => {
       try {
         const gen = getDocGenerator();
@@ -763,7 +757,6 @@ const DefaultsBootstrap = (() => {
     container.innerHTML = `
       <div class="preset-picker-grid" role="listbox" aria-label="Выбор шаблона справки">
         ${presets.map((p) => renderPresetCard(p, 'spravka-template')).join('')}
-        ${renderAddCard('spravka-template-builder', 'Мастер шаблона')}
         ${renderAddCard('spravka-template-create', 'Создать шаблон')}
         ${renderAddCard('spravka-template', 'Загрузить .docx')}
       </div>`;
@@ -792,11 +785,6 @@ const DefaultsBootstrap = (() => {
 
     container.querySelector('[data-preset-add="spravka-template"]')?.addEventListener('click', () => {
       GazpromFileUtils?.triggerFilePicker?.(document.getElementById('spravkaTemplateInput'));
-    });
-
-    container.querySelector('[data-preset-add="spravka-template-builder"]')?.addEventListener('click', () => {
-      closeSpravkaTemplateModal();
-      TemplateBuilderWizard?.open?.({ templateType: 'spravka' });
     });
 
     container.querySelector('[data-preset-add="spravka-template-create"]')?.addEventListener('click', async () => {

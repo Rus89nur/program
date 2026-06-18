@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gazprom-web-v230';
+const CACHE_NAME = 'gazprom-web-v231';
 const IS_LOCALHOST = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
 const STATIC_ASSETS = [
   './manifest.json',
@@ -21,7 +21,7 @@ const STATIC_ASSETS = [
   './js/ui-bindings.js?v=37',
   './js/doc-generator.js?v=44',
   './js/template-builder-wizard.js?v=3',
-  './js/defaults-bootstrap.js?v=13',
+  './js/defaults-bootstrap.js?v=14',
   './js/violation-registry.js?v=16',
   './js/catalog-service.js?v=2',
   './js/backup-import.js?v=32',
