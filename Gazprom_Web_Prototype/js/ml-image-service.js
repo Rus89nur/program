@@ -112,13 +112,53 @@ const MlImageService = (() => {
     });
   }
 
-  async function resolvePhotoDataUrl(ref) {
+  function normalizePhotoRef(ref) {
     if (!ref) return null;
-    if (typeof PhotoStore !== 'undefined' && PhotoStore.resolveDataUrl) {
-      return PhotoStore.resolveDataUrl(ref);
-    }
-    if (typeof ref === 'string' && (ref.startsWith('data:') || ref.startsWith('blob:'))) return ref;
+    if (typeof ref === 'string') return ref;
+    if (typeof ref === 'object' && ref.id) return String(ref.id);
     return null;
+  }
+
+  async function ensurePhotoRef(ref, dataUrl) {
+    const normalized = normalizePhotoRef(ref);
+    if (normalized?.startsWith('photo:')) return normalized;
+    const ingestSource = dataUrl || normalized;
+    if (!ingestSource) return null;
+    if (typeof PhotoStore !== 'undefined' && PhotoStore.ingestPhotoRef) {
+      const result = await PhotoStore.ingestPhotoRef(ingestSource);
+      if (typeof result === 'string') return result;
+      if (result?.id) return result.id;
+    }
+    return typeof ingestSource === 'string' && ingestSource.startsWith('data:') ? ingestSource : normalized;
+  }
+
+  async function resolvePhotoDataUrl(ref) {
+    const normalized = normalizePhotoRef(ref);
+    if (!normalized) return null;
+    if (typeof AktUtils !== 'undefined' && AktUtils.photoSrcAsync) {
+      const url = await AktUtils.photoSrcAsync(normalized);
+      if (url) return url;
+    }
+    if (typeof PhotoStore !== 'undefined' && PhotoStore.resolveDataUrl) {
+      const url = await PhotoStore.resolveDataUrl(normalized);
+      if (url) return url;
+    }
+    if (normalized.startsWith('data:') || normalized.startsWith('blob:')) return normalized;
+    if (normalized.startsWith('photo:')) return null;
+    return `data:image/jpeg;base64,${normalized}`;
+  }
+
+  function collectAllAkts(catalog) {
+    const seen = new Set();
+    const out = [];
+    const push = (akt) => {
+      if (!akt || seen.has(akt.id)) return;
+      seen.add(akt.id);
+      out.push(akt);
+    };
+    for (const akt of catalog?.akts || []) push(akt);
+    if (catalog?.editableAkt?.akt) push(catalog.editableAkt.akt);
+    return out;
   }
 
   async function readMeta() {
@@ -149,6 +189,7 @@ const MlImageService = (() => {
     );
     entriesCache = list.map((e) => ({
       ...e,
+      photoRef: normalizePhotoRef(e.photoRef) || e.photoRef,
       feature: deserializeFeature(e.feature),
     }));
     return entriesCache;
@@ -315,34 +356,35 @@ const MlImageService = (() => {
     return predictFromFeature(feature, entries, registry);
   }
 
-  async function ingestPhotoData(dataUrl, source = 'manual') {
-    const feature = await extractFeatureFromDataUrl(dataUrl);
-    if (!feature) return null;
-    let photoRef = dataUrl;
-    if (typeof PhotoStore !== 'undefined' && PhotoStore.ingestPhotoRef) {
-      photoRef = await PhotoStore.ingestPhotoRef(dataUrl);
-    }
+  async function hashFromDataUrl(dataUrl) {
+    if (!dataUrl || typeof dataUrl !== 'string') return '';
     const buf = dataUrl.startsWith('data:')
       ? Uint8Array.from(atob(dataUrl.split(',')[1] || ''), (c) => c.charCodeAt(0))
       : new TextEncoder().encode(dataUrl);
-    const photoHash = await sha256Hex(buf);
-    return { feature, photoRef, photoHash };
+    return sha256Hex(buf);
   }
 
-  async function addPhoto(violationTitle, dataUrl, source = 'manual', photoHash = null) {
+  async function addPhoto(violationTitle, dataUrlOrRef, source = 'manual', photoHash = null, originalRef = null) {
     const title = String(violationTitle || '').trim();
     if (!title) return null;
-    const ingested = await ingestPhotoData(dataUrl, source);
-    if (!ingested) return null;
+    const dataUrl =
+      typeof dataUrlOrRef === 'string' && dataUrlOrRef.startsWith('data:')
+        ? dataUrlOrRef
+        : await resolvePhotoDataUrl(originalRef || dataUrlOrRef);
+    if (!dataUrl) return null;
+    const feature = await extractFeatureFromDataUrl(dataUrl);
+    if (!feature) return null;
+    const photoRef = await ensurePhotoRef(originalRef || dataUrlOrRef, dataUrl);
+    if (!photoRef) return null;
     const id = uuid();
     const entry = {
       id,
       violationTitle: title,
-      photoRef: ingested.photoRef,
-      feature: ingested.feature,
+      photoRef,
+      feature,
       source,
       createdAt: new Date().toISOString(),
-      photoHash: photoHash || ingested.photoHash,
+      photoHash: photoHash || (await hashFromDataUrl(dataUrl)),
     };
     await saveEntry(entry);
     return id;
@@ -351,37 +393,34 @@ const MlImageService = (() => {
   async function loadFromActs(onProgress) {
     const catalog = await GazpromStore.get();
     const registry = await getRegistryViolations();
-    const useActTitleFallback = registry.length === 0;
-    const historyAkts = catalog?.akts || [];
-    const editableList = catalog?.editableAkt?.akt ? [catalog.editableAkt.akt] : [];
-    const allAkts = [...historyAkts, ...editableList];
+    const allAkts = collectAllAkts(catalog);
     const totalAkts = allAkts.length;
     let entries = await loadAllEntries();
 
     const photoKey = (hash, title) => `${hash}|${title}`;
     const jobs = [];
     const currentPhotoSet = new Set();
+    let scannedPhotos = 0;
 
     for (const akt of allAkts) {
       for (const violation of akt.violations || []) {
         const photos = violation.photo || [];
         if (!photos.length) continue;
         let normalizedTitle = findMatchingViolationTitle(violation.title, registry);
-        if (!normalizedTitle && useActTitleFallback) {
+        if (!normalizedTitle) {
           const trimmed = String(violation.title || '').trim();
           normalizedTitle = trimmed || null;
         }
         if (!normalizedTitle) continue;
         for (const ref of photos) {
           if (!ref) continue;
-          const dataUrl = await resolvePhotoDataUrl(ref);
+          scannedPhotos += 1;
+          const originalRef = normalizePhotoRef(ref) || ref;
+          const dataUrl = await resolvePhotoDataUrl(originalRef);
           if (!dataUrl) continue;
-          const buf = dataUrl.startsWith('data:')
-            ? Uint8Array.from(atob(dataUrl.split(',')[1] || ''), (c) => c.charCodeAt(0))
-            : new TextEncoder().encode(dataUrl);
-          const hash = await sha256Hex(buf);
+          const hash = await hashFromDataUrl(dataUrl);
           currentPhotoSet.add(photoKey(hash, normalizedTitle));
-          jobs.push({ dataUrl, title: normalizedTitle, hash });
+          jobs.push({ dataUrl, title: normalizedTitle, hash, originalRef });
         }
       }
     }
@@ -402,7 +441,6 @@ const MlImageService = (() => {
     const jobsToProcess = jobs.filter((j) => !existingSet.has(photoKey(j.hash, j.title)));
 
     let added = entries.filter((e) => e.source === 'akt').length;
-    let processedAkts = 0;
 
     if (typeof onProgress === 'function') {
       onProgress(0, totalAkts, added);
@@ -417,19 +455,15 @@ const MlImageService = (() => {
       return stats;
     }
 
-    let aktIndex = 0;
-    for (const akt of allAkts) {
-      aktIndex += 1;
-      processedAkts = aktIndex;
-      if (typeof onProgress === 'function') onProgress(aktIndex, totalAkts, added);
-      await new Promise((r) => setTimeout(r, 0));
-    }
-
+    let jobIndex = 0;
     for (const job of jobsToProcess) {
-      const id = await addPhoto(job.title, job.dataUrl, 'akt', job.hash);
+      jobIndex += 1;
+      const id = await addPhoto(job.title, job.dataUrl, 'akt', job.hash, job.originalRef);
       if (id) added += 1;
-      if (typeof onProgress === 'function') onProgress(totalAkts, totalAkts, added);
-      await new Promise((r) => setTimeout(r, 0));
+      if (typeof onProgress === 'function') {
+        onProgress(totalAkts, totalAkts, added, null, jobIndex, jobsToProcess.length, scannedPhotos);
+      }
+      if (jobIndex % 5 === 0) await new Promise((r) => setTimeout(r, 0));
     }
 
     const meta = await readMeta();
@@ -467,10 +501,7 @@ const MlImageService = (() => {
     const autoCount = entries.filter((e) => e.source === 'akt').length;
     const manualCount = entries.filter((e) => e.source === 'manual').length;
     const catalog = await GazpromStore.get();
-    const allAkts = [
-      ...(catalog?.akts || []),
-      ...(catalog?.editableAkt?.akt ? [catalog.editableAkt.akt] : []),
-    ];
+    const allAkts = collectAllAkts(catalog);
     const processedAktsCount = allAkts.filter((a) =>
       (a.violations || []).some((v) => (v.photo || []).length > 0)
     ).length;
@@ -603,6 +634,8 @@ const MlImageService = (() => {
     getCardIndex,
     massAutoBind,
     resolvePhotoDataUrl,
+    normalizePhotoRef,
+    collectAllAkts,
     invalidateCache,
   };
 })();

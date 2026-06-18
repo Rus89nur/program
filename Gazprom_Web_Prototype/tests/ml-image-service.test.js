@@ -54,6 +54,10 @@ describe('MlImageService', () => {
     ).toBe('Необеспечение СИЗ');
   });
 
+  it('normalizePhotoRef extracts id from ingest result object', () => {
+    expect(MlImageService.normalizePhotoRef({ id: 'photo:abc', mode: 'existing' })).toBe('photo:abc');
+  });
+
   it('predictFromFeature returns equal split for same photo in base', async () => {
     const feature = new Float32Array(32 * 32).fill(0.5);
     const entries = [

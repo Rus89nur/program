@@ -27,6 +27,20 @@ const MlTrainingWizard = (() => {
     return AktUtils.escapeHtml(String(s ?? ''));
   }
 
+  function setPhotoElement(container, url, imgClass) {
+    if (!container) return;
+    container.textContent = '';
+    if (!url) {
+      container.textContent = '🖼';
+      return;
+    }
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = '';
+    if (imgClass) img.className = imgClass;
+    container.appendChild(img);
+  }
+
   function confColor(pct) {
     if (pct >= 70) return 'var(--success)';
     if (pct >= 40) return 'var(--warning)';
@@ -276,9 +290,7 @@ const MlTrainingWizard = (() => {
       return;
     }
     const url = await MlImageService.resolvePhotoDataUrl(entry.photoRef);
-    if (url) {
-      photoEl.innerHTML = `<img src="${esc(url)}" alt="" class="ml-big-photo__img">`;
-    }
+    setPhotoElement(photoEl, url, 'ml-big-photo__img');
     currentPredictions = url ? await MlImageService.predict(url) : [];
     const predsHost = document.getElementById('mlCardPreds');
     if (predsHost) {
@@ -341,18 +353,32 @@ const MlTrainingWizard = (() => {
     const cells = await Promise.all(
       photos.map(async (entry) => {
         const url = await MlImageService.resolvePhotoDataUrl(entry.photoRef);
-        return `<div class="ml-grid-photo" data-ml-del="${esc(entry.id)}">
-          ${url ? `<img src="${esc(url)}" alt="">` : '🖼'}
-          <button type="button" class="ml-grid-del" aria-label="Удалить">×</button>
-        </div>`;
+        const wrap = document.createElement('div');
+        wrap.className = 'ml-grid-photo';
+        wrap.dataset.mlDel = entry.id;
+        setPhotoElement(wrap, url, '');
+        const wrapImg = wrap.querySelector('img');
+        if (wrapImg) {
+          wrapImg.style.width = '100%';
+          wrapImg.style.height = '100%';
+          wrapImg.style.objectFit = 'cover';
+        }
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'ml-grid-del';
+        del.setAttribute('aria-label', 'Удалить');
+        del.textContent = '×';
+        wrap.appendChild(del);
+        return wrap;
       })
     );
-    grid.innerHTML = cells.join('');
+    grid.textContent = '';
+    cells.forEach((cell) => grid.appendChild(cell));
     grid.querySelectorAll('.ml-grid-del').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        const wrap = btn.closest('[data-ml-del]');
-        const id = wrap?.getAttribute('data-ml-del');
+        const wrap = btn.closest('.ml-grid-photo');
+        const id = wrap?.dataset?.mlDel;
         if (!id) return;
         await MlImageService.removePhoto(id);
         GazpromToast.success('Фото удалено');
@@ -364,16 +390,33 @@ const MlTrainingWizard = (() => {
   async function hydrateTestPhotos() {
     const row = document.getElementById('mlTestPhotoRow');
     if (!row) return;
+    row.textContent = '';
     if (!testPhotos.length) {
-      row.innerHTML = '<span class="ml-muted">Нет тестовых фото</span>';
+      const span = document.createElement('span');
+      span.className = 'ml-muted';
+      span.textContent = 'Нет тестовых фото';
+      row.appendChild(span);
       return;
     }
-    row.innerHTML = testPhotos
-      .map(
-        (url, i) =>
-          `<div class="ml-thumb" data-ml-test-idx="${i}"><img src="${esc(url)}" alt=""><button type="button" class="ml-thumb-del" data-ml-test-del="${i}">×</button></div>`
-      )
-      .join('');
+    testPhotos.forEach((url, i) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'ml-thumb';
+      wrap.dataset.mlTestIdx = String(i);
+      setPhotoElement(wrap, url, '');
+      const img = wrap.querySelector('img');
+      if (img) {
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+      }
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'ml-thumb-del';
+      del.dataset.mlTestDel = String(i);
+      del.textContent = '×';
+      wrap.appendChild(del);
+      row.appendChild(wrap);
+    });
     row.querySelectorAll('[data-ml-test-del]').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -495,13 +538,24 @@ const MlTrainingWizard = (() => {
       const box = document.getElementById('mlLoadProgress');
       const text = document.getElementById('mlLoadProgressText');
       box?.removeAttribute('hidden');
-      await MlImageService.loadFromActs((cur, total, added) => {
+      await MlImageService.loadFromActs((cur, total, added, _stats, jobIdx, jobTotal, scanned) => {
         if (loadCancelled) return;
-        if (text) text.textContent = `Обработано: ${cur} из ${total} актов. Добавлено фото: ${added}`;
+        if (text) {
+          if (jobTotal > 0) {
+            text.textContent = `Актов: ${total}. Найдено фото: ${scanned || '—'}. Добавлено: ${added} (${jobIdx} из ${jobTotal})`;
+          } else {
+            text.textContent = `Актов: ${total}. Фото в актах: ${scanned || 0}. В базе ML: ${added}`;
+          }
+        }
       });
       loading = false;
       if (!loadCancelled) {
-        GazpromToast.success('Загрузка из актов завершена');
+        const s = await MlImageService.getStatistics();
+        GazpromToast.success(
+          s.totalPhotos > 0
+            ? `Загружено: ${s.autoCount} фото из ${s.processedAktsCount} актов`
+            : 'В актах нет фото или они не удалось прочитать'
+        );
         await paint();
       }
     });
