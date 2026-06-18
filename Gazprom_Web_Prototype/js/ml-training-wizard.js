@@ -22,6 +22,58 @@ const MlTrainingWizard = (() => {
   let detailTitle = null;
   let bound = false;
   let loading = false;
+  let loadCancelled = false;
+  let loadProgressMessage = '';
+  let loadOverlayEl = null;
+
+  const flushUi = () =>
+    new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    });
+
+  const withTimeout = (promise, ms, label) =>
+    Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error(`Таймаут: ${label}`)), ms);
+      }),
+    ]);
+
+  function hideLoadOverlay() {
+    loadOverlayEl?.remove();
+    loadOverlayEl = null;
+  }
+
+  function updateLoadOverlay(message) {
+    loadProgressMessage = String(message || '');
+    const textEl = document.getElementById('mlLoadOverlayText');
+    if (textEl) textEl.textContent = loadProgressMessage;
+  }
+
+  function showLoadOverlay(message) {
+    hideLoadOverlay();
+    loadOverlayEl = document.createElement('div');
+    loadOverlayEl.id = 'mlLoadOverlay';
+    loadOverlayEl.className = 'confirm-overlay ml-load-overlay';
+    loadOverlayEl.innerHTML = `
+      <div class="confirm-dialog ml-load-dialog" role="status" aria-live="polite" aria-busy="true">
+        <div class="ml-spinner" aria-hidden="true"></div>
+        <p id="mlLoadOverlayText">${esc(message || 'Загрузка…')}</p>
+        <button type="button" class="btn-ghost btn-sm" id="mlLoadOverlayCancel">Отмена</button>
+      </div>`;
+    document.body.appendChild(loadOverlayEl);
+    loadOverlayEl.querySelector('#mlLoadOverlayCancel')?.addEventListener('click', () => {
+      handleLoadCancel();
+    });
+  }
+
+  function handleLoadCancel() {
+    loadCancelled = true;
+    MlImageService.cancelLoadFromActs?.();
+    loading = false;
+    hideLoadOverlay();
+    void paint({ force: true });
+  }
 
   function esc(s) {
     return AktUtils.escapeHtml(String(s ?? ''));
@@ -136,9 +188,9 @@ const MlTrainingWizard = (() => {
           <h4>📥 Загрузить из актов</h4>
           <p>Инкрементально: только новые фото из истории и текущего акта. Удалённые из актов — убираются из базы.</p>
           <button type="button" class="btn-primary" id="mlLoadActsBtn" ${loading ? 'disabled' : ''}>Загрузить</button>
-          <div id="mlLoadProgress" class="ml-progress-box" hidden>
+          <div id="mlLoadProgress" class="ml-progress-box"${loading ? '' : ' hidden'}>
             <div class="ml-spinner" aria-hidden="true"></div>
-            <p id="mlLoadProgressText">Обработка…</p>
+            <p id="mlLoadProgressText">${esc(loadProgressMessage || 'Обработка…')}</p>
             <button type="button" class="btn-ghost btn-sm" id="mlLoadCancelBtn">Отмена</button>
           </div>
         </div>
@@ -257,7 +309,8 @@ const MlTrainingWizard = (() => {
     </div>`;
   }
 
-  async function paint() {
+  async function paint(options = {}) {
+    if (loading && !options.force) return;
     const root = host();
     if (!root) return;
     await refreshData();
@@ -279,7 +332,68 @@ const MlTrainingWizard = (() => {
   }
 
   let massFiles = [];
-  let loadCancelled = false;
+
+  async function handleLoadActs() {
+    if (loading) return;
+    if (typeof MlImageService === 'undefined' || typeof MlImageService.loadFromActs !== 'function') {
+      GazpromToast.error('Модуль ML не загружен. Обновите приложение (Настройки → Обновить).');
+      return;
+    }
+
+    loading = true;
+    loadCancelled = false;
+    loadProgressMessage = 'Подготовка…';
+    showLoadOverlay(loadProgressMessage);
+    await flushUi();
+
+    const onLoadProgress = (_cur, total, added, _stats, jobIdx, jobTotal, scanned, phase) => {
+      if (loadCancelled) return;
+      let message = loadProgressMessage;
+      if (phase === 'start') message = 'Чтение актов…';
+      else if (phase === 'scan') message = `Сканирование актов… найдено ${scanned} фото`;
+      else if (phase === 'ready') {
+        message =
+          jobTotal > 0
+            ? `Актов: ${total}. Найдено ${scanned} фото. К загрузке: ${jobTotal}`
+            : scanned > 0
+              ? `Актов: ${total}. Все ${scanned} фото уже в базе`
+              : `Актов: ${total}. В актах нет фото`;
+      } else if (phase === 'import' && jobTotal > 0) {
+        message = `Загрузка: ${jobIdx} из ${jobTotal} (в базе: ${added})`;
+      } else if (total > 0) {
+        message = `Актов: ${total}. Фото в базе ML: ${added}`;
+      }
+      updateLoadOverlay(message);
+    };
+
+    try {
+      const result = await withTimeout(
+        MlImageService.loadFromActs(onLoadProgress),
+        120000,
+        'загрузка из актов'
+      );
+      if (loadCancelled || MlImageService.isLoadFromActsAborted?.() || result === null) {
+        GazpromToast.info('Загрузка отменена');
+        return;
+      }
+      const s = result || (await MlImageService.getStatistics({ skipAccuracy: true }));
+      if (s.totalPhotos > 0) {
+        GazpromToast.success(`Загружено: ${s.autoCount} фото из ${s.processedAktsCount} актов`);
+      } else if (s.processedAktsCount > 0) {
+        GazpromToast.info('Фото в актах есть, но не удалось прочитать изображения');
+      } else {
+        GazpromToast.info('В актах нет фото с нарушениями');
+      }
+    } catch (err) {
+      console.error('[MlTrainingWizard] loadFromActs', err);
+      GazpromToast.error(err?.message || 'Ошибка загрузки из актов');
+    } finally {
+      loading = false;
+      loadProgressMessage = '';
+      hideLoadOverlay();
+      await paint({ force: true });
+    }
+  }
 
   async function hydrateCard() {
     const entry = entries[cardIndex];
@@ -527,75 +641,8 @@ const MlTrainingWizard = (() => {
   }
 
   function bindDataStep() {
-    document.getElementById('mlLoadActsBtn')?.addEventListener('click', async () => {
-      if (loading) return;
-      const ok = await GazpromToast.confirm(
-        'Будут загружены фото из истории и текущего акта. Продолжить?'
-      );
-      if (!ok) return;
-
-      loading = true;
-      loadCancelled = false;
-      const box = document.getElementById('mlLoadProgress');
-      const text = document.getElementById('mlLoadProgressText');
-      const loadBtn = document.getElementById('mlLoadActsBtn');
-      if (loadBtn) loadBtn.disabled = true;
-      box?.removeAttribute('hidden');
-      if (text) text.textContent = 'Подготовка…';
-
-      const onLoadProgress = (cur, total, added, _stats, jobIdx, jobTotal, scanned, phase) => {
-        if (loadCancelled || !text) return;
-        if (phase === 'start') {
-          text.textContent = 'Чтение актов…';
-          return;
-        }
-        if (phase === 'scan') {
-          text.textContent = `Сканирование актов… найдено ${scanned} фото`;
-          return;
-        }
-        if (phase === 'ready') {
-          text.textContent =
-            jobTotal > 0
-              ? `Актов: ${total}. Найдено ${scanned} фото. К загрузке: ${jobTotal}`
-              : scanned > 0
-                ? `Актов: ${total}. Все ${scanned} фото уже в базе`
-                : `Актов: ${total}. В актах нет фото`;
-          return;
-        }
-        if (phase === 'import' && jobTotal > 0) {
-          text.textContent = `Загрузка: ${jobIdx} из ${jobTotal} (в базе: ${added})`;
-          return;
-        }
-        text.textContent = `Актов: ${total}. Фото в базе ML: ${added}`;
-      };
-
-      try {
-        const result = await MlImageService.loadFromActs(onLoadProgress);
-        if (loadCancelled || MlImageService.isLoadFromActsAborted?.() || result === null) {
-          GazpromToast.info('Загрузка отменена');
-          return;
-        }
-        const s = result || (await MlImageService.getStatistics({ skipAccuracy: true }));
-        if (s.totalPhotos > 0) {
-          GazpromToast.success(`Загружено: ${s.autoCount} фото из ${s.processedAktsCount} актов`);
-        } else if (s.processedAktsCount > 0) {
-          GazpromToast.info('Фото в актах есть, но не удалось прочитать изображения');
-        } else {
-          GazpromToast.info('В актах нет фото с нарушениями');
-        }
-      } catch (err) {
-        console.error('[MlTrainingWizard] loadFromActs', err);
-        GazpromToast.error(err?.message || 'Ошибка загрузки из актов');
-      } finally {
-        loading = false;
-        await paint();
-      }
-    });
     document.getElementById('mlLoadCancelBtn')?.addEventListener('click', () => {
-      loadCancelled = true;
-      MlImageService.cancelLoadFromActs?.();
-      loading = false;
-      void paint();
+      handleLoadCancel();
     });
     document.getElementById('mlResetBtn')?.addEventListener('click', async () => {
       const ok = await GazpromToast.confirm('Все данные обучения будут удалены. Продолжить?');
@@ -783,6 +830,16 @@ const MlTrainingWizard = (() => {
 
   function init() {
     bindScreen();
+    const root = host();
+    if (root && !root.dataset.mlDelegated) {
+      root.dataset.mlDelegated = '1';
+      root.addEventListener('click', (e) => {
+        if (e.target.closest('#mlLoadActsBtn')) {
+          e.preventDefault();
+          void handleLoadActs();
+        }
+      });
+    }
   }
 
   return { init, renderScreen };

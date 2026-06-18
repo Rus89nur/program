@@ -7485,6 +7485,21 @@
       border-radius: var(--radius);
       text-align: center;
     }
+    .ml-load-overlay {
+      z-index: 10002;
+    }
+    .ml-load-dialog {
+      text-align: center;
+      min-width: min(320px, calc(100vw - 32px));
+    }
+    .ml-load-dialog .ml-spinner {
+      margin: 0 auto 14px;
+    }
+    .ml-load-dialog p {
+      margin-bottom: 16px;
+      color: var(--text);
+      font-weight: 600;
+    }
     .ml-spinner {
       width: 36px;
       height: 36px;

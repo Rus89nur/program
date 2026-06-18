@@ -545,7 +545,7 @@ const GazpromUI = (() => {
 
     const mlBadge = document.querySelector('[data-ml-photos]');
     if (mlBadge && typeof MlImageService !== 'undefined') {
-      void MlImageService.getStatistics().then((s) => {
+      void MlImageService.getStatistics({ skipAccuracy: true }).then((s) => {
         mlBadge.textContent = s?.totalPhotos > 0 ? String(s.totalPhotos) : '';
       }).catch(() => {});
     }
