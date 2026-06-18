@@ -101,7 +101,6 @@ Source_Code_Backups/
 *.txt
 *.md
 !Gazprom_Web_Prototype/MOBILE_PHONE_MODE.md
-!Gazprom_Web_Prototype/PROGRESS_WEB.md
 !Gazprom_Web_Prototype/README.md
 *.sh
 *.py
