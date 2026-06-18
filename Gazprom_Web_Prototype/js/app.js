@@ -21,6 +21,7 @@ const titles = {
   trash: 'Корзина',
   violations: 'Реестр нарушений',
   'violation-types': 'Виды нарушений',
+  'ml-training': 'Обучение модели',
 };
 
 function goTo(screenId, options = {}) {
@@ -58,6 +59,9 @@ function goTo(screenId, options = {}) {
   }
   if (screenId === 'violation-types') {
     ViolationTypesEditor.renderScreen();
+  }
+  if (screenId === 'ml-training') {
+    MlTrainingWizard.renderScreen();
   }
   if (screenId === 'reports') {
     void GazpromStore.get().then((data) => ReportsDashboard.render(data));
@@ -753,6 +757,7 @@ function init() {
   });
   CatalogEditor.bindSettingsTiles();
   ViolationTypesEditor.init();
+  MlTrainingWizard.init();
   document.getElementById('appForceRefreshBtn')?.addEventListener('click', () => {
     void forceRefreshApp();
   });

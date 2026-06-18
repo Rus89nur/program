@@ -3,7 +3,7 @@
  */
 const GazpromIdb = (() => {
   const DB_NAME = 'gazprom-web';
-  const DB_VERSION = 2;
+  const DB_VERSION = 3;
   let dbInstance = null;
   let dbPromise = null;
   let opChain = Promise.resolve();
@@ -61,6 +61,7 @@ const GazpromIdb = (() => {
           const db = e.target.result;
           if (!db.objectStoreNames.contains('app')) db.createObjectStore('app');
           if (!db.objectStoreNames.contains('photos')) db.createObjectStore('photos');
+          if (!db.objectStoreNames.contains('mlSamples')) db.createObjectStore('mlSamples');
         };
         req.onsuccess = () => resolve(attachDb(req.result));
       });

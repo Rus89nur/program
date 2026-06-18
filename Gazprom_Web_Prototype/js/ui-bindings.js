@@ -527,6 +527,13 @@ const GazpromUI = (() => {
       vtBadge.style.color = n > 0 ? 'var(--warning)' : '';
     }
 
+    const mlBadge = document.querySelector('[data-ml-photos]');
+    if (mlBadge && typeof MlImageService !== 'undefined') {
+      void MlImageService.getStatistics().then((s) => {
+        mlBadge.textContent = s?.totalPhotos > 0 ? String(s.totalPhotos) : '';
+      }).catch(() => {});
+    }
+
     if (typeof DefaultsBootstrap !== 'undefined') {
       void DefaultsBootstrap.renderSettingsTilePreviews(data);
     }

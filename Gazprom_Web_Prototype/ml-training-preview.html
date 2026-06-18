@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Макеты — Обучение ML по фото</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0d47a1;
+      --primary-hover: #1565c0;
+      --primary-soft: #e3f2fd;
+      --accent: #00838f;
+      --accent-soft: #e0f7fa;
+      --success: #2e7d32;
+      --success-soft: #e8f5e9;
+      --warning: #ed6c02;
+      --warning-soft: #fff3e0;
+      --danger: #c62828;
+      --danger-soft: #ffebee;
+      --purple: #6a1b9a;
+      --purple-soft: #f3e5f5;
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --sidebar: #0a1929;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --shadow: 0 1px 3px rgba(15,23,42,0.08), 0 8px 24px rgba(13,71,161,0.06);
+      --radius: 12px;
+      --sidebar-w: 220px;
+      --header-h: 52px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #dde3ea;
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px 64px;
+    }
+
+    .page-head { max-width: 1480px; margin: 0 auto 20px; }
+    .page-head h1 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+    .page-head p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-width: 960px;
+    }
+    .page-head .context {
+      margin-top: 14px;
+      padding: 12px 16px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .page-head .context strong { color: var(--primary); }
+    .page-head .context ul { margin: 8px 0 0 18px; }
+    .page-head .context li { margin-bottom: 4px; }
+
+    .preview-tabs {
+      max-width: 1480px;
+      margin: 0 auto 16px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .preview-tab {
+      border: 2px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+    }
+    .preview-tab:hover { border-color: var(--primary); color: var(--primary); }
+    .preview-tab.active { border-color: var(--primary); background: var(--primary); color: #fff; }
+
+    .variant-panel { display: none; max-width: 1480px; margin: 0 auto; }
+    .variant-panel.visible { display: block; }
+
+    .variant-meta {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin-bottom: 16px;
+    }
+    .variant-meta h2 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .variant-meta p { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
+    .pros-cons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    @media (max-width: 700px) { .pros-cons { grid-template-columns: 1fr; } }
+    .pros-cons div { font-size: 12px; line-height: 1.5; padding: 8px 10px; border-radius: 8px; }
+    .pros-cons .pro { background: var(--success-soft); color: #1b5e20; }
+    .pros-cons .con { background: var(--warning-soft); color: #e65100; }
+
+    .browser-frame {
+      background: #fff;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(15,23,42,0.14);
+      border: 1px solid #c5cdd8;
+    }
+    .browser-chrome {
+      background: #e8eaed;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #dadce0;
+    }
+    .browser-dots { display: flex; gap: 6px; }
+    .browser-dots span { width: 12px; height: 12px; border-radius: 50%; }
+    .browser-dots span:nth-child(1) { background: #ff5f57; }
+    .browser-dots span:nth-child(2) { background: #febc2e; }
+    .browser-dots span:nth-child(3) { background: #28c840; }
+    .browser-url {
+      flex: 1;
+      margin: 0 10px;
+      background: #fff;
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 12px;
+      color: var(--text-muted);
+      border: 1px solid #dadce0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .browser-url strong { color: var(--primary); }
+
+    .mock-app {
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr;
+      grid-template-rows: var(--header-h) 1fr;
+      min-height: 680px;
+      background: var(--bg);
+    }
+    .mock-sidebar {
+      grid-row: 1 / -1;
+      background: var(--sidebar);
+      color: #fff;
+      padding: 16px 12px;
+      font-size: 13px;
+    }
+    .mock-sidebar .logo {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 800;
+      font-size: 13px;
+      padding: 8px 10px 20px;
+      color: #90caf9;
+    }
+    .mock-nav-item {
+      padding: 10px 12px;
+      border-radius: 8px;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 4px;
+    }
+    .mock-nav-item.active {
+      background: rgba(21, 101, 192, 0.45);
+      color: #fff;
+      font-weight: 600;
+    }
+    .mock-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      font-weight: 700;
+      font-size: 15px;
+    }
+    .mock-header .back {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--primary);
+      cursor: pointer;
+    }
+    .mock-main { padding: 20px; overflow: auto; max-height: 720px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-purple { background: var(--purple); color: #fff; }
+    .btn-orange { background: var(--warning); color: #fff; }
+    .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; width: auto; }
+
+    .stats-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    .stats-bar strong { color: var(--text); }
+
+    .action-stack { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin: 18px 0 10px;
+      color: var(--text);
+    }
+
+    .photo-row {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      margin-bottom: 16px;
+    }
+    .photo-thumb, .photo-add {
+      flex: 0 0 88px;
+      width: 88px;
+      height: 88px;
+      border-radius: 10px;
+      background: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      position: relative;
+    }
+    .photo-add {
+      border: 2px dashed #94a3b8;
+      background: transparent;
+      font-size: 32px;
+      color: #94a3b8;
+    }
+    .photo-thumb .del {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 22px;
+      height: 22px;
+      background: var(--danger);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pred-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      cursor: pointer;
+    }
+    .pred-card.selected {
+      border-color: var(--success);
+      background: var(--success-soft);
+      box-shadow: 0 0 0 2px rgba(46,125,50,0.2);
+    }
+    .pred-rank {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .pred-body { flex: 1; min-width: 0; }
+    .pred-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .pred-meta { font-size: 12px; color: var(--success); font-weight: 600; margin-bottom: 6px; }
+    .pred-bar {
+      height: 5px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .pred-bar-fill { height: 100%; border-radius: 3px; background: var(--success); }
+
+    .search-input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .binding-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+    .binding-row:hover { box-shadow: var(--shadow); }
+    .binding-info { flex: 1; min-width: 0; }
+    .binding-title { font-size: 13px; font-weight: 600; }
+    .binding-count { font-size: 12px; color: var(--text-muted); }
+    .binding-thumbs { display: flex; gap: 4px; }
+    .binding-thumbs span {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      background: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    .binding-chevron { color: #94a3b8; font-size: 18px; }
+
+    .sort-pills { display: flex; gap: 8px; margin-bottom: 12px; }
+    .sort-pill {
+      flex: 1;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+    }
+    .sort-pill.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    /* Variant B — wizard */
+    .wizard-steps {
+      display: flex;
+      gap: 0;
+      margin-bottom: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .wizard-step {
+      flex: 1;
+      padding: 12px 10px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-right: 1px solid var(--border);
+      position: relative;
+    }
+    .wizard-step:last-child { border-right: none; }
+    .wizard-step.active { background: var(--primary-soft); color: var(--primary); }
+    .wizard-step.done { color: var(--success); }
+    .wizard-step .num {
+      display: block;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 22px;
+      margin: 0 auto 6px;
+    }
+    .wizard-step.active .num { background: var(--primary); color: #fff; }
+    .wizard-step.done .num { background: var(--success); color: #fff; }
+
+    .wizard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 800px) { .wizard-grid { grid-template-columns: 1fr; } }
+
+    .card-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .card-box h3 { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+    .card-box p { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px; }
+
+    .progress-overlay-mock {
+      background: rgba(15,23,42,0.45);
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: center;
+      margin-top: 12px;
+    }
+    .progress-overlay-mock .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid #e2e8f0;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      margin: 0 auto 12px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .progress-overlay-mock p { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+
+    .training-card-mock {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      text-align: center;
+    }
+    .training-card-mock .counter { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+    .training-card-mock .big-photo {
+      width: 100%;
+      height: 200px;
+      background: #e2e8f0;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    .training-card-mock .current-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      padding: 8px;
+      background: var(--primary-soft);
+      border-radius: 8px;
+    }
+    .swipe-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin: 10px 0;
+    }
+
+    /* Variant C — tabs */
+    .ml-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 0;
+    }
+    .ml-tab {
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border: none;
+      background: none;
+      font-family: inherit;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+    }
+    .ml-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 900px) { .dashboard-grid { grid-template-columns: repeat(2, 1fr); } }
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      text-align: center;
+    }
+    .metric-card .val {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--primary);
+    }
+    .metric-card .lbl { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 800px) { .two-col { grid-template-columns: 1fr; } }
+
+    .quick-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .tab-content-panel { display: none; }
+    .tab-content-panel.visible { display: block; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-akt { background: var(--primary-soft); color: var(--primary); }
+    .badge-manual { background: var(--purple-soft); color: var(--purple); }
+
+    .flow-diagram {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 12px 0;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .flow-diagram .node {
+      padding: 6px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .flow-diagram .arrow { color: #94a3b8; }
+  </style>
+</head>
+<body>
+
+  <header class="page-head">
+    <h1>Обучение ML по фото — 3 варианта организации</h1>
+    <p>Макеты для согласования веб-реализации на основе iOS-модуля <code>ViolationMLTrainingViewController</code> и <code>ViolationImageMLService</code>. Все варианты покрывают один и тот же функционал; отличается только навигация и приоритет экранов.</p>
+    <div class="context">
+      <strong>Что уже есть в iOS (переносим в веб):</strong>
+      <ul>
+        <li>Загрузка фото из актов (инкрементально, с прогрессом)</li>
+        <li>Ручной тест: фото → топ-4 предсказания с % → подтверждение привязки</li>
+        <li>Массовая загрузка с автопривязкой по прогнозу</li>
+        <li>Карточки обучения (проверка/исправление привязок, свайп)</li>
+        <li>Реестр результатов: поиск, сортировка, детализация по нарушению</li>
+        <li>Статистика: фото, нарушения, точность leave-one-out, дата загрузки</li>
+      </ul>
+    </div>
+  </header>
+
+  <nav class="preview-tabs" aria-label="Варианты макета">
+    <button type="button" class="preview-tab active" data-variant="a">Вариант A — как в iOS</button>
+    <button type="button" class="preview-tab" data-variant="b">Вариант B — пошаговый мастер</button>
+    <button type="button" class="preview-tab" data-variant="c">Вариант C — панель с вкладками</button>
+  </nav>
+
+  <!-- ===== VARIANT A ===== -->
+  <section class="variant-panel visible" id="variant-a">
+    <div class="variant-meta">
+      <h2>Вариант A — «Как в iOS»: один экран-скролл из Настроек</h2>
+      <p>Прямой перенос <code>ViolationMLTrainingViewController</code>: все действия на одной странице — статистика, кнопки управления, тест с фото, карточки предсказаний. Модальные экраны (результаты, карточки, массовая загрузка) открываются поверх.</p>
+      <div class="pros-cons">
+        <div class="pro"><strong>Плюсы:</strong> минимум новой логики навигации; привычно пользователям iOS; быстрый доступ ко всем действиям.</div>
+        <div class="con"><strong>Минусы:</strong> длинный скролл на телефоне; на десктопе много пустого места; сложнее для новичка понять порядок действий.</div>
+      </div>
+      <div class="flow-diagram">
+        <span class="node">Настройки → Обучение ML</span>
+        <span class="arrow">→</span>
+        <span class="node">Один экран</span>
+        <span class="arrow">⇄</span>
+        <span class="node">Модалки: результаты / карточки / массовая</span>
+      </div>
+    </div>
+
+    <div class="browser-frame">
+      <div class="browser-chrome">
+        <div class="browser-dots"><span></span><span></span><span></span></div>
+        <div class="browser-url"><strong>rus89nur.github.io/program/</strong> → Настройки → Обучение ML</div>
+      </div>
+      <div class="mock-app">
+        <aside class="mock-sidebar">
+          <div class="logo">Р.И. Шелудько</div>
+          <div class="mock-nav-item">Главная</div>
+          <div class="mock-nav-item">История</div>
+          <div class="mock-nav-item active">Настройки</div>
+        </aside>
+        <header class="mock-header">
+          <span class="back">← Настройки</span>
+          <span>Обучение ML</span>
+          <span></span>
+        </header>
+        <main class="mock-main">
+          <div class="stats-bar">
+            <strong>Статистика:</strong> обработано актов: <strong>12</strong> · загружено фото: <strong>124</strong> (из актов: 98, вручную: 26) · нарушений в базе: <strong>18</strong> · точность: <strong>73%</strong><br>
+            Последняя загрузка из актов: <strong>15.06.2026 14:32</strong>
+          </div>
+
+          <div class="action-stack">
+            <button type="button" class="btn btn-primary">📥 Загрузить из актов</button>
+            <button type="button" class="btn btn-danger">🗑 Очистить данные</button>
+            <button type="button" class="btn btn-success">📋 Просмотр результатов</button>
+            <button type="button" class="btn btn-purple">🃏 Карточки обучения</button>
+            <button type="button" class="btn btn-orange">📦 Массовая загрузка</button>
+            <button type="button" class="btn btn-secondary">📄 Журнал отладки</button>
+          </div>
+
+          <div class="section-title">Добавить фото для анализа</div>
+          <div class="photo-row">
+            <div class="photo-thumb">🖼<span class="del">×</span></div>
+            <div class="photo-add">+</div>
+          </div>
+
+          <div class="section-title">Результаты распознавания</div>
+          <div class="pred-card selected">
+            <span class="pred-rank">1</span>
+            <div class="pred-body">
+              <div class="pred-title">Необеспечение СИЗ</div>
+              <div class="pred-meta">п.12 · 72%</div>
+              <div class="pred-bar"><div class="pred-bar-fill" style="width:72%"></div></div>
+            </div>
+          </div>
+          <div class="pred-card">
+            <span class="pred-rank">2</span>
+            <div class="pred-body">
+              <div class="pred-title">Обучение работников в области ПБ</div>
+              <div class="pred-meta" style="color:var(--warning)">п.8 · 45%</div>
+              <div class="pred-bar"><div class="pred-bar-fill" style="width:45%;background:var(--warning)"></div></div>
+            </div>
+          </div>
+          <div class="pred-card">
+            <span class="pred-rank">3</span>
+            <div class="pred-body">
+              <div class="pred-title">Работы на высоте</div>
+              <div class="pred-meta" style="color:var(--danger)">п.5 · 31%</div>
+              <div class="pred-bar"><div class="pred-bar-fill" style="width:31%;background:var(--danger)"></div></div>
+            </div>
+          </div>
+
+          <div class="action-stack" style="margin-top:16px">
+            <button type="button" class="btn btn-secondary">Привязать вручную из реестра</button>
+            <button type="button" class="btn btn-success">✓ ОК — Подтвердить выбор</button>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== VARIANT B ===== -->
+  <section class="variant-panel" id="variant-b">
+    <div class="variant-meta">
+      <h2>Вариант B — «Пошаговый мастер»: 3 этапа обучения</h2>
+      <p>Разбивает процесс на понятные шаги: <strong>1) Сбор данных</strong> → <strong>2) Проверка карточек</strong> → <strong>3) Тест и реестр</strong>. Каждый шаг — отдельный экран с кнопками «Далее» / «Назад». Подходит для первого запуска и обучения новых пользователей.</p>
+      <div class="pros-cons">
+        <div class="pro"><strong>Плюсы:</strong> понятный workflow; меньше перегруза; естественный onboarding; хорошо на мобильном.</div>
+        <div class="con"><strong>Минусы:</strong> больше кликов для опытных; нужна логика «пропустить шаг»; отличается от iOS.</div>
+      </div>
+      <div class="flow-diagram">
+        <span class="node">Шаг 1: Данные</span>
+        <span class="arrow">→</span>
+        <span class="node">Шаг 2: Карточки</span>
+        <span class="arrow">→</span>
+        <span class="node">Шаг 3: Тест + реестр</span>
+      </div>
+    </div>
+
+    <div class="browser-frame">
+      <div class="browser-chrome">
+        <div class="browser-dots"><span></span><span></span><span></span></div>
+        <div class="browser-url"><strong>rus89nur.github.io/program/</strong> → Обучение ML → Шаг 2 из 3</div>
+      </div>
+      <div class="mock-app">
+        <aside class="mock-sidebar">
+          <div class="logo">Р.И. Шелудько</div>
+          <div class="mock-nav-item">Главная</div>
+          <div class="mock-nav-item">История</div>
+          <div class="mock-nav-item active">Настройки</div>
+        </aside>
+        <header class="mock-header">
+          <span class="back">← Назад</span>
+          <span>Обучение ML</span>
+          <span class="btn-sm btn-secondary" style="width:auto">Пропустить</span>
+        </header>
+        <main class="mock-main">
+          <div class="wizard-steps">
+            <div class="wizard-step done">
+              <span class="num">✓</span>
+              Сбор данных
+            </div>
+            <div class="wizard-step active">
+              <span class="num">2</span>
+              Проверка карточек
+            </div>
+            <div class="wizard-step">
+              <span class="num">3</span>
+              Тест и реестр
+            </div>
+          </div>
+
+          <div class="wizard-grid">
+            <div>
+              <div class="training-card-mock">
+                <div class="counter">Карточка 7 из 124</div>
+                <div class="big-photo">📷</div>
+                <div class="current-title">Необеспечение СИЗ</div>
+                <div class="pred-card" style="margin-bottom:8px;text-align:left">
+                  <span class="pred-rank">1</span>
+                  <div class="pred-body">
+                    <div class="pred-title">Необеспечение СИЗ</div>
+                    <div class="pred-meta">п.12 · 89%</div>
+                    <div class="pred-bar"><div class="pred-bar-fill" style="width:89%"></div></div>
+                  </div>
+                </div>
+                <div class="pred-card" style="margin-bottom:8px;text-align:left">
+                  <span class="pred-rank">2</span>
+                  <div class="pred-body">
+                    <div class="pred-title">Обучение по ПБ</div>
+                    <div class="pred-meta" style="color:var(--warning)">п.8 · 34%</div>
+                    <div class="pred-bar"><div class="pred-bar-fill" style="width:34%;background:var(--warning)"></div></div>
+                  </div>
+                </div>
+                <p class="swipe-hint">← свайп назад · свайп вперёд →</p>
+                <button type="button" class="btn btn-secondary" style="margin-bottom:8px">Привязать вручную</button>
+                <button type="button" class="btn btn-success">✓ ОК — следующее фото</button>
+              </div>
+            </div>
+
+            <div>
+              <div class="card-box" style="margin-bottom:14px">
+                <h3>Что происходит на этом шаге</h3>
+                <p>Просмотрите фото из актов и массовой загрузки. Если привязка верна — нажмите «ОК». Если нет — выберите другое нарушение из подсказок или реестра.</p>
+                <p><span class="badge badge-akt">из акта</span> <span class="badge badge-manual">вручную</span></p>
+              </div>
+              <div class="card-box">
+                <h3>Прогресс проверки</h3>
+                <div class="pred-bar" style="height:8px;margin:10px 0"><div class="pred-bar-fill" style="width:6%"></div></div>
+                <p style="font-size:12px;color:var(--text-muted)">Проверено: 7 из 124 · Исправлено: 2</p>
+                <div style="display:flex;gap:8px;margin-top:12px">
+                  <button type="button" class="btn btn-secondary btn-sm">В начало</button>
+                  <button type="button" class="btn btn-secondary btn-sm">В конец</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:20px">
+            <button type="button" class="btn btn-secondary" style="width:auto;flex:1">← Шаг 1: Данные</button>
+            <button type="button" class="btn btn-primary" style="width:auto;flex:1">Шаг 3: Тест →</button>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <div class="variant-meta" style="margin-top:16px">
+      <h2>Шаг 1 мастера (для справки)</h2>
+      <p>На первом шаге — загрузка из актов, массовая загрузка, статистика и прогресс-бар. Кнопка «Перейти к проверке» активна после хотя бы одного фото.</p>
+    </div>
+    <div class="browser-frame" style="margin-top:12px">
+      <div class="browser-chrome">
+        <div class="browser-dots"><span></span><span></span><span></span></div>
+        <div class="browser-url"><strong>…/ml-training</strong> → Шаг 1: Сбор данных</div>
+      </div>
+      <div class="mock-app" style="min-height:420px">
+        <aside class="mock-sidebar"><div class="logo">Р.И. Шелудько</div></aside>
+        <header class="mock-header"><span></span><span>Шаг 1 — Сбор данных</span><span></span></header>
+        <main class="mock-main">
+          <div class="wizard-grid">
+            <div class="card-box">
+              <h3>📥 Загрузить из актов</h3>
+              <p>Инкрементально: только новые фото из истории и текущих актов. Удалённые из актов — убираются из базы.</p>
+              <button type="button" class="btn btn-primary">Загрузить</button>
+              <div class="progress-overlay-mock">
+                <div class="spinner"></div>
+                <p><strong>Обработано: 7 из 12 актов</strong></p>
+                <p>Добавлено фото: 23</p>
+                <button type="button" class="btn btn-danger btn-sm" style="margin-top:8px;width:auto">Отмена</button>
+              </div>
+            </div>
+            <div class="card-box">
+              <h3>📦 Массовая загрузка</h3>
+              <p>Выберите много фото из галереи → автопривязка по лучшему прогнозу модели.</p>
+              <button type="button" class="btn btn-orange">Выбрать фото</button>
+              <button type="button" class="btn btn-success" style="margin-top:8px">Привязать автоматически</button>
+            </div>
+          </div>
+          <div class="stats-bar" style="margin-top:14px">
+            Фото: <strong>124</strong> · Нарушений: <strong>18</strong> · Точность: <strong>73%</strong>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== VARIANT C ===== -->
+  <section class="variant-panel" id="variant-c">
+    <div class="variant-meta">
+      <h2>Вариант C — «Панель с вкладками»: дашборд для десктопа</h2>
+      <p>Отдельный раздел ML с четырьмя вкладками: <strong>Обзор</strong> (метрики и быстрые действия), <strong>Датасет</strong> (реестр привязок), <strong>Лаборатория</strong> (тест фото), <strong>Карточки</strong> (очередь проверки). Оптимален для работы на широком экране.</p>
+      <div class="pros-cons">
+        <div class="pro"><strong>Плюсы:</strong> наглядная аналитика; параллельный доступ к разделам; эффективно на планшете/ПК; масштабируется.</div>
+        <div class="con"><strong>Минусы:</strong> на узком телефоне вкладки тесные; больше UI-кода; дальше от iOS-оригинала.</div>
+      </div>
+      <div class="flow-diagram">
+        <span class="node">Обзор</span>
+        <span class="arrow">|</span>
+        <span class="node">Датасет</span>
+        <span class="arrow">|</span>
+        <span class="node">Лаборатория</span>
+        <span class="arrow">|</span>
+        <span class="node">Карточки</span>
+      </div>
+    </div>
+
+    <div class="browser-frame">
+      <div class="browser-chrome">
+        <div class="browser-dots"><span></span><span></span><span></span></div>
+        <div class="browser-url"><strong>rus89nur.github.io/program/</strong> → Обучение ML → Обзор</div>
+      </div>
+      <div class="mock-app">
+        <aside class="mock-sidebar">
+          <div class="logo">Р.И. Шелудько</div>
+          <div class="mock-nav-item">Главная</div>
+          <div class="mock-nav-item">История</div>
+          <div class="mock-nav-item active">Настройки</div>
+        </aside>
+        <header class="mock-header">
+          <span class="back">← Настройки</span>
+          <span>🤖 Обучение ML</span>
+          <button type="button" class="btn btn-danger btn-sm">Очистить</button>
+        </header>
+        <main class="mock-main">
+          <div class="ml-tabs" role="tablist">
+            <button type="button" class="ml-tab active" data-ml-tab="overview">Обзор</button>
+            <button type="button" class="ml-tab" data-ml-tab="dataset">Датасет</button>
+            <button type="button" class="ml-tab" data-ml-tab="lab">Лаборатория</button>
+            <button type="button" class="ml-tab" data-ml-tab="cards">Карточки</button>
+          </div>
+
+          <div class="tab-content-panel visible" id="ml-tab-overview">
+            <div class="dashboard-grid">
+              <div class="metric-card"><div class="val">124</div><div class="lbl">Фото в базе</div></div>
+              <div class="metric-card"><div class="val">18</div><div class="lbl">Нарушений</div></div>
+              <div class="metric-card"><div class="val">73%</div><div class="lbl">Точность</div></div>
+              <div class="metric-card"><div class="val">12</div><div class="lbl">Актов</div></div>
+            </div>
+            <div class="two-col">
+              <div class="card-box">
+                <h3>Быстрые действия</h3>
+                <div class="quick-actions">
+                  <button type="button" class="btn btn-primary">📥 Из актов</button>
+                  <button type="button" class="btn btn-orange">📦 Массовая</button>
+                  <button type="button" class="btn btn-success">🧪 Тест фото</button>
+                  <button type="button" class="btn btn-purple">🃏 Карточки</button>
+                </div>
+              </div>
+              <div class="card-box">
+                <h3>Последняя активность</h3>
+                <p style="font-size:12px;line-height:1.7;color:var(--text-muted)">
+                  15.06.2026 14:32 — загрузка из актов (+23 фото)<br>
+                  14.06.2026 — массовая загрузка (+15 фото)<br>
+                  12.06.2026 — исправлено 3 привязки в карточках
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-content-panel" id="ml-tab-dataset">
+            <input type="search" class="search-input" placeholder="🔍 Поиск нарушений…" aria-label="Поиск">
+            <div class="sort-pills">
+              <div class="sort-pill active">По нумерации</div>
+              <div class="sort-pill">По кол-ву фото</div>
+            </div>
+            <div class="binding-row">
+              <div class="binding-info">
+                <div class="binding-title">п.5 Работы на высоте</div>
+                <div class="binding-count">5 фото</div>
+              </div>
+              <div class="binding-thumbs"><span>🖼</span><span>🖼</span><span>🖼</span></div>
+              <span class="binding-chevron">›</span>
+            </div>
+            <div class="binding-row">
+              <div class="binding-info">
+                <div class="binding-title">п.12 Необеспечение СИЗ</div>
+                <div class="binding-count">3 фото</div>
+              </div>
+              <div class="binding-thumbs"><span>🖼</span><span>🖼</span><span>🖼</span></div>
+              <span class="binding-chevron">›</span>
+            </div>
+            <div class="binding-row">
+              <div class="binding-info">
+                <div class="binding-title">п.8 Обучение по ПБ</div>
+                <div class="binding-count">1 фото</div>
+              </div>
+              <div class="binding-thumbs"><span>🖼</span></div>
+              <span class="binding-chevron">›</span>
+            </div>
+            <p style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:12px">Всего привязок: 9 нарушений · 124 фото</p>
+          </div>
+
+          <div class="tab-content-panel" id="ml-tab-lab">
+            <div class="two-col">
+              <div>
+                <div class="section-title">Тестовое фото</div>
+                <div class="photo-row">
+                  <div class="photo-thumb" style="width:100%;height:180px;flex:1;font-size:56px">🖼</div>
+                </div>
+                <button type="button" class="btn btn-secondary">+ Добавить фото</button>
+              </div>
+              <div>
+                <div class="section-title">Предсказания модели</div>
+                <div class="pred-card selected">
+                  <span class="pred-rank">1</span>
+                  <div class="pred-body">
+                    <div class="pred-title">Необеспечение СИЗ</div>
+                    <div class="pred-meta">п.12 · 72%</div>
+                    <div class="pred-bar"><div class="pred-bar-fill" style="width:72%"></div></div>
+                  </div>
+                </div>
+                <div class="pred-card">
+                  <span class="pred-rank">2</span>
+                  <div class="pred-body">
+                    <div class="pred-title">Обучение по ПБ</div>
+                    <div class="pred-meta" style="color:var(--warning)">п.8 · 45%</div>
+                    <div class="pred-bar"><div class="pred-bar-fill" style="width:45%;background:var(--warning)"></div></div>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-success" style="margin-top:10px">✓ Подтвердить привязку</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-content-panel" id="ml-tab-cards">
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Очередь на проверку: <strong>117</strong> фото · проверено: <strong>7</strong></p>
+            <div class="training-card-mock" style="max-width:480px;margin:0 auto">
+              <div class="counter">7 / 124</div>
+              <div class="big-photo">📷</div>
+              <div class="current-title">Необеспечение СИЗ</div>
+              <button type="button" class="btn btn-success">✓ ОК — следующее</button>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    (function () {
+      var variantTabs = document.querySelectorAll('.preview-tab');
+      var panels = document.querySelectorAll('.variant-panel');
+      variantTabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          var id = tab.getAttribute('data-variant');
+          variantTabs.forEach(function (t) { t.classList.remove('active'); });
+          panels.forEach(function (p) { p.classList.remove('visible'); });
+          tab.classList.add('active');
+          var panel = document.getElementById('variant-' + id);
+          if (panel) panel.classList.add('visible');
+        });
+      });
+
+      var mlTabs = document.querySelectorAll('.ml-tab');
+      var mlPanels = document.querySelectorAll('.tab-content-panel');
+      mlTabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          var id = tab.getAttribute('data-ml-tab');
+          mlTabs.forEach(function (t) { t.classList.remove('active'); });
+          mlPanels.forEach(function (p) { p.classList.remove('visible'); });
+          tab.classList.add('active');
+          var panel = document.getElementById('ml-tab-' + id);
+          if (panel) panel.classList.add('visible');
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
