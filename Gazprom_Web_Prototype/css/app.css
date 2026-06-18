@@ -1356,6 +1356,21 @@
     }
 
     /* Settings grid */
+    .settings-section {
+      margin-bottom: 24px;
+    }
+    .settings-section:last-of-type {
+      margin-bottom: 0;
+    }
+    .settings-section__title {
+      margin: 0 0 12px;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: Montserrat, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
     .settings-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -3582,11 +3597,18 @@
     .preset-picker-host { width: 100%; }
     .preset-card-wrap {
       position: relative;
+      padding: 6px;
+      margin: -6px;
+      z-index: 0;
+    }
+    .preset-card-wrap:hover,
+    .preset-card-wrap:focus-within {
+      z-index: 3;
     }
     .preset-picker-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-      gap: 10px;
+      gap: 14px;
     }
     .preset-card {
       position: relative;
@@ -3664,8 +3686,8 @@
     }
     .preset-card__delete {
       position: absolute;
-      top: -6px;
-      right: -6px;
+      top: 0;
+      right: 0;
       z-index: 2;
       width: 24px;
       height: 24px;
@@ -3887,7 +3909,8 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .settings-tile--template,
+    .settings-tile--akt-template,
+    .settings-tile--spravka-template,
     .settings-tile--registry,
     .settings-tile[data-catalog="violations"] {
       position: relative;

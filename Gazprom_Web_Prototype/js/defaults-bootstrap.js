@@ -710,7 +710,7 @@ const DefaultsBootstrap = (() => {
           GazpromToast.info('Применяю шаблон…');
           await applyTemplatePreset(btn.dataset.presetId);
           await renderTemplatePicker(container);
-          await refreshTemplateModal();
+          await refreshAktTemplateModal();
           GazpromToast.success('Шаблон выбран');
         } catch (err) {
           GazpromToast.error(err.message);
@@ -721,7 +721,7 @@ const DefaultsBootstrap = (() => {
     bindPresetDeleteHandlers(container, 'template', {
       onDeleted: async () => {
         await renderTemplatePicker(container);
-        await refreshTemplateModal();
+        await refreshAktTemplateModal();
       },
     });
 
@@ -768,7 +768,7 @@ const DefaultsBootstrap = (() => {
           GazpromToast.info('Применяю шаблон справки…');
           await applySpravkaTemplatePreset(btn.dataset.presetId);
           await renderSpravkaTemplatePicker(container);
-          await refreshTemplateModal();
+          await refreshSpravkaTemplateModal();
           GazpromToast.success('Шаблон справки выбран');
         } catch (err) {
           GazpromToast.error(err.message);
@@ -779,7 +779,7 @@ const DefaultsBootstrap = (() => {
     bindPresetDeleteHandlers(container, 'spravka-template', {
       onDeleted: async () => {
         await renderSpravkaTemplatePicker(container);
-        await refreshTemplateModal();
+        await refreshSpravkaTemplateModal();
       },
     });
 
@@ -1081,19 +1081,36 @@ const DefaultsBootstrap = (() => {
     });
   }
 
-  function closeTemplateModal() {
-    const modal = document.getElementById('templateModal');
-    if (!modal) return;
-    modal.hidden = true;
+  function closeAllTemplateModals() {
+    ['aktTemplateModal', 'spravkaTemplateModal'].forEach((id) => {
+      const modal = document.getElementById(id);
+      if (modal) modal.hidden = true;
+    });
     window.GazpromMobileOverlay?.unlock?.();
   }
 
-  async function refreshTemplateModal() {
+  function closeAktTemplateModal() {
+    const modal = document.getElementById('aktTemplateModal');
+    if (!modal) return;
+    modal.hidden = true;
+    if (document.getElementById('spravkaTemplateModal')?.hidden !== false) {
+      window.GazpromMobileOverlay?.unlock?.();
+    }
+  }
+
+  function closeSpravkaTemplateModal() {
+    const modal = document.getElementById('spravkaTemplateModal');
+    if (!modal) return;
+    modal.hidden = true;
+    if (document.getElementById('aktTemplateModal')?.hidden !== false) {
+      window.GazpromMobileOverlay?.unlock?.();
+    }
+  }
+
+  async function refreshAktTemplateModal() {
     const catalog = await GazpromStore.get();
-    const statusEl = document.getElementById('templateModalStatus');
-    const spravkaStatusEl = document.getElementById('spravkaTemplateModalStatus');
+    const statusEl = document.getElementById('aktTemplateModalStatus');
     const has = await hasWordTemplate(catalog);
-    const hasSpravka = hasSpravkaTemplate(catalog);
 
     if (statusEl) {
       statusEl.textContent = has
@@ -1102,6 +1119,16 @@ const DefaultsBootstrap = (() => {
       statusEl.className = `defaults-status ${has ? 'defaults-status--ok' : 'defaults-status--warn'}`;
     }
 
+    await renderTemplatePicker(document.getElementById('templatePresetPicker'));
+    renderTemplateMarkersGuide();
+    await renderSettingsTilePreviews(catalog);
+  }
+
+  async function refreshSpravkaTemplateModal() {
+    const catalog = await GazpromStore.get();
+    const spravkaStatusEl = document.getElementById('spravkaTemplateModalStatus');
+    const hasSpravka = hasSpravkaTemplate(catalog);
+
     if (spravkaStatusEl) {
       spravkaStatusEl.textContent = hasSpravka
         ? `✅ Справка: ${catalog.spravkaTemplateName || 'Шаблон_справки_ПБ.docx'}`
@@ -1109,34 +1136,73 @@ const DefaultsBootstrap = (() => {
       spravkaStatusEl.className = `defaults-status ${hasSpravka ? 'defaults-status--ok' : 'defaults-status--warn'}`;
     }
 
-    await renderTemplatePicker(document.getElementById('templatePresetPicker'));
     await renderSpravkaTemplatePicker(document.getElementById('spravkaTemplatePresetPicker'));
-    renderTemplateMarkersGuide();
     renderSpravkaTemplateMarkersGuide();
     await renderSettingsTilePreviews(catalog);
   }
 
-  function openTemplateModal() {
-    const modal = document.getElementById('templateModal');
+  async function refreshTemplateModal() {
+    await refreshAktTemplateModal();
+    await refreshSpravkaTemplateModal();
+  }
+
+  function openAktTemplateModal() {
+    closeAllTemplateModals();
+    const modal = document.getElementById('aktTemplateModal');
     if (!modal) return;
     modal.hidden = false;
     window.GazpromMobileOverlay?.lock?.();
-    void refreshTemplateModal().then(() => {
+    void refreshAktTemplateModal().then(() => {
       requestAnimationFrame(() => {
         renderTemplateMarkersGuide();
+      });
+    });
+  }
+
+  function openSpravkaTemplateModal() {
+    closeAllTemplateModals();
+    const modal = document.getElementById('spravkaTemplateModal');
+    if (!modal) return;
+    modal.hidden = false;
+    window.GazpromMobileOverlay?.lock?.();
+    void refreshSpravkaTemplateModal().then(() => {
+      requestAnimationFrame(() => {
         renderSpravkaTemplateMarkersGuide();
       });
     });
   }
 
-  function bindTemplateModal() {
-    const modal = document.getElementById('templateModal');
-    if (!modal || modal.dataset.bound === '1') return;
-    modal.dataset.bound = '1';
+  function openTemplateModal() {
+    openAktTemplateModal();
+  }
 
-    document.getElementById('templateModalClose')?.addEventListener('click', closeTemplateModal);
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) closeTemplateModal();
+  function bindTemplateModal() {
+    if (document.body.dataset.templateModalsBound === '1') return;
+    document.body.dataset.templateModalsBound = '1';
+
+    document.querySelectorAll('[data-template-modal-close]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.templateModalClose === 'spravka') closeSpravkaTemplateModal();
+        else closeAktTemplateModal();
+      });
+    });
+
+    ['aktTemplateModal', 'spravkaTemplateModal'].forEach((id) => {
+      const modal = document.getElementById(id);
+      if (!modal) return;
+      modal.addEventListener('click', (e) => {
+        if (e.target !== modal) return;
+        if (id === 'spravkaTemplateModal') closeSpravkaTemplateModal();
+        else closeAktTemplateModal();
+      });
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const aktOpen = document.getElementById('aktTemplateModal')?.hidden === false;
+      const spravkaOpen = document.getElementById('spravkaTemplateModal')?.hidden === false;
+      if (spravkaOpen) closeSpravkaTemplateModal();
+      else if (aktOpen) closeAktTemplateModal();
     });
 
     document.getElementById('wordTemplateInput')?.addEventListener('change', async (e) => {
@@ -1146,7 +1212,7 @@ const DefaultsBootstrap = (() => {
         GazpromToast.info('Сохранение шаблона…');
         await saveCustomTemplate(file);
         await GazpromUI?.refreshAll?.();
-        await refreshTemplateModal();
+        await refreshAktTemplateModal();
         GazpromToast.success('Шаблон акта добавлен и выбран');
       } catch (err) {
         GazpromToast.error(err.message);
@@ -1162,7 +1228,7 @@ const DefaultsBootstrap = (() => {
         GazpromToast.info('Сохранение шаблона справки…');
         await saveCustomSpravkaTemplate(file);
         await GazpromUI?.refreshAll?.();
-        await refreshTemplateModal();
+        await refreshSpravkaTemplateModal();
         GazpromToast.success('Шаблон справки добавлен и выбран');
       } catch (err) {
         GazpromToast.error(err.message);
@@ -1190,6 +1256,10 @@ const DefaultsBootstrap = (() => {
     closeRegistryModal,
     bindRegistryModal,
     openTemplateModal,
+    openAktTemplateModal,
+    openSpravkaTemplateModal,
+    closeAktTemplateModal,
+    closeSpravkaTemplateModal,
     bindTemplateModal,
     deleteTemplatePreset,
     deleteSpravkaTemplatePreset,

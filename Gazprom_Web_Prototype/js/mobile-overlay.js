@@ -136,6 +136,7 @@ var GazpromMobileOverlay = (() => {
       screen.querySelector('.wizard-footer') ||
       screen.querySelector('#historyList .history-list-item:last-child') ||
       screen.querySelector('#eliminationCardList .elimination-act-card:last-child') ||
+      screen.querySelector('.settings-section:last-child .settings-tile:last-child') ||
       screen.querySelector('.settings-grid .settings-tile:last-child') ||
       screen.querySelector('#wizardPanels .wizard-panel-active') ||
       screen.querySelector('.screen.active .card:last-child') ||
@@ -150,7 +151,7 @@ var GazpromMobileOverlay = (() => {
     if (!screen) return null;
     if (screen.id === 'screen-history') return screen.querySelector('#historyList');
     if (screen.id === 'screen-elimination') return screen.querySelector('#eliminationCardList');
-    if (screen.id === 'screen-settings') return screen.querySelector('.settings-grid');
+    if (screen.id === 'screen-settings') return screen;
     if (screen.id === 'screen-wizard' || screen.id === 'screen-spravka') return screen.querySelector('.wizard-layout');
     return screen;
   };

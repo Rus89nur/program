@@ -611,15 +611,17 @@ function bindTrash() {
 }
 
 function bindTemplateSettings() {
-  document.querySelector('.settings-tile--template')?.addEventListener('click', () => {
-    DefaultsBootstrap.openTemplateModal();
-  });
-  document.querySelector('.settings-tile--template')?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      DefaultsBootstrap.openTemplateModal();
-    }
-  });
+  const bindTile = (selector, openFn) => {
+    document.querySelector(selector)?.addEventListener('click', openFn);
+    document.querySelector(selector)?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openFn();
+      }
+    });
+  };
+  bindTile('.settings-tile--akt-template', () => DefaultsBootstrap.openAktTemplateModal());
+  bindTile('.settings-tile--spravka-template', () => DefaultsBootstrap.openSpravkaTemplateModal());
   DefaultsBootstrap.bindTemplateModal();
 }
 

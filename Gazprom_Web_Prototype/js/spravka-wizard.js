@@ -825,7 +825,7 @@ const SpravkaWizard = (() => {
           statusEl.textContent = `✅ Шаблон справки: ${name}. Нажмите «Сформировать справку Word».`;
           statusEl.closest('#spSpravkaTemplateStatus').style.background = 'var(--success-soft, #e8f5e9)';
         } else {
-          statusEl.textContent = '⚠️ Шаблон справки не выбран. Настройки → Шаблоны Word → раздел «Справка по ПБ».';
+          statusEl.textContent = '⚠️ Шаблон справки не выбран. Настройки → Шаблоны справки.';
           statusEl.closest('#spSpravkaTemplateStatus').style.background = 'var(--warning-soft, #fff8e1)';
         }
       }

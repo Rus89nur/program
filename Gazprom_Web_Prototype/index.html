@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '222';</script>
+  <script>window.GAZPROM_ASSET_V = '223';</script>
   <script>
   (function () {
     if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
@@ -111,7 +111,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=219" id="appCss">
+  <link rel="stylesheet" href="css/app.css?v=220" id="appCss">
   <script>
   (function () {
     var css = document.getElementById('appCss');
@@ -177,7 +177,7 @@
       </button>
       <div class="sidebar-footer" id="sidebarAppBuild" aria-label="Версия веб-приложения">
         <span class="sidebar-footer__brand">программа НЕТ</span>
-        Сборка: <span data-app-build>web-222</span> · PWA
+        Сборка: <span data-app-build>web-223</span> · PWA
       </div>
     </aside>
 
@@ -248,7 +248,7 @@
             <div class="stat-label">Черновиков</div>
           </div>
         </div>
-        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-222</p>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-223</p>
       </section>
 
       <section class="screen" id="screen-wizard">
@@ -615,21 +615,35 @@
       </section>
 
       <section class="screen" id="screen-settings">
-        <div class="settings-grid">
-          <div class="card settings-tile" data-catalog="commission" role="button" tabindex="0"><div class="icon">👥</div><h4>Комиссия</h4><p>Члены комиссии</p><span class="tile-count"></span></div>
-          <div class="card settings-tile" data-catalog="organizations" role="button" tabindex="0"><div class="icon">🏢</div><h4>Организации</h4><p>Справочник</p><span class="tile-count"></span></div>
-          <div class="card settings-tile" data-catalog="objects" role="button" tabindex="0"><div class="icon">📍</div><h4>Объекты</h4><p>Объекты проверки</p><span class="tile-count"></span></div>
-          <div class="card settings-tile settings-tile--registry" data-catalog="violations" role="button" tabindex="0"><div class="icon">⚠️</div><h4>Нарушения</h4><p>Реестр формулировок</p><span class="tile-count"></span></div>
-          <div class="card settings-tile settings-tile--violation-types" role="button" tabindex="0"><div class="icon">🏷️</div><h4>Виды нарушений</h4><p>Классификатор и миграция</p><span class="tile-count" data-vt-unmapped></span></div>
-          <div class="card settings-tile" data-catalog="predstavitely" role="button" tabindex="0"><div class="icon">👤</div><h4>Представители</h4><p>Контактные лица</p><span class="tile-count"></span></div>
-          <div class="card settings-tile settings-tile--schedule" role="button" tabindex="0"><div class="icon">📅</div><h4>График</h4><p>План проверок</p><span class="tile-count"></span></div>
-          <div class="card settings-tile settings-tile--template" role="button" tabindex="0"><div class="icon">📄</div><h4>Шаблоны Word</h4><p>Акт и справка по ПБ</p><span class="tile-count" data-template-status></span></div>
-          <div class="card settings-tile settings-tile--backup" role="button" tabindex="0"><div class="icon">💾</div><h4>Резервные копии</h4><p>Экспорт и управление</p></div>
-          <div class="card settings-tile settings-tile--trash" role="button" tabindex="0"><div class="icon">🗑</div><h4>Корзина</h4><p>Удалённые акты</p><span class="tile-count" data-trash-count></span></div>
-          <div class="card settings-tile settings-tile--ml" role="button" tabindex="0"><div class="icon">🤖</div><h4>Обучение модели</h4><p>ML по фото нарушений</p><span class="tile-count" data-ml-photos></span></div>
+        <div class="settings-section">
+          <h3 class="settings-section__title">Шаблоны</h3>
+          <div class="settings-grid">
+            <div class="card settings-tile settings-tile--akt-template" role="button" tabindex="0"><div class="icon">📄</div><h4>Шаблоны актов</h4><p>Word-шаблон акта</p><span class="tile-count" data-akt-template-status></span></div>
+            <div class="card settings-tile settings-tile--spravka-template" role="button" tabindex="0"><div class="icon">📋</div><h4>Шаблоны справки</h4><p>Справка по ПБ</p><span class="tile-count" data-spravka-template-status></span></div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3 class="settings-section__title">Справочная информация</h3>
+          <div class="settings-grid">
+            <div class="card settings-tile" data-catalog="commission" role="button" tabindex="0"><div class="icon">👥</div><h4>Комиссия</h4><p>Члены комиссии</p><span class="tile-count"></span></div>
+            <div class="card settings-tile" data-catalog="organizations" role="button" tabindex="0"><div class="icon">🏢</div><h4>Организации</h4><p>Справочник</p><span class="tile-count"></span></div>
+            <div class="card settings-tile" data-catalog="objects" role="button" tabindex="0"><div class="icon">📍</div><h4>Объекты</h4><p>Объекты проверки</p><span class="tile-count"></span></div>
+            <div class="card settings-tile settings-tile--registry" data-catalog="violations" role="button" tabindex="0"><div class="icon">⚠️</div><h4>Нарушения</h4><p>Реестр формулировок</p><span class="tile-count"></span></div>
+            <div class="card settings-tile settings-tile--violation-types" role="button" tabindex="0"><div class="icon">🏷️</div><h4>Виды нарушений</h4><p>Классификатор и миграция</p><span class="tile-count" data-vt-unmapped></span></div>
+            <div class="card settings-tile" data-catalog="predstavitely" role="button" tabindex="0"><div class="icon">👤</div><h4>Представители</h4><p>Контактные лица</p><span class="tile-count"></span></div>
+            <div class="card settings-tile settings-tile--schedule" role="button" tabindex="0"><div class="icon">📅</div><h4>График</h4><p>План проверок</p><span class="tile-count"></span></div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3 class="settings-section__title">Данные и сервис</h3>
+          <div class="settings-grid">
+            <div class="card settings-tile settings-tile--backup" role="button" tabindex="0"><div class="icon">💾</div><h4>Резервные копии</h4><p>Экспорт и управление</p></div>
+            <div class="card settings-tile settings-tile--trash" role="button" tabindex="0"><div class="icon">🗑</div><h4>Корзина</h4><p>Удалённые акты</p><span class="tile-count" data-trash-count></span></div>
+            <div class="card settings-tile settings-tile--ml" role="button" tabindex="0"><div class="icon">🤖</div><h4>Обучение модели</h4><p>ML по фото нарушений</p><span class="tile-count" data-ml-photos></span></div>
+          </div>
         </div>
         <div class="card settings-app-update" id="settingsAppUpdate">
-          <p class="settings-app-update__label">Версия приложения: <strong id="settingsAppBuild">web-222</strong></p>
+          <p class="settings-app-update__label">Версия приложения: <strong id="settingsAppBuild">web-223</strong></p>
           <p class="settings-app-update__avail" id="settingsAppUpdateAvail" hidden></p>
           <p class="settings-app-update__hint">Если после обновления на сайте ничего не меняется — нажмите кнопку ниже (сбросит кэш PWA).</p>
           <button type="button" class="btn-secondary btn-sm" id="appForceRefreshBtn">Обновить приложение</button>
@@ -748,18 +762,16 @@
     </div>
   </div>
 
-  <!-- ——— Модал: шаблоны Word ——— -->
-  <div id="templateModal" class="catalog-form-overlay" hidden>
+  <!-- ——— Модал: шаблоны актов ——— -->
+  <div id="aktTemplateModal" class="catalog-form-overlay template-modal-overlay" hidden>
     <div class="catalog-form-dialog card backup-modal-dialog">
-      <h3>📄 Шаблоны Word</h3>
+      <h3>📄 Шаблоны актов</h3>
 
       <div class="backup-modal-section">
-        <p id="templateModalStatus" class="defaults-status defaults-status--ok">Загрузка…</p>
-        <p id="spravkaTemplateModalStatus" class="defaults-status defaults-status--ok" style="margin-top:8px">Загрузка…</p>
+        <p id="aktTemplateModalStatus" class="defaults-status defaults-status--ok">Загрузка…</p>
       </div>
 
       <div class="backup-modal-section">
-        <h4 class="backup-modal-section-title">Шаблон акта</h4>
         <p class="backup-import-hint">Нажмите на карточку, чтобы выбрать шаблон акта. «Создать шаблон» — готовый .docx с маркерами и памяткой; файл сразу откроется в Word.</p>
         <div id="templatePresetPicker" class="preset-picker-host"></div>
       </div>
@@ -770,10 +782,22 @@
         <div id="templateMarkersGuide" class="template-markers-guide-host"></div>
       </div>
 
-      <hr class="backup-modal-divider">
+      <div class="catalog-form-actions">
+        <button type="button" class="btn-ghost" data-template-modal-close="akt">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ——— Модал: шаблоны справки ——— -->
+  <div id="spravkaTemplateModal" class="catalog-form-overlay template-modal-overlay" hidden>
+    <div class="catalog-form-dialog card backup-modal-dialog">
+      <h3>📋 Шаблоны справки</h3>
 
       <div class="backup-modal-section">
-        <h4 class="backup-modal-section-title">Шаблон справки по ПБ</h4>
+        <p id="spravkaTemplateModalStatus" class="defaults-status defaults-status--ok">Загрузка…</p>
+      </div>
+
+      <div class="backup-modal-section">
         <p class="backup-import-hint">По умолчанию — встроенный «Шаблон_справки_ПБ.docx». Можно создать пустой шаблон с маркерами или загрузить свой .docx.</p>
         <div id="spravkaTemplatePresetPicker" class="preset-picker-host"></div>
       </div>
@@ -785,7 +809,7 @@
       </div>
 
       <div class="catalog-form-actions">
-        <button type="button" class="btn-ghost" id="templateModalClose">Закрыть</button>
+        <button type="button" class="btn-ghost" data-template-modal-close="spravka">Закрыть</button>
       </div>
     </div>
   </div>
@@ -875,7 +899,7 @@
   <script src="js/data-store.js?v=27"></script>
   <script src="js/photo-store.js?v=31"></script>
   <script src="js/toast.js?v=2"></script>
-  <script src="js/mobile-overlay.js?v=35"></script>
+  <script src="js/mobile-overlay.js?v=36"></script>
   <script src="js/akt-utils.js?v=32"></script>
   <script src="js/violation-search.js?v=3"></script>
   <script src="js/photo-lightbox.js?v=1"></script>
@@ -886,13 +910,13 @@
   <script src="js/ml-image-service.js?v=6"></script>
   <script src="js/ml-training-wizard.js?v=10"></script>
   <script src="js/doc-generator.js?v=42"></script>
-  <script src="js/defaults-bootstrap.js?v=10"></script>
+  <script src="js/defaults-bootstrap.js?v=11"></script>
   <script src="js/violation-registry.js?v=13"></script>
   <script src="js/catalog-service.js?v=2"></script>
   <script src="js/backup-import.js?v=32"></script>
   <script src="js/spravka-utils.js?v=4"></script>
   <script src="js/akt-search.js"></script>
-  <script src="js/ui-bindings.js?v=36"></script>
+  <script src="js/ui-bindings.js?v=37"></script>
   <script src="js/catalog-editor.js?v=13"></script>
   <script src="js/schedule-editor.js?v=2"></script>
   <script src="js/elimination-editor.js?v=12"></script>
@@ -900,8 +924,8 @@
   <script src="js/reports-dashboard.js?v=17"></script>
   <script src="js/wizard-modals.js?v=44"></script>
   <script src="js/wizard.js?v=58"></script>
-  <script src="js/spravka-wizard.js?v=11"></script>
+  <script src="js/spravka-wizard.js?v=12"></script>
   <script src="js/short-akt-form.js?v=4"></script>
-  <script src="js/app.js?v=158"></script>
+  <script src="js/app.js?v=159"></script>
 </body>
 </html>

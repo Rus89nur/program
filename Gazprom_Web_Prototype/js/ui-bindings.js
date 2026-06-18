@@ -516,25 +516,20 @@ const GazpromUI = (() => {
       }
     }
 
-    // Шаблоны Word (акт + справка)
-    const templateBadge = document.querySelector('[data-template-status]');
-    if (templateBadge) {
+    const aktTemplateBadge = document.querySelector('[data-akt-template-status]');
+    if (aktTemplateBadge) {
       const hasAkt = !!(data.wordTemplateName || data[DocGenerator?.TEMPLATE_KEY] || data.wordTemplateOffloaded);
+      aktTemplateBadge.textContent = hasAkt ? '✓' : '';
+      aktTemplateBadge.style.color = hasAkt ? 'var(--success)' : '';
+    }
+
+    const spravkaTemplateBadge = document.querySelector('[data-spravka-template-status]');
+    if (spravkaTemplateBadge) {
       const hasSpravka = typeof DocGenerator?.hasSpravkaTemplate === 'function'
         ? DocGenerator.hasSpravkaTemplate(data)
         : !!(data.spravkaTemplateName || data[DocGenerator?.SPRAVKA_TEMPLATE_KEY]);
-      if (!hasAkt && !hasSpravka) {
-        templateBadge.textContent = '';
-      } else if (hasAkt && hasSpravka) {
-        templateBadge.textContent = 'акт+справка';
-        templateBadge.style.color = 'var(--success)';
-      } else if (hasAkt) {
-        templateBadge.textContent = 'акт';
-        templateBadge.style.color = 'var(--success)';
-      } else {
-        templateBadge.textContent = 'справка';
-        templateBadge.style.color = 'var(--success)';
-      }
+      spravkaTemplateBadge.textContent = hasSpravka ? '✓' : '';
+      spravkaTemplateBadge.style.color = hasSpravka ? 'var(--success)' : '';
     }
 
     // Корзина
