@@ -25,6 +25,9 @@ const MlTrainingWizard = (() => {
   let loadCancelled = false;
   let loadProgressMessage = '';
   let loadOverlayEl = null;
+  let cardPhotoUrl = null;
+  let detailPhotoUrls = [];
+  let photoLightboxBound = false;
 
   const flushUi = () =>
     new Promise((resolve) => {
@@ -88,9 +91,118 @@ const MlTrainingWizard = (() => {
     }
     const img = document.createElement('img');
     img.src = url;
-    img.alt = '';
+    img.alt = 'Фото нарушения';
     if (imgClass) img.className = imgClass;
     container.appendChild(img);
+  }
+
+  function ensurePhotoLightbox() {
+    let box = document.getElementById('photoLightbox');
+    if (
+      box &&
+      (!box.querySelector('.photo-lightbox-img') ||
+        !box.querySelector('.photo-lightbox-close'))
+    ) {
+      box.remove();
+      box = null;
+    }
+    if (box) return box;
+
+    box = document.createElement('div');
+    box.id = 'photoLightbox';
+    box.className = 'photo-lightbox';
+    box.innerHTML = `
+      <button type="button" class="photo-lightbox-close" aria-label="Закрыть">×</button>
+      <div class="photo-lightbox-inner">
+        <div class="photo-lightbox-viewport" aria-label="Просмотр фото">
+          <div class="photo-lightbox-stage">
+            <img class="photo-lightbox-img" alt="" draggable="false">
+          </div>
+        </div>
+        <div class="photo-lightbox-controls">
+          <button type="button" class="photo-lightbox-nav photo-lightbox-prev photo-lightbox-chip photo-lightbox-nav-btn" aria-label="Предыдущее фото">‹</button>
+          <span class="photo-lightbox-counter photo-lightbox-chip" aria-live="polite"></span>
+          <button type="button" class="photo-lightbox-nav photo-lightbox-next photo-lightbox-chip photo-lightbox-nav-btn" aria-label="Следующее фото">›</button>
+        </div>
+      </div>`;
+    document.body.appendChild(box);
+
+    const hideLightbox = () => {
+      if (!box.classList.contains('show')) return;
+      box.classList.remove('show');
+      GazpromMobileOverlay?.unlock?.();
+      GazpromMobileOverlay?.scheduleRecoverViewportLayout?.();
+    };
+
+    box.querySelector('.photo-lightbox-close')?.addEventListener('click', hideLightbox);
+    box.addEventListener('click', (e) => {
+      if (e.target === box) hideLightbox();
+    });
+
+    if (!photoLightboxBound) {
+      photoLightboxBound = true;
+      document.addEventListener('keydown', (e) => {
+        const lb = document.getElementById('photoLightbox');
+        if (e.key === 'Escape' && lb?.classList.contains('show')) {
+          lb.classList.remove('show');
+          GazpromMobileOverlay?.unlock?.();
+        }
+      });
+    }
+
+    box._mlHide = hideLightbox;
+    return box;
+  }
+
+  function openPhotoLightbox(src, gallery) {
+    const url = String(src || '').trim();
+    if (!url) return;
+    const box = ensurePhotoLightbox();
+    const imgs = (gallery || []).filter(Boolean);
+    const list = imgs.length ? imgs : [url];
+    let idx = list.indexOf(url);
+    if (idx < 0) idx = 0;
+
+    const imgEl = box.querySelector('.photo-lightbox-img');
+    const counterEl = box.querySelector('.photo-lightbox-counter');
+    const prevBtn = box.querySelector('.photo-lightbox-prev');
+    const nextBtn = box.querySelector('.photo-lightbox-next');
+
+    const showAt = (i) => {
+      idx = (i + list.length) % list.length;
+      if (imgEl) imgEl.src = list[idx];
+      const multi = list.length > 1;
+      if (counterEl) counterEl.textContent = multi ? `${idx + 1} / ${list.length}` : '';
+      if (prevBtn) prevBtn.style.visibility = multi ? 'visible' : 'hidden';
+      if (nextBtn) nextBtn.style.visibility = multi ? 'visible' : 'hidden';
+    };
+
+    showAt(idx);
+    if (prevBtn) {
+      prevBtn.onclick = (e) => {
+        e.stopPropagation();
+        showAt(idx - 1);
+      };
+    }
+    if (nextBtn) {
+      nextBtn.onclick = (e) => {
+        e.stopPropagation();
+        showAt(idx + 1);
+      };
+    }
+
+    if (!box.classList.contains('show')) {
+      GazpromMobileOverlay?.lock?.();
+    }
+    box.classList.add('show');
+  }
+
+  function markPhotoOpenable(container) {
+    if (!container) return;
+    container.classList.add('ml-photo-open');
+    container.setAttribute('role', 'button');
+    container.setAttribute('tabindex', '0');
+    container.setAttribute('aria-label', 'Открыть фото');
   }
 
   function confColor(pct) {
@@ -219,7 +331,7 @@ const MlTrainingWizard = (() => {
       <div class="ml-wizard-grid">
         <div class="card ml-training-card">
           <p class="ml-counter">Карточка ${total ? cardIndex + 1 : 0} из ${total}</p>
-          <div class="ml-big-photo" id="mlCardPhoto">${entry ? '🖼' : '—'}</div>
+          <div class="ml-big-photo ml-photo-open" id="mlCardPhoto" role="button" tabindex="0" aria-label="Открыть фото">${entry ? '🖼' : '—'}</div>
           <div class="ml-current-title">${esc(effectiveTitle)}</div>
           <div id="mlCardPreds">${renderPredCards(currentPredictions, pendingTitle || entry?.violationTitle)}</div>
           <p class="ml-muted ml-swipe-hint">Кнопки «Назад» / «Далее» или свайп по фото</p>
@@ -400,11 +512,16 @@ const MlTrainingWizard = (() => {
     pendingTitle = null;
     const photoEl = document.getElementById('mlCardPhoto');
     if (!entry || !photoEl) {
+      cardPhotoUrl = null;
       currentPredictions = [];
       return;
     }
     const url = await MlImageService.resolvePhotoDataUrl(entry.photoRef);
+    cardPhotoUrl = url || null;
     setPhotoElement(photoEl, url, 'ml-big-photo__img');
+    if (url && photoEl) {
+      markPhotoOpenable(photoEl);
+    }
     currentPredictions = url ? await MlImageService.predict(url) : [];
     const predsHost = document.getElementById('mlCardPreds');
     if (predsHost) {
@@ -464,12 +581,18 @@ const MlTrainingWizard = (() => {
       grid.innerHTML = '<p class="ml-muted">Нет фото</p>';
       return;
     }
+    detailPhotoUrls = [];
     const cells = await Promise.all(
       photos.map(async (entry) => {
         const url = await MlImageService.resolvePhotoDataUrl(entry.photoRef);
+        if (url) detailPhotoUrls.push(url);
         const wrap = document.createElement('div');
-        wrap.className = 'ml-grid-photo';
+        wrap.className = 'ml-grid-photo ml-photo-open';
         wrap.dataset.mlDel = entry.id;
+        wrap.dataset.mlPhotoUrl = url || '';
+        wrap.setAttribute('role', 'button');
+        wrap.setAttribute('tabindex', '0');
+        wrap.setAttribute('aria-label', 'Открыть фото');
         setPhotoElement(wrap, url, '');
         const wrapImg = wrap.querySelector('img');
         if (wrapImg) {
@@ -499,6 +622,23 @@ const MlTrainingWizard = (() => {
         await paint();
       });
     });
+    grid.querySelectorAll('.ml-grid-photo').forEach((wrap) => {
+      const open = () => {
+        const url = wrap.dataset.mlPhotoUrl;
+        if (!url) return;
+        openPhotoLightbox(url, detailPhotoUrls);
+      };
+      wrap.addEventListener('click', (e) => {
+        if (e.target.closest('.ml-grid-del')) return;
+        open();
+      });
+      wrap.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          open();
+        }
+      });
+    });
   }
 
   async function hydrateTestPhotos() {
@@ -514,8 +654,12 @@ const MlTrainingWizard = (() => {
     }
     testPhotos.forEach((url, i) => {
       const wrap = document.createElement('div');
-      wrap.className = 'ml-thumb';
+      wrap.className = 'ml-thumb ml-photo-open';
       wrap.dataset.mlTestIdx = String(i);
+      wrap.dataset.mlPhotoUrl = url;
+      wrap.setAttribute('role', 'button');
+      wrap.setAttribute('tabindex', '0');
+      wrap.setAttribute('aria-label', 'Открыть фото');
       setPhotoElement(wrap, url, '');
       const img = wrap.querySelector('img');
       if (img) {
@@ -544,6 +688,23 @@ const MlTrainingWizard = (() => {
           bindPredPick(preds, (title) => {
             selectedTestTitle = title;
           });
+        }
+      });
+    });
+    row.querySelectorAll('.ml-thumb').forEach((wrap) => {
+      const open = () => {
+        const url = wrap.dataset.mlPhotoUrl;
+        if (!url) return;
+        openPhotoLightbox(url, testPhotos);
+      };
+      wrap.addEventListener('click', (e) => {
+        if (e.target.closest('.ml-thumb-del')) return;
+        open();
+      });
+      wrap.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          open();
         }
       });
     });
@@ -720,11 +881,29 @@ const MlTrainingWizard = (() => {
 
     const photoEl = document.getElementById('mlCardPhoto');
     let touchX = 0;
+    let touchY = 0;
+    photoEl?.addEventListener('click', () => {
+      if (cardPhotoUrl) openPhotoLightbox(cardPhotoUrl);
+    });
+    photoEl?.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && cardPhotoUrl) {
+        e.preventDefault();
+        openPhotoLightbox(cardPhotoUrl);
+      }
+    });
     photoEl?.addEventListener('touchstart', (e) => {
       touchX = e.changedTouches[0]?.clientX || 0;
+      touchY = e.changedTouches[0]?.clientY || 0;
     });
     photoEl?.addEventListener('touchend', (e) => {
-      const dx = (e.changedTouches[0]?.clientX || 0) - touchX;
+      const tx = e.changedTouches[0]?.clientX || 0;
+      const ty = e.changedTouches[0]?.clientY || 0;
+      const dx = tx - touchX;
+      const dy = ty - touchY;
+      if (Math.abs(dx) < 15 && Math.abs(dy) < 15) {
+        if (cardPhotoUrl) openPhotoLightbox(cardPhotoUrl);
+        return;
+      }
       if (dx < -40) goCard(1, false);
       if (dx > 40) goCard(-1, false);
     });

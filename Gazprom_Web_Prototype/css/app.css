@@ -635,7 +635,6 @@
     }
     button.chip {
       border: none;
-      font: inherit;
       cursor: pointer;
       appearance: none;
       -webkit-appearance: none;
@@ -647,6 +646,9 @@
       line-height: 1.35;
       height: auto;
       max-width: 100%;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
     }
     .chip button {
       background: none;
@@ -7528,6 +7530,12 @@
       font-size: 48px;
     }
     .ml-big-photo__img { width: 100%; height: 100%; object-fit: contain; max-height: 280px; }
+    .ml-photo-open {
+      cursor: zoom-in;
+    }
+    .ml-photo-open img {
+      pointer-events: none;
+    }
     .ml-current-title {
       font-size: 14px;
       font-weight: 700;
