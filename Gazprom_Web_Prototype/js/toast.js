@@ -50,10 +50,10 @@ const GazpromToast = (() => {
         </div>
       `;
       document.body.appendChild(root);
-      GazpromMobileOverlay.lock();
+      window.GazpromMobileOverlay?.lock?.();
       const close = (val) => {
         root.remove();
-        GazpromMobileOverlay.unlock();
+        window.GazpromMobileOverlay?.unlock?.();
         resolve(val);
       };
       root.querySelector('[data-cancel]').onclick = () => close(false);
@@ -80,11 +80,11 @@ const GazpromToast = (() => {
         </div>
       `;
       document.body.appendChild(root);
-      GazpromMobileOverlay.lock();
+      window.GazpromMobileOverlay?.lock?.();
       const input = root.querySelector('[data-prompt-input]');
       const close = (val) => {
         root.remove();
-        GazpromMobileOverlay.unlock();
+        window.GazpromMobileOverlay?.unlock?.();
         resolve(val);
       };
       input?.focus();

@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '215';</script>
+  <script>window.GAZPROM_ASSET_V = '216';</script>
   <script>
   (function () {
     if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
@@ -166,7 +166,7 @@
       </button>
       <div class="sidebar-footer" id="sidebarAppBuild" aria-label="Версия веб-приложения">
         <span class="sidebar-footer__brand">программа НЕТ</span>
-        Сборка: <span data-app-build>web-215</span> · PWA
+        Сборка: <span data-app-build>web-216</span> · PWA
       </div>
     </aside>
 
@@ -237,7 +237,7 @@
             <div class="stat-label">Черновиков</div>
           </div>
         </div>
-        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-215</p>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-216</p>
       </section>
 
       <section class="screen" id="screen-wizard">
@@ -619,7 +619,7 @@
           <div class="card settings-tile settings-tile--ml" role="button" tabindex="0"><div class="icon">🤖</div><h4>Обучение модели</h4><p>ML по фото нарушений</p><span class="tile-count" data-ml-photos></span></div>
         </div>
         <div class="card settings-app-update" id="settingsAppUpdate">
-          <p class="settings-app-update__label">Версия приложения: <strong id="settingsAppBuild">web-215</strong></p>
+          <p class="settings-app-update__label">Версия приложения: <strong id="settingsAppBuild">web-216</strong></p>
           <p class="settings-app-update__avail" id="settingsAppUpdateAvail" hidden></p>
           <p class="settings-app-update__hint">Если после обновления на сайте ничего не меняется — нажмите кнопку ниже (сбросит кэш PWA).</p>
           <button type="button" class="btn-secondary btn-sm" id="appForceRefreshBtn">Обновить приложение</button>
@@ -829,11 +829,28 @@
     });
   })();
   </script>
+  <script>
+  (function () {
+    var noop = function () {};
+    if (!window.GazpromMobileOverlay) {
+      window.GazpromMobileOverlay = {
+        lock: noop,
+        unlock: noop,
+        ensureScrollClearance: noop,
+        scheduleRecoverViewportLayout: noop,
+        syncWizardModalViewport: noop,
+        recoverViewportLayout: noop,
+        syncNavScrollInset: noop,
+      };
+    }
+  })();
+  var GazpromMobileOverlay = window.GazpromMobileOverlay;
+  </script>
   <script src="js/idb-connection.js?v=22"></script>
   <script src="js/data-store.js?v=27"></script>
   <script src="js/photo-store.js?v=31"></script>
-  <script src="js/toast.js"></script>
-  <script src="js/mobile-overlay.js?v=34"></script>
+  <script src="js/toast.js?v=2"></script>
+  <script src="js/mobile-overlay.js?v=35"></script>
   <script src="js/akt-utils.js?v=32"></script>
   <script src="js/violation-search.js?v=3"></script>
   <script src="js/violation-templates.js?v=21"></script>
@@ -858,6 +875,6 @@
   <script src="js/wizard.js?v=57"></script>
   <script src="js/spravka-wizard.js?v=5"></script>
   <script src="js/short-akt-form.js?v=4"></script>
-  <script src="js/app.js?v=154"></script>
+  <script src="js/app.js?v=155"></script>
 </body>
 </html>

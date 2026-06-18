@@ -183,20 +183,24 @@ const GazpromUI = (() => {
       }
     }
 
-    const editableSpravka = SpravkaUtils.getEditableSpravka(data);
     const spravkaBtn = document.getElementById('homeSpravkaBtn');
-    if (spravkaBtn) {
-      spravkaBtn.textContent = editableSpravka && SpravkaUtils.isDraft(editableSpravka)
-        ? `Продолжить справку (${AktUtils.formatDateShort(editableSpravka.date)})`
-        : 'Создать справку по ПБ';
-    }
     const spravkaSub = document.getElementById('homeSpravkaSubAction');
-    if (spravkaSub) {
-      spravkaSub.hidden = !(editableSpravka && SpravkaUtils.isDraft(editableSpravka));
-      if (!spravkaSub.hidden) {
-        spravkaSub.innerHTML =
-          '<button class="btn-secondary home-akt-actions__sub" type="button" data-go="spravka" data-spravka-new="1">Начать новую справку</button>';
+    if (typeof SpravkaUtils !== 'undefined') {
+      const editableSpravka = SpravkaUtils.getEditableSpravka(data);
+      if (spravkaBtn) {
+        spravkaBtn.textContent = editableSpravka && SpravkaUtils.isDraft(editableSpravka)
+          ? `Продолжить справку (${AktUtils.formatDateShort(editableSpravka.date)})`
+          : 'Создать справку по ПБ';
       }
+      if (spravkaSub) {
+        spravkaSub.hidden = !(editableSpravka && SpravkaUtils.isDraft(editableSpravka));
+        if (!spravkaSub.hidden) {
+          spravkaSub.innerHTML =
+            '<button class="btn-secondary home-akt-actions__sub" type="button" data-go="spravka" data-spravka-new="1">Начать новую справку</button>';
+        }
+      }
+    } else if (spravkaBtn) {
+      spravkaBtn.textContent = 'Создать справку по ПБ';
     }
 
     renderScheduleProgress(data);

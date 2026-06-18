@@ -77,7 +77,7 @@ function goTo(screenId, options = {}) {
     void GazpromStore.get().then((data) => ReportsDashboard.render(data));
   }
   requestAnimationFrame(() => {
-    GazpromMobileOverlay?.ensureScrollClearance?.('goTo-' + screenId);
+    window.GazpromMobileOverlay?.ensureScrollClearance?.('goTo-' + screenId);
   });
 }
 
@@ -356,14 +356,14 @@ function openBackupModal() {
   const modal = document.getElementById('backupModal');
   if (!modal) return;
   modal.hidden = false;
-  GazpromMobileOverlay.lock();
+  window.GazpromMobileOverlay?.lock?.();
 }
 
 function closeBackupModal() {
   const modal = document.getElementById('backupModal');
   if (!modal || modal.hidden) return;
   modal.hidden = true;
-  GazpromMobileOverlay.unlock();
+  window.GazpromMobileOverlay?.unlock?.();
 }
 
 async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
@@ -396,7 +396,6 @@ async function handleBackupFile(file, { parsed: preParsed = null } = {}) {
       parsed: preview,
       importWithoutPhotos,
     });
-
     GazpromStore.invalidateCache();
     await GazpromUI.refreshAll();
     const photoMsg =

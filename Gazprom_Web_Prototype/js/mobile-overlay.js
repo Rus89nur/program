@@ -2,7 +2,7 @@
  * Мобильная оболочка: узкий портрет ≤900px или landscape на телефоне (низкий viewport, touch).
  * Без второго условия на Plus/Max в альбомной ширина >900px — включается десктоп и ломается вёрстка.
  */
-const GazpromMobileOverlay = (() => {
+var GazpromMobileOverlay = (() => {
   const PHONE_LAYOUT_MQ =
     window.GAZPROM_PHONE_LAYOUT_MQ ||
     '(max-width: 900px), (max-width: 1280px) and (max-height: 520px) and (hover: none)';
@@ -667,3 +667,4 @@ const GazpromMobileOverlay = (() => {
     scheduleRecoverViewportLayout,
   };
 })();
+window.GazpromMobileOverlay = GazpromMobileOverlay;
