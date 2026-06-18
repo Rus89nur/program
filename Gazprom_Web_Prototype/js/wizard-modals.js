@@ -429,8 +429,8 @@ const WizardModals = (() => {
         <textarea class="form-control mv-auto-textarea" id="mvTitle" rows="1" data-no-capitalize placeholder="Не проведён инструктаж по охране труда…">${AktUtils.escapeHtml(v?.title || '')}</textarea>
       </div>
       <div class="form-group">
-        <label class="form-label">Вид нарушения</label>
-        <select class="form-control" id="mvVid"><option value="">— не выбрано —</option>${vidOpts}</select>
+        <label class="form-label">Вид нарушения <span style="color:var(--danger)">*</span></label>
+        <select class="form-control" id="mvVid" required aria-required="true"><option value="">— не выбрано —</option>${vidOpts}</select>
         ${!vidTitles.length ? '<p class="form-hint" style="margin-top:6px;font-size:12px;color:var(--text-muted)">Новые виды — в Настройки → Виды нарушений. При сохранении привязка запишется в реестр для всех актов.</p>' : ''}
       </div>
       <div class="form-group">
@@ -771,6 +771,12 @@ const WizardModals = (() => {
       return;
     }
 
+    const vidFromSelect = document.getElementById('mvVid')?.value?.trim() || '';
+    if (!vidFromSelect) {
+      GazpromToast.error('Выберите вид нарушения');
+      return;
+    }
+
     const saveBtn = document.getElementById('mvSave');
     if (saveBtn && !saveBtn.dataset.defaultLabel) {
       saveBtn.dataset.defaultLabel = saveBtn.textContent || 'Сохранить';
@@ -790,8 +796,7 @@ const WizardModals = (() => {
         const prevViolation = editingViolationId
           ? (ctx.getDraft()?.violations || []).find((x) => x.id === editingViolationId)
           : null;
-        const vidFromSelect = document.getElementById('mvVid')?.value?.trim() || '';
-        const vid = vidFromSelect || prevViolation?.vid || '';
+        const vid = vidFromSelect;
         const urlToPravilo = readFieldRaw('mvUrl');
         const formulaRaw = readFieldRaw('mvFormula');
         const formulaFromRules = formulaRaw !== '' ? formulaRaw : null;
