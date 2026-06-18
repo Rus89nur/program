@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '227';</script>
+  <script>window.GAZPROM_ASSET_V = '228';</script>
   <script>
   (function () {
     if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
@@ -74,8 +74,8 @@
       var v = window.GAZPROM_ASSET_V;
       if (!v) return;
       var label = 'Сборка: web-' + v;
-      document.querySelectorAll('#appBuildId, [data-app-build]').forEach(function (el) {
-        el.textContent = label;
+      document.querySelectorAll('#appBuildId, #settingsAppBuild, [data-app-build]').forEach(function (el) {
+        el.textContent = el.id === 'settingsAppBuild' ? 'web-' + v : label;
       });
     };
     if (document.readyState === 'loading') {
