@@ -135,6 +135,19 @@ describe('ViolationTypes', () => {
     expect(titles).toEqual(['Активный вид', 'Новый Smart Forms']);
   });
 
+  it('getVidSelectTitles включает сохранённый seed-вид при редактировании', () => {
+    const seed = 'Нарушение требований пожарной безопасности';
+    const catalog = {
+      akts: [],
+      violationTypes: [{ id: 'p1', title: seed, status: 'pending' }],
+      typeMappings: {},
+      violationTypesPurgedV2: true,
+      mappingSeedsRestoredV3: true,
+    };
+    const titles = VT.getVidSelectTitles(catalog, seed);
+    expect(titles).toContain(seed);
+  });
+
   it('getVidSelectTitles включает resolved vid вне активного списка', () => {
     const catalog = {
       akts: [],

@@ -134,6 +134,12 @@ const ViolationTypes = (() => {
     return builtinTypeTitles().has(s);
   }
 
+  function isLegacyBuiltinVidTitle(vid) {
+    const s = String(vid || '').trim();
+    if (!s) return false;
+    return legacyBuiltinTitles().has(s);
+  }
+
   function mappingSeedTypes() {
     return typeof ViolationTemplates !== 'undefined' &&
       Array.isArray(ViolationTemplates.MAPPING_SEED_TYPES)
@@ -546,16 +552,18 @@ const ViolationTypes = (() => {
     return [...titles].sort((a, b) => a.localeCompare(b, 'ru'));
   }
 
-  /** Список для select: активные + ожидающие привязки + текущее значение. */
+  /** Список для select: активные + ожидающие привязки + сохранённое значение при редактировании. */
   function getVidSelectTitles(catalog, rawVid) {
     ensureCatalog(catalog);
-    const resolved = resolveVid(catalog, rawVid);
+    const raw = String(rawVid || '').trim();
     const merged = new Set([
       ...getActiveTitles(catalog),
       ...getPendingTypes(catalog).map((t) => t.title),
     ]);
-    if (resolved && !merged.has(resolved) && !legacyBuiltinTitles().has(resolved)) {
-      merged.add(resolved);
+    if (raw) {
+      const resolved = resolveVid(catalog, raw);
+      if (resolved) merged.add(resolved);
+      if (raw !== resolved) merged.add(raw);
     }
     return [...merged].sort((a, b) => a.localeCompare(b, 'ru'));
   }
@@ -608,6 +616,7 @@ const ViolationTypes = (() => {
     purgeBuiltinDefaults,
     purgeBuiltinRegistryVids,
     isBuiltinVidTitle,
-    builtinTypeTitles,
+    isLegacyBuiltinVidTitle,
+    legacyBuiltinTitles,
   };
 })();
