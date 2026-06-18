@@ -710,27 +710,42 @@ const MlTrainingWizard = (() => {
     selectedTestTitle = testPredictions[0]?.violationTitle || null;
   }
 
+  function renderPickItemHtml(v) {
+    const num = v?.number != null ? String(v.number) : '';
+    const rule = String(v?.subTitle || v?.formulaFromRules || '').trim();
+    const ruleHtml = rule
+      ? `<span class="ml-pick-item__rule">${esc(rule)}</span>`
+      : '<span class="ml-pick-item__rule ml-pick-item__rule--empty">Пункт правил не указан</span>';
+    return `<button type="button" class="ml-pick-item" data-title="${esc(v.title)}">
+      <span class="ml-pick-item__top">
+        ${num ? `<span class="ml-pick-item__num">${esc(num)}</span>` : ''}
+        <span class="ml-pick-item__title">${esc(v.title)}</span>
+      </span>
+      ${ruleHtml}
+    </button>`;
+  }
+
   async function openManualPick(onSelect) {
     const registry = await ViolationRegistry.getAll();
     const overlay = document.createElement('div');
     overlay.className = 'catalog-form-overlay ml-pick-overlay';
     overlay.innerHTML = `
-      <div class="catalog-form-panel ml-pick-panel" role="dialog" aria-modal="true">
-        <div class="catalog-form-header">
-          <h3>Выбор из реестра</h3>
-          <button type="button" class="modal-close" id="mlPickClose">×</button>
+      <div class="catalog-form-panel ml-pick-panel" role="dialog" aria-modal="true" aria-labelledby="mlPickTitle">
+        <div class="catalog-form-header ml-pick-header">
+          <h3 id="mlPickTitle">Выбор нарушения из реестра</h3>
+          <button type="button" class="modal-close" id="mlPickClose" aria-label="Закрыть">×</button>
         </div>
-        <div class="catalog-form-body">
-          <input type="search" class="ml-search" id="mlPickSearch" placeholder="Поиск нарушений…">
+        <div class="catalog-form-body ml-pick-body">
+          <input type="search" class="ml-search" id="mlPickSearch" placeholder="Поиск по названию, номеру или пункту правил…">
           <div class="ml-pick-list" id="mlPickList"></div>
         </div>
       </div>`;
     document.body.appendChild(overlay);
-    GazpromMobileOverlay?.lock?.();
+    window.GazpromMobileOverlay?.lock?.();
 
     const close = () => {
       overlay.remove();
-      GazpromMobileOverlay?.unlock?.();
+      window.GazpromMobileOverlay?.unlock?.();
     };
     overlay.querySelector('#mlPickClose')?.addEventListener('click', close);
     overlay.addEventListener('click', (e) => {
@@ -743,17 +758,21 @@ const MlTrainingWizard = (() => {
         list = ViolationSearch.filterRegistry(list, q, { catalog: null });
       } else if (q) {
         const qq = q.toLowerCase();
-        list = list.filter((v) => String(v.title).toLowerCase().includes(qq));
+        list = list.filter(
+          (v) =>
+            String(v.title || '').toLowerCase().includes(qq) ||
+            String(v.subTitle || '').toLowerCase().includes(qq) ||
+            String(v.formulaFromRules || '').toLowerCase().includes(qq) ||
+            (v.number != null && String(v.number).includes(qq))
+        );
       }
       const hostList = overlay.querySelector('#mlPickList');
       if (!hostList) return;
-      hostList.innerHTML = list
-        .slice(0, 200)
-        .map(
-          (v) =>
-            `<button type="button" class="ml-pick-item" data-title="${esc(v.title)}">${v.number != null ? `${v.number}. ` : ''}${esc(v.title)}</button>`
-        )
-        .join('');
+      if (!list.length) {
+        hostList.innerHTML = '<p class="ml-pick-empty">Ничего не найдено</p>';
+        return;
+      }
+      hostList.innerHTML = list.slice(0, 200).map((v) => renderPickItemHtml(v)).join('');
       hostList.querySelectorAll('.ml-pick-item').forEach((btn) => {
         btn.addEventListener('click', () => {
           onSelect(btn.getAttribute('data-title'));
