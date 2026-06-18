@@ -214,8 +214,11 @@ const SpravkaWizard = (() => {
       return '<p class="wizard-hint">Выберите объекты из справочника ниже</p>';
     }
     return selected.map((obj, idx) => `
-      <div class="spravka-object-card card" data-sp-object-card="${obj.id}">
-        <h4 style="margin:0 0 12px;font-size:14px">${idx + 1}. ${AktUtils.escapeHtml(obj.title)}</h4>
+      <div class="spravka-object-card" data-sp-object-card="${obj.id}">
+        <div class="spravka-object-card__head">
+          <h4 class="spravka-object-card__title">${idx + 1}. ${AktUtils.escapeHtml(obj.title)}</h4>
+          <button type="button" class="btn-ghost btn-sm spravka-object-card__remove" data-sp-remove-object="${AktUtils.escapeHtml(String(obj.id))}" title="Убрать из справки">Убрать</button>
+        </div>
         <div class="form-row">
           <div class="form-group">
             <label for="spObjCode_${obj.id}">Код объекта</label>
@@ -235,29 +238,32 @@ const SpravkaWizard = (() => {
     const objects = getCatalogObjects();
     const selectedIds = new Set((draft.objectsCheck || []).map((o) => String(o.id)));
 
-    const selectedChips = (draft.objectsCheck || [])
-      .map((o) => `<button type="button" class="chip chip-removable" data-sp-remove-object="${AktUtils.escapeHtml(String(o.id))}" title="Убрать">${AktUtils.escapeHtml(o.title)}</button>`)
+    const catalogItems = objects
+      .filter((o) => !selectedIds.has(String(o.id)))
+      .map((o) => `
+        <button type="button" class="spravka-obj-pick" data-sp-add-object="${AktUtils.escapeHtml(String(o.id))}" title="Добавить в справку">
+          <span class="spravka-obj-pick__title">${AktUtils.escapeHtml(o.title)}</span>
+          ${o.subTitle ? `<span class="spravka-obj-pick__sub">${AktUtils.escapeHtml(o.subTitle)}</span>` : ''}
+        </button>
+      `)
       .join('');
 
-    const catalogChips = objects
-      .filter((o) => !selectedIds.has(String(o.id)))
-      .map((o) => `<button type="button" class="chip chip-catalog" data-sp-add-object="${AktUtils.escapeHtml(String(o.id))}" title="Добавить">${AktUtils.escapeHtml(o.title)}${o.subTitle ? ' — ' + AktUtils.escapeHtml(o.subTitle) : ''}</button>`)
-      .join('');
+    const selectedCount = (draft.objectsCheck || []).length;
 
     return `
       <h3>Объекты строительства</h3>
       <p class="wizard-hint">Можно выбрать несколько объектов — в отличие от полного акта проверки</p>
-      <div class="chip-list" id="spObjectChips">${selectedChips || '<span class="wizard-hint">Объекты не выбраны</span>'}</div>
+      ${selectedCount ? `<p class="spravka-obj-selected-count">Выбрано объектов: <strong>${selectedCount}</strong></p>` : ''}
+      <div class="spravka-object-cards">
+        ${renderObjectDetailsHtml()}
+      </div>
       <div class="commission-divider"></div>
       <div class="commission-catalog-section">
         <div class="commission-catalog-header">
           <span class="commission-catalog-label">Добавить из справочника</span>
           <button type="button" class="btn-ghost" id="spNewObjectBtn">+ В справочник</button>
         </div>
-        <div class="chip-list">${catalogChips || '<span class="wizard-hint">Все объекты уже добавлены</span>'}</div>
-      </div>
-      <div class="spravka-object-cards" style="margin-top:20px;display:flex;flex-direction:column;gap:12px">
-        ${renderObjectDetailsHtml()}
+        <div class="spravka-obj-pick-list">${catalogItems || '<p class="wizard-hint">Все объекты уже добавлены</p>'}</div>
       </div>
     `;
   }
@@ -479,16 +485,18 @@ const SpravkaWizard = (() => {
   }
 
   function handleSpravkaRootClick(e) {
-    const addChip = e.target.closest('[data-sp-add-object]');
-    if (addChip) {
+    const addBtn = e.target.closest('[data-sp-add-object]');
+    if (addBtn) {
       e.preventDefault();
-      addObjectById(addChip.getAttribute('data-sp-add-object'));
+      e.stopPropagation();
+      addObjectById(addBtn.getAttribute('data-sp-add-object'));
       return;
     }
-    const removeChip = e.target.closest('[data-sp-remove-object]');
-    if (removeChip) {
+    const removeBtn = e.target.closest('[data-sp-remove-object]');
+    if (removeBtn) {
       e.preventDefault();
-      removeObjectById(removeChip.getAttribute('data-sp-remove-object'));
+      e.stopPropagation();
+      removeObjectById(removeBtn.getAttribute('data-sp-remove-object'));
     }
   }
 

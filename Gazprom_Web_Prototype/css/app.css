@@ -7695,6 +7695,78 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
     }
+    .spravka-object-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .spravka-object-card__head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .spravka-object-card__title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.35;
+      color: var(--text);
+      word-break: break-word;
+    }
+    .spravka-object-card__remove {
+      flex-shrink: 0;
+    }
+    .spravka-obj-selected-count {
+      margin: 0 0 12px;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+    .spravka-obj-pick-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .spravka-obj-pick {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      text-align: left;
+      padding: 12px 14px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      line-height: 1.4;
+      white-space: normal;
+      word-break: break-word;
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .spravka-obj-pick:hover {
+      border-color: #81c784;
+      background: #f1f8f4;
+    }
+    .spravka-obj-pick:active {
+      background: #e8f5e9;
+    }
+    .spravka-obj-pick__title {
+      display: block;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .spravka-obj-pick__sub {
+      display: block;
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.35;
+    }
     .spravka-workers-table .form-control--sm {
       min-height: 34px;
       padding: 6px 8px;
