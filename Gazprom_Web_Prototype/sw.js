@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gazprom-web-v234';
+const CACHE_NAME = 'gazprom-web-v235';
 const IS_LOCALHOST = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
 const STATIC_ASSETS = [
   './manifest.json',
@@ -14,7 +14,7 @@ const STATIC_ASSETS = [
   './js/photo-lightbox.js?v=1',
   './js/wizard-violations-ui.js?v=2',
   './js/violation-templates.js?v=21',
-  './js/violation-types.js?v=11',
+  './js/violation-types.js?v=12',
   './js/violation-types-editor.js?v=12',
   './js/ml-image-service.js?v=6',
   './js/ml-training-wizard.js?v=10',

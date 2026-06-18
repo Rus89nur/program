@@ -38,6 +38,15 @@ const ViolationTypes = (() => {
     return new Set([...legacy, ...seeds].map((t) => String(t || '').trim()).filter(Boolean));
   }
 
+  /** Только 17 устаревших встроенных видов (без 13 новых Smart Forms). */
+  function legacyBuiltinTitles() {
+    const legacy =
+      typeof ViolationTemplates !== 'undefined' && Array.isArray(ViolationTemplates.VIOLATION_TYPES)
+        ? ViolationTemplates.VIOLATION_TYPES
+        : [];
+    return new Set(legacy.map((t) => String(t || '').trim()).filter(Boolean));
+  }
+
   /** Однократно убрать зашитые 17+13 видов — дальше только ручное добавление и привязки из реестра. */
   function purgeBuiltinDefaults(catalog) {
     if (!catalog || catalog.violationTypesPurgedV2) return false;
@@ -45,12 +54,37 @@ const ViolationTypes = (() => {
     const kept = getTypes(catalog).filter((t) => !builtin.has(t.title));
     catalog.violationTypes = kept;
     catalog.violationTypesPurgedV2 = true;
-    const dismissed = getDismissedMappingSeeds(catalog);
-    for (const title of mappingSeedTypes()) {
-      dismissed.add(String(title || '').trim());
-    }
-    catalog.dismissedMappingSeeds = [...dismissed];
     return true;
+  }
+
+  /**
+   * После web-229 seeds массово попадали в dismissedMappingSeeds и пропадали из «Сопоставить».
+   * Однократно снимаем блокировку, если все seed-виды исчезли из классификатора.
+   */
+  function restoreMappingSeedsAfterOverPurge(catalog) {
+    if (!catalog?.violationTypesPurgedV2 || catalog.mappingSeedsRestoredV3) return false;
+
+    const seeds = mappingSeedTypes();
+    if (!seeds.length) {
+      catalog.mappingSeedsRestoredV3 = true;
+      return false;
+    }
+
+    const dismissed = getDismissedMappingSeeds(catalog);
+    const hasAnySeedType = seeds.some((title) => findByTitle(catalog, title));
+    const allSeedsDismissed = seeds.every((title) => dismissed.has(String(title || '').trim()));
+
+    if (allSeedsDismissed && !hasAnySeedType) {
+      for (const title of seeds) {
+        dismissed.delete(String(title || '').trim());
+      }
+      catalog.dismissedMappingSeeds = [...dismissed];
+      catalog.mappingSeedsRestoredV3 = true;
+      return true;
+    }
+
+    catalog.mappingSeedsRestoredV3 = true;
+    return false;
   }
 
   /** Цепочка replacedBy/typeMappings без ensureCatalog (для purgeBuiltinRegistryVids). */
@@ -82,16 +116,13 @@ const ViolationTypes = (() => {
   /** Однократно сбросить устаревшие виды в записях реестра (из встроенного Excel). */
   function purgeBuiltinRegistryVids(catalog) {
     if (!catalog || catalog.registryBuiltinVidsPurgedV2) return false;
-    const builtin = builtinTypeTitles();
+    const legacy = legacyBuiltinTitles();
     let changed = false;
     for (const item of catalog.violationRegistry || []) {
       const raw = String(item.vid || '').trim();
-      if (!raw) continue;
-      const resolved = resolveVidChain(catalog, raw);
-      if (builtin.has(raw) || builtin.has(resolved)) {
-        item.vid = '';
-        changed = true;
-      }
+      if (!raw || !legacy.has(raw)) continue;
+      item.vid = '';
+      changed = true;
     }
     catalog.registryBuiltinVidsPurgedV2 = true;
     return changed;
@@ -222,8 +253,10 @@ const ViolationTypes = (() => {
     }
 
     if (purgeBuiltinDefaults(catalog)) changed = true;
+    if (restoreMappingSeedsAfterOverPurge(catalog)) changed = true;
     if (purgeBuiltinRegistryVids(catalog)) changed = true;
     if (syncOrphanVids(catalog)) changed = true;
+    if (syncMappingSeedTypes(catalog)) changed = true;
     if (syncMappingsFromTypes(catalog)) changed = true;
 
     return changed;
@@ -513,15 +546,18 @@ const ViolationTypes = (() => {
     return [...titles].sort((a, b) => a.localeCompare(b, 'ru'));
   }
 
-  /** Список для select: только активные виды классификатора + текущее значение. */
+  /** Список для select: активные + ожидающие привязки + текущее значение. */
   function getVidSelectTitles(catalog, rawVid) {
     ensureCatalog(catalog);
     const resolved = resolveVid(catalog, rawVid);
-    const active = getActiveTitles(catalog);
-    if (resolved && !active.includes(resolved) && !isBuiltinVidTitle(resolved)) {
-      return [resolved, ...active];
+    const merged = new Set([
+      ...getActiveTitles(catalog),
+      ...getPendingTypes(catalog).map((t) => t.title),
+    ]);
+    if (resolved && !merged.has(resolved) && !legacyBuiltinTitles().has(resolved)) {
+      merged.add(resolved);
     }
-    return active;
+    return [...merged].sort((a, b) => a.localeCompare(b, 'ru'));
   }
 
   /** Добавить вид в классификатор при сохранении привязки (если ещё нет). */

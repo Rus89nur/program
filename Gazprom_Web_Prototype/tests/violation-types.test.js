@@ -71,6 +71,32 @@ describe('ViolationTypes', () => {
     expect(catalog.violationRegistry[1].vid).toBe('Мой новый вид');
   });
 
+  it('purgeBuiltinRegistryVids не удаляет новые Smart Forms виды из реестра', () => {
+    const seed = 'Нарушение требований пожарной безопасности';
+    const catalog = {
+      akts: [],
+      violationTypes: [{ id: 'n1', title: seed, status: 'active' }],
+      violationRegistry: [{ id: 'r1', title: 'Тест', vid: seed }],
+      typeMappings: {},
+    };
+    expect(VT.purgeBuiltinRegistryVids(catalog)).toBe(false);
+    expect(catalog.violationRegistry[0].vid).toBe(seed);
+  });
+
+  it('ensureCatalog возвращает seed-виды на вкладку «Сопоставить» после перепurge', () => {
+    const seeds = ['Новый вид Smart Forms', 'Ещё один новый вид'];
+    const catalog = {
+      akts: [],
+      violationTypes: [],
+      violationRegistry: [],
+      typeMappings: {},
+      violationTypesPurgedV2: true,
+      dismissedMappingSeeds: [...seeds],
+    };
+    VT.ensureCatalog(catalog);
+    expect(VT.getPendingTypes(catalog).some((t) => seeds.includes(t.title))).toBe(true);
+  });
+
   it('ensureCatalog не переполняет стек при реестре со встроенными видами (импорт бэкапа)', () => {
     const catalog = {
       akts: [{ violations: [{ vid: 'Старый вид' }] }],
@@ -93,6 +119,20 @@ describe('ViolationTypes', () => {
     };
     const titles = VT.getVidSelectTitles(catalog, '');
     expect(titles).toEqual(['Новый вид']);
+  });
+
+  it('getVidSelectTitles включает ожидающие привязки (pending)', () => {
+    const catalog = {
+      akts: [],
+      violationTypes: [
+        { id: '1', title: 'Активный вид', status: 'active' },
+        { id: '2', title: 'Новый Smart Forms', status: 'pending' },
+      ],
+      typeMappings: {},
+      violationTypesPurgedV2: true,
+    };
+    const titles = VT.getVidSelectTitles(catalog, '');
+    expect(titles).toEqual(['Активный вид', 'Новый Smart Forms']);
   });
 
   it('getVidSelectTitles включает resolved vid вне активного списка', () => {
