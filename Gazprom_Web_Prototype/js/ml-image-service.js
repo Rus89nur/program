@@ -10,9 +10,32 @@ const MlImageService = (() => {
   const DISTANCE_THRESHOLD_UNKNOWN = 3.0;
   const MAX_CONFIDENCE_UNKNOWN = 0.7;
   const MAX_ACCURACY_SAMPLES = 500;
+  const YIELD_EVERY_N = 8;
 
   let entriesCache = null;
   let centroidCache = null;
+  let loadFromActsAborted = false;
+
+  const yieldMain = () => new Promise((r) => setTimeout(r, 0));
+
+  function cancelLoadFromActs() {
+    loadFromActsAborted = true;
+  }
+
+  function isLoadFromActsAborted() {
+    return loadFromActsAborted;
+  }
+
+  function jobKey(originalRef, title) {
+    return `${String(originalRef || '')}|${String(title || '').trim()}`;
+  }
+
+  function entrySyncKey(entry) {
+    const ref = normalizePhotoRef(entry?.photoRef);
+    const title = String(entry?.violationTitle || '').trim();
+    if (entry?.source === 'akt' && ref) return jobKey(ref, title);
+    return `${entry?.photoHash || ref || ''}|${title}`;
+  }
 
   function uuid() {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -358,10 +381,33 @@ const MlImageService = (() => {
 
   async function hashFromDataUrl(dataUrl) {
     if (!dataUrl || typeof dataUrl !== 'string') return '';
-    const buf = dataUrl.startsWith('data:')
-      ? Uint8Array.from(atob(dataUrl.split(',')[1] || ''), (c) => c.charCodeAt(0))
-      : new TextEncoder().encode(dataUrl);
-    return sha256Hex(buf);
+    if (dataUrl.startsWith('photo:')) return dataUrl.slice('photo:'.length);
+    const sample =
+      dataUrl.length > 120000
+        ? `${dataUrl.slice(0, 4096)}|len:${dataUrl.length}|${dataUrl.slice(-4096)}`
+        : dataUrl;
+    return sha256Hex(new TextEncoder().encode(sample));
+  }
+
+  async function addPhotoFromAct(violationTitle, dataUrl, originalRef, syncKey) {
+    const title = String(violationTitle || '').trim();
+    if (!title || !dataUrl) return null;
+    const feature = await extractFeatureFromDataUrl(dataUrl);
+    if (!feature) return null;
+    const photoRef = await ensurePhotoRef(originalRef, dataUrl);
+    if (!photoRef) return null;
+    const hashPart = String(syncKey || '').split('|')[0] || (await hashFromDataUrl(dataUrl));
+    const id = uuid();
+    await saveEntry({
+      id,
+      violationTitle: title,
+      photoRef,
+      feature,
+      source: 'akt',
+      createdAt: new Date().toISOString(),
+      photoHash: hashPart,
+    });
+    return id;
   }
 
   async function addPhoto(violationTitle, dataUrlOrRef, source = 'manual', photoHash = null, originalRef = null) {
@@ -391,18 +437,19 @@ const MlImageService = (() => {
   }
 
   async function loadFromActs(onProgress) {
+    loadFromActsAborted = false;
     const catalog = await GazpromStore.get();
     const registry = await getRegistryViolations();
     const allAkts = collectAllAkts(catalog);
     const totalAkts = allAkts.length;
     let entries = await loadAllEntries();
 
-    const photoKey = (hash, title) => `${hash}|${title}`;
     const jobs = [];
     const currentPhotoSet = new Set();
     let scannedPhotos = 0;
 
     for (const akt of allAkts) {
+      if (isLoadFromActsAborted()) return null;
       for (const violation of akt.violations || []) {
         const photos = violation.photo || [];
         if (!photos.length) continue;
@@ -414,62 +461,72 @@ const MlImageService = (() => {
         if (!normalizedTitle) continue;
         for (const ref of photos) {
           if (!ref) continue;
-          scannedPhotos += 1;
           const originalRef = normalizePhotoRef(ref) || ref;
-          const dataUrl = await resolvePhotoDataUrl(originalRef);
-          if (!dataUrl) continue;
-          const hash = await hashFromDataUrl(dataUrl);
-          currentPhotoSet.add(photoKey(hash, normalizedTitle));
-          jobs.push({ dataUrl, title: normalizedTitle, hash, originalRef });
+          if (!originalRef) continue;
+          scannedPhotos += 1;
+          const key = jobKey(originalRef, normalizedTitle);
+          currentPhotoSet.add(key);
+          jobs.push({ title: normalizedTitle, originalRef, key });
+          if (scannedPhotos % YIELD_EVERY_N === 0) {
+            if (typeof onProgress === 'function') {
+              onProgress(0, totalAkts, 0, null, 0, 0, scannedPhotos, 'scan');
+            }
+            await yieldMain();
+          }
         }
       }
     }
 
     const toRemove = entries.filter(
-      (e) => e.source === 'akt' && !currentPhotoSet.has(photoKey(e.photoHash || '', e.violationTitle))
+      (e) => e.source === 'akt' && !currentPhotoSet.has(entrySyncKey(e))
     );
     for (const entry of toRemove) {
+      if (isLoadFromActsAborted()) return null;
       await deleteEntry(entry.id);
     }
     entries = await loadAllEntries();
 
     const existingSet = new Set(
-      entries
-        .filter((e) => e.source === 'akt')
-        .map((e) => photoKey(e.photoHash || '', e.violationTitle))
+      entries.filter((e) => e.source === 'akt').map((e) => entrySyncKey(e))
     );
-    const jobsToProcess = jobs.filter((j) => !existingSet.has(photoKey(j.hash, j.title)));
+    const jobsToProcess = jobs.filter((j) => !existingSet.has(j.key));
 
     let added = entries.filter((e) => e.source === 'akt').length;
 
     if (typeof onProgress === 'function') {
-      onProgress(0, totalAkts, added);
+      onProgress(0, totalAkts, added, null, 0, jobsToProcess.length, scannedPhotos, 'ready');
     }
 
     if (!jobsToProcess.length) {
       const meta = await readMeta();
       meta.lastTrainingDate = new Date().toISOString();
       await writeMeta(meta);
-      const stats = await getStatistics();
+      const stats = await getStatistics({ skipAccuracy: true });
       if (typeof onProgress === 'function') onProgress(totalAkts, totalAkts, added, stats);
       return stats;
     }
 
     let jobIndex = 0;
     for (const job of jobsToProcess) {
+      if (isLoadFromActsAborted()) return null;
       jobIndex += 1;
-      const id = await addPhoto(job.title, job.dataUrl, 'akt', job.hash, job.originalRef);
-      if (id) added += 1;
-      if (typeof onProgress === 'function') {
-        onProgress(totalAkts, totalAkts, added, null, jobIndex, jobsToProcess.length, scannedPhotos);
+      const dataUrl = await resolvePhotoDataUrl(job.originalRef);
+      if (dataUrl) {
+        const id = await addPhotoFromAct(job.title, dataUrl, job.originalRef, job.key);
+        if (id) added += 1;
       }
-      if (jobIndex % 5 === 0) await new Promise((r) => setTimeout(r, 0));
+      if (typeof onProgress === 'function') {
+        onProgress(totalAkts, totalAkts, added, null, jobIndex, jobsToProcess.length, scannedPhotos, 'import');
+      }
+      if (jobIndex % YIELD_EVERY_N === 0) await yieldMain();
     }
+
+    if (isLoadFromActsAborted()) return null;
 
     const meta = await readMeta();
     meta.lastTrainingDate = new Date().toISOString();
     await writeMeta(meta);
-    const stats = await getStatistics();
+    const stats = await getStatistics({ skipAccuracy: true });
     if (typeof onProgress === 'function') onProgress(totalAkts, totalAkts, added, stats);
     return stats;
   }
@@ -489,12 +546,13 @@ const MlImageService = (() => {
       const preds = await predictFromFeature(query.feature, others, registry);
       evaluated += 1;
       if (preds[0]?.violationTitle === query.violationTitle) correct += 1;
+      if (evaluated % YIELD_EVERY_N === 0) await yieldMain();
     }
     if (!evaluated) return null;
     return correct / evaluated;
   }
 
-  async function getStatistics() {
+  async function getStatistics(options = {}) {
     const entries = await loadAllEntries();
     const meta = await readMeta();
     const violationSet = new Set(entries.map((e) => e.violationTitle));
@@ -505,7 +563,7 @@ const MlImageService = (() => {
     const processedAktsCount = allAkts.filter((a) =>
       (a.violations || []).some((v) => (v.photo || []).length > 0)
     ).length;
-    const accuracy = await computeAccuracy(entries);
+    const accuracy = options.skipAccuracy ? null : await computeAccuracy(entries);
     return {
       totalPhotos: entries.length,
       violationCount: violationSet.size,
@@ -635,7 +693,8 @@ const MlImageService = (() => {
     massAutoBind,
     resolvePhotoDataUrl,
     normalizePhotoRef,
-    collectAllAkts,
+    cancelLoadFromActs,
+    isLoadFromActsAborted,
     invalidateCache,
   };
 })();

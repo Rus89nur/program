@@ -538,29 +538,43 @@ const MlTrainingWizard = (() => {
       const box = document.getElementById('mlLoadProgress');
       const text = document.getElementById('mlLoadProgressText');
       box?.removeAttribute('hidden');
-      await MlImageService.loadFromActs((cur, total, added, _stats, jobIdx, jobTotal, scanned) => {
+      await MlImageService.loadFromActs((cur, total, added, _stats, jobIdx, jobTotal, scanned, phase) => {
         if (loadCancelled) return;
-        if (text) {
-          if (jobTotal > 0) {
-            text.textContent = `Актов: ${total}. Найдено фото: ${scanned || '—'}. Добавлено: ${added} (${jobIdx} из ${jobTotal})`;
-          } else {
-            text.textContent = `Актов: ${total}. Фото в актах: ${scanned || 0}. В базе ML: ${added}`;
-          }
+        if (!text) return;
+        if (phase === 'scan') {
+          text.textContent = `Сканирование актов… найдено ${scanned} фото`;
+          return;
         }
+        if (phase === 'ready') {
+          text.textContent =
+            jobTotal > 0
+              ? `Актов: ${total}. Найдено ${scanned} фото. К загрузке: ${jobTotal}`
+              : `Актов: ${total}. Все ${scanned} фото уже в базе`;
+          return;
+        }
+        if (phase === 'import' && jobTotal > 0) {
+          text.textContent = `Загрузка: ${jobIdx} из ${jobTotal} (в базе: ${added})`;
+          return;
+        }
+        text.textContent = `Актов: ${total}. Фото в базе ML: ${added}`;
       });
       loading = false;
-      if (!loadCancelled) {
-        const s = await MlImageService.getStatistics();
-        GazpromToast.success(
-          s.totalPhotos > 0
-            ? `Загружено: ${s.autoCount} фото из ${s.processedAktsCount} актов`
-            : 'В актах нет фото или они не удалось прочитать'
-        );
+      if (loadCancelled || MlImageService.isLoadFromActsAborted?.()) {
+        GazpromToast.info('Загрузка отменена');
         await paint();
+        return;
       }
+      const s = await MlImageService.getStatistics();
+      GazpromToast.success(
+        s.totalPhotos > 0
+          ? `Загружено: ${s.autoCount} фото из ${s.processedAktsCount} актов`
+          : 'В актах нет фото или они не удалось прочитать'
+      );
+      await paint();
     });
     document.getElementById('mlLoadCancelBtn')?.addEventListener('click', () => {
       loadCancelled = true;
+      MlImageService.cancelLoadFromActs?.();
       loading = false;
       void paint();
     });
