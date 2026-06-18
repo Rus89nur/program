@@ -3597,18 +3597,26 @@
     .preset-picker-host { width: 100%; }
     .preset-card-wrap {
       position: relative;
-      padding: 6px;
-      margin: -6px;
-      z-index: 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
     }
-    .preset-card-wrap:hover,
-    .preset-card-wrap:focus-within {
-      z-index: 3;
+    .preset-card-wrap:hover .preset-card,
+    .preset-card-wrap:focus-within .preset-card {
+      z-index: 1;
     }
     .preset-picker-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-      gap: 14px;
+      gap: 16px;
+      align-items: stretch;
+    }
+    /* Только одно модальное окно шаблонов (акт / справка) — без наложения оверлеев */
+    .template-modal-overlay[hidden] {
+      display: none !important;
+      pointer-events: none;
+      visibility: hidden;
     }
     .preset-card {
       position: relative;
@@ -3684,11 +3692,14 @@
       justify-content: center;
       font-weight: 700;
     }
+    .preset-card-wrap:has(.preset-card__delete) .preset-card {
+      padding-bottom: 34px;
+    }
     .preset-card__delete {
       position: absolute;
-      top: 0;
-      right: 0;
-      z-index: 2;
+      bottom: 8px;
+      right: 8px;
+      z-index: 4;
       width: 24px;
       height: 24px;
       border: 2px solid #fff;

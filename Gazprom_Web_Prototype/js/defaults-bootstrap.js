@@ -1135,30 +1135,38 @@ const DefaultsBootstrap = (() => {
     });
   }
 
+  function syncTemplateModalVisibility(activeKind) {
+    const akt = document.getElementById('aktTemplateModal');
+    const spravka = document.getElementById('spravkaTemplateModal');
+    const showAkt = activeKind === 'akt';
+    const showSpravka = activeKind === 'spravka';
+
+    if (akt) {
+      akt.hidden = !showAkt;
+      akt.setAttribute('aria-hidden', showAkt ? 'false' : 'true');
+    }
+    if (spravka) {
+      spravka.hidden = !showSpravka;
+      spravka.setAttribute('aria-hidden', showSpravka ? 'false' : 'true');
+    }
+
+    if (showAkt || showSpravka) {
+      window.GazpromMobileOverlay?.lock?.();
+    } else {
+      window.GazpromMobileOverlay?.unlock?.();
+    }
+  }
+
   function closeAllTemplateModals() {
-    ['aktTemplateModal', 'spravkaTemplateModal'].forEach((id) => {
-      const modal = document.getElementById(id);
-      if (modal) modal.hidden = true;
-    });
-    window.GazpromMobileOverlay?.unlock?.();
+    syncTemplateModalVisibility(null);
   }
 
   function closeAktTemplateModal() {
-    const modal = document.getElementById('aktTemplateModal');
-    if (!modal) return;
-    modal.hidden = true;
-    if (document.getElementById('spravkaTemplateModal')?.hidden !== false) {
-      window.GazpromMobileOverlay?.unlock?.();
-    }
+    syncTemplateModalVisibility(null);
   }
 
   function closeSpravkaTemplateModal() {
-    const modal = document.getElementById('spravkaTemplateModal');
-    if (!modal) return;
-    modal.hidden = true;
-    if (document.getElementById('aktTemplateModal')?.hidden !== false) {
-      window.GazpromMobileOverlay?.unlock?.();
-    }
+    syncTemplateModalVisibility(null);
   }
 
   async function refreshAktTemplateModal() {
@@ -1201,11 +1209,8 @@ const DefaultsBootstrap = (() => {
   }
 
   function openAktTemplateModal() {
-    closeAllTemplateModals();
-    const modal = document.getElementById('aktTemplateModal');
-    if (!modal) return;
-    modal.hidden = false;
-    window.GazpromMobileOverlay?.lock?.();
+    syncTemplateModalVisibility('akt');
+    if (!document.getElementById('aktTemplateModal')) return;
     void refreshAktTemplateModal().then(() => {
       requestAnimationFrame(() => {
         renderTemplateMarkersGuide();
@@ -1214,11 +1219,8 @@ const DefaultsBootstrap = (() => {
   }
 
   function openSpravkaTemplateModal() {
-    closeAllTemplateModals();
-    const modal = document.getElementById('spravkaTemplateModal');
-    if (!modal) return;
-    modal.hidden = false;
-    window.GazpromMobileOverlay?.lock?.();
+    syncTemplateModalVisibility('spravka');
+    if (!document.getElementById('spravkaTemplateModal')) return;
     void refreshSpravkaTemplateModal().then(() => {
       requestAnimationFrame(() => {
         renderSpravkaTemplateMarkersGuide();
@@ -1313,6 +1315,7 @@ const DefaultsBootstrap = (() => {
     openTemplateModal,
     openAktTemplateModal,
     openSpravkaTemplateModal,
+    closeAllTemplateModals,
     closeAktTemplateModal,
     closeSpravkaTemplateModal,
     bindTemplateModal,

@@ -707,6 +707,9 @@ const TemplateBuilderWizard = (() => {
     activeBlockId = null;
     activeCell = null;
     formatState = { font: 'Times New Roman', sizePt: 12, bold: false, align: 'left' };
+    if (typeof DefaultsBootstrap?.closeAllTemplateModals === 'function') {
+      DefaultsBootstrap.closeAllTemplateModals();
+    }
     el.hidden = false;
     document.body.classList.add('template-builder-open');
     GazpromMobileOverlay?.lock?.();

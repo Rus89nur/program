@@ -622,7 +622,10 @@ function bindTemplateSettings() {
   };
   bindTile('.settings-tile--akt-template', () => DefaultsBootstrap.openAktTemplateModal());
   bindTile('.settings-tile--spravka-template', () => DefaultsBootstrap.openSpravkaTemplateModal());
-  bindTile('.settings-tile--template-builder', () => TemplateBuilderWizard?.open?.());
+  bindTile('.settings-tile--template-builder', () => {
+    DefaultsBootstrap.closeAllTemplateModals?.();
+    TemplateBuilderWizard?.open?.();
+  });
   DefaultsBootstrap.bindTemplateModal();
 }
 
