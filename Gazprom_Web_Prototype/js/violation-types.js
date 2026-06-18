@@ -29,16 +29,28 @@ const ViolationTypes = (() => {
     return getTypes(catalog).find((x) => x.title === t) || null;
   }
 
-  function defaultTypes() {
-    const source =
+  function builtinTypeTitles() {
+    const legacy =
       typeof ViolationTemplates !== 'undefined' && Array.isArray(ViolationTemplates.VIOLATION_TYPES)
         ? ViolationTemplates.VIOLATION_TYPES
         : [];
-    return source.map((title) => ({
-      id: AktUtils.uuid(),
-      title,
-      status: STATUS_ACTIVE,
-    }));
+    const seeds = mappingSeedTypes();
+    return new Set([...legacy, ...seeds].map((t) => String(t || '').trim()).filter(Boolean));
+  }
+
+  /** Однократно убрать зашитые 17+13 видов — дальше только ручное добавление и привязки из реестра. */
+  function purgeBuiltinDefaults(catalog) {
+    if (!catalog || catalog.violationTypesPurgedV2) return false;
+    const builtin = builtinTypeTitles();
+    const kept = getTypes(catalog).filter((t) => !builtin.has(t.title));
+    catalog.violationTypes = kept;
+    catalog.violationTypesPurgedV2 = true;
+    const dismissed = getDismissedMappingSeeds(catalog);
+    for (const title of mappingSeedTypes()) {
+      dismissed.add(String(title || '').trim());
+    }
+    catalog.dismissedMappingSeeds = [...dismissed];
+    return true;
   }
 
   function mappingSeedTypes() {
@@ -146,8 +158,8 @@ const ViolationTypes = (() => {
     if (!catalog) return false;
     let changed = false;
 
-    if (!Array.isArray(catalog.violationTypes) || catalog.violationTypes.length === 0) {
-      catalog.violationTypes = defaultTypes();
+    if (!Array.isArray(catalog.violationTypes)) {
+      catalog.violationTypes = [];
       changed = true;
     }
     if (!catalog.typeMappings || typeof catalog.typeMappings !== 'object') {
@@ -159,7 +171,7 @@ const ViolationTypes = (() => {
       changed = true;
     }
 
-    if (syncMappingSeedTypes(catalog)) changed = true;
+    if (purgeBuiltinDefaults(catalog)) changed = true;
     if (syncOrphanVids(catalog)) changed = true;
     if (syncMappingsFromTypes(catalog)) changed = true;
 
@@ -455,15 +467,31 @@ const ViolationTypes = (() => {
     };
   }
 
-  /** Список названий для select: активные + выбранное (если устаревшее/не в списке). */
+  /** Уникальные виды, уже привязанные в реестре (для выбора в форме нарушения). */
+  function getRegistryVidTitles(catalog) {
+    ensureCatalog(catalog);
+    const titles = new Set();
+    (catalog?.violationRegistry || []).forEach((r) => {
+      const v = resolveVid(catalog, r.vid);
+      if (v) titles.add(v);
+    });
+    return [...titles].sort((a, b) => a.localeCompare(b, 'ru'));
+  }
+
+  /** Список для select: активные виды + привязки из реестра + текущее значение. */
   function getVidSelectTitles(catalog, rawVid) {
     ensureCatalog(catalog);
     const resolved = resolveVid(catalog, rawVid);
-    const active = getActiveTitles(catalog);
-    if (resolved && !active.includes(resolved)) {
-      return [resolved, ...active];
-    }
-    return active;
+    const merged = new Set([...getRegistryVidTitles(catalog), ...getActiveTitles(catalog)]);
+    if (resolved) merged.add(resolved);
+    return [...merged].sort((a, b) => a.localeCompare(b, 'ru'));
+  }
+
+  /** Добавить вид в классификатор при сохранении привязки (если ещё нет). */
+  function ensureActiveType(catalog, title) {
+    const t = String(title || '').trim();
+    if (!t) return null;
+    return addType(catalog, t);
   }
 
   return {
@@ -501,6 +529,9 @@ const ViolationTypes = (() => {
     buildKindStats,
     migrateStoredVids,
     formatVidDisplay,
+    getRegistryVidTitles,
     getVidSelectTitles,
+    ensureActiveType,
+    purgeBuiltinDefaults,
   };
 })();

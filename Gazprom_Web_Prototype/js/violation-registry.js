@@ -53,6 +53,49 @@ const ViolationRegistry = (() => {
     await saveAll(list.filter((x) => x.id !== id));
   }
 
+  function findByFormulation(list, title, subTitle) {
+    const t = String(title || '').trim();
+    const s = String(subTitle || '').trim();
+    if (!t) return null;
+    const exact = (list || []).find(
+      (r) => r.title?.trim() === t && (r.subTitle || '').trim() === s
+    );
+    if (exact) return exact;
+    if (!s) return null;
+    return (list || []).find((r) => r.title?.trim() === t && !(r.subTitle || '').trim()) || null;
+  }
+
+  /**
+   * Сохранить вид нарушения в реестре (для всех будущих актов) и в классификаторе.
+   * Ищет запись по id или по паре «формулировка + ссылка на правило».
+   */
+  async function bindVidToRegistryItem(catalog, { registryId, title, subTitle, vid }) {
+    const normalizedVid = String(vid || '').trim();
+    if (!normalizedVid || !catalog) return false;
+
+    if (typeof ViolationTypes !== 'undefined') {
+      ViolationTypes.ensureActiveType(catalog, normalizedVid);
+    }
+
+    const list = [...(catalog.violationRegistry || [])];
+    let item = registryId ? list.find((r) => r.id === registryId) : null;
+    if (!item) item = findByFormulation(list, title, subTitle);
+    if (!item) {
+      await GazpromStore.set(catalog, { skipPhotoIngest: true, keepDraft: true });
+      GazpromStore.invalidateCache();
+      return false;
+    }
+
+    item.vid = normalizedVid;
+    catalog.violationRegistry = list;
+    if (typeof DefaultsBootstrap !== 'undefined') {
+      DefaultsBootstrap.markRegistryCustom(catalog);
+    }
+    await GazpromStore.set(catalog, { skipPhotoIngest: true, keepDraft: true });
+    GazpromStore.invalidateCache();
+    return true;
+  }
+
   /* ——— SheetJS lazy loader ——— */
 
   async function loadXlsx() {
@@ -231,8 +274,8 @@ const ViolationRegistry = (() => {
     if (vidSelect) {
       const titles =
         catalog && typeof ViolationTypes !== 'undefined'
-          ? ViolationTypes.getActiveTitles(catalog)
-          : ViolationTemplates.VIOLATION_TYPES;
+          ? ViolationTypes.getVidSelectTitles(catalog, '')
+          : [];
       const current = vidSelect.value;
       vidSelect.innerHTML = '<option value="">Все виды нарушений</option>';
       titles.forEach((v) => {
@@ -396,7 +439,7 @@ const ViolationRegistry = (() => {
       const vidTypes =
         catalog && typeof ViolationTypes !== 'undefined'
           ? ViolationTypes.getVidSelectTitles(catalog, item?.vid)
-          : ViolationTemplates.VIOLATION_TYPES;
+          : [];
       const vidOptions = vidTypes
         .map((v) => `<option value="${escHtml(v)}" ${resolvedVid === v ? 'selected' : ''}>${escHtml(v)}</option>`)
         .join('');
@@ -528,6 +571,8 @@ const ViolationRegistry = (() => {
     addItem,
     updateItem,
     deleteItem,
+    findByFormulation,
+    bindVidToRegistryItem,
     importFromExcel,
     exportToExcel,
     loadXlsx,

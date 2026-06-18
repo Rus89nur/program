@@ -340,7 +340,7 @@ const WizardModals = (() => {
     const vidTitles =
       catalog && typeof ViolationTypes !== 'undefined'
         ? ViolationTypes.getVidSelectTitles(catalog, v?.vid)
-        : ViolationTemplates.VIOLATION_TYPES;
+        : [];
     const vidOpts = vidTitles
       .map(
         (t) =>
@@ -417,6 +417,7 @@ const WizardModals = (() => {
       <div class="form-group">
         <label class="form-label">Вид нарушения</label>
         <select class="form-control" id="mvVid"><option value="">— не выбрано —</option>${vidOpts}</select>
+        ${!vidTitles.length ? '<p class="form-hint" style="margin-top:6px;font-size:12px;color:var(--text-muted)">Новые виды — в Настройки → Виды нарушений. При сохранении привязка запишется в реестр для всех актов.</p>' : ''}
       </div>
       <div class="form-group">
         <label class="form-label">Пункт / ссылка на правило</label>
@@ -801,8 +802,15 @@ const WizardModals = (() => {
         ctx.setDraft(draft);
         await ctx.saveDraft();
 
-        if (linkedRegistryItemId && vid) {
-          await ViolationRegistry.updateItem(linkedRegistryItemId, { vid });
+        if (vid) {
+          const catalogForBind = ctx.getCatalog();
+          await ViolationRegistry.bindVidToRegistryItem(catalogForBind, {
+            registryId: linkedRegistryItemId,
+            title,
+            subTitle: urlToPravilo,
+            vid,
+          });
+          await ctx.reloadCatalog();
         }
 
         const saved = (ctx.getDraft()?.violations || []).find((x) => x.id === violationId);
@@ -945,7 +953,7 @@ const WizardModals = (() => {
     const vidTitles =
       catalog && typeof ViolationTypes !== 'undefined'
         ? ViolationTypes.getVidSelectTitles(catalog, '')
-        : ViolationTemplates.VIOLATION_TYPES;
+        : [];
     const vidOpts = vidTitles
       .map((t) => `<option value="${AktUtils.escapeHtml(t)}">${AktUtils.escapeHtml(t)}</option>`)
       .join('');

@@ -34,12 +34,38 @@ describe('ViolationTypes', () => {
     VT = loadModules();
   });
 
-  it('ensureCatalog создаёт типы из шаблона', () => {
+  it('ensureCatalog начинает с пустого классификатора', () => {
     const catalog = { akts: [] };
     VT.ensureCatalog(catalog);
-    expect(catalog.violationTypes.length).toBe(5);
-    expect(VT.getActiveTypes(catalog).length).toBe(3);
-    expect(VT.getPendingTypes(catalog).length).toBe(2);
+    expect(catalog.violationTypes.length).toBe(0);
+    expect(VT.getActiveTypes(catalog).length).toBe(0);
+    expect(catalog.violationTypesPurgedV2).toBe(true);
+  });
+
+  it('purgeBuiltinDefaults удаляет зашитые виды один раз', () => {
+    const catalog = {
+      akts: [],
+      violationTypes: [
+        { id: '1', title: 'Пожарная безопасность', status: 'active' },
+        { id: '2', title: 'Мой вид', status: 'active' },
+      ],
+      typeMappings: {},
+    };
+    VT.purgeBuiltinDefaults(catalog);
+    expect(catalog.violationTypes).toHaveLength(1);
+    expect(catalog.violationTypes[0].title).toBe('Мой вид');
+  });
+
+  it('getVidSelectTitles включает виды из реестра', () => {
+    const catalog = {
+      akts: [],
+      violationTypes: [],
+      violationRegistry: [{ id: 'r1', title: 'Тест', vid: 'Вид из реестра' }],
+      typeMappings: {},
+      violationTypesPurgedV2: true,
+    };
+    const titles = VT.getVidSelectTitles(catalog, '');
+    expect(titles).toContain('Вид из реестра');
   });
 
   it('getVidSelectTitles включает resolved vid вне активного списка', () => {
