@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gazprom-web-v212';
+const CACHE_NAME = 'gazprom-web-v213';
 const IS_LOCALHOST = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
 const STATIC_ASSETS = [
   './manifest.json',
@@ -32,7 +32,7 @@ const STATIC_ASSETS = [
   './js/short-akt-form.js?v=4',
   './js/report-exporter.js?v=2',
   './js/reports-dashboard.js?v=17',
-  './js/app.js?v=153',
+  './js/app.js?v=154',
   './assets/sample-demo.gazprombackup',
   './assets/defaults/manifest.json',
   './assets/defaults/violation-registry.json',
@@ -73,6 +73,12 @@ self.addEventListener('activate', (event) => {
         keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
       ))
       .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+      .then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: 'GAZPROM_SW_ACTIVATED', cache: CACHE_NAME });
+        });
+      })
   );
 });
 
@@ -90,8 +96,24 @@ self.addEventListener('fetch', (event) => {
     request.mode === 'navigate' ||
     request.destination === 'document' ||
     url.pathname.endsWith('/sw.js');
-  if (isFreshShell) {
-    event.respondWith(fetch(request, { cache: 'no-store' }));
+  const isAppAsset =
+    isFreshShell ||
+    request.destination === 'script' ||
+    request.destination === 'style' ||
+    /\.(js|css|html)(\?|$)/i.test(url.pathname);
+
+  if (isAppAsset) {
+    event.respondWith(
+      fetch(request, { cache: 'no-store' })
+        .then((response) => {
+          if (response && response.status === 200 && response.type === 'basic' && !isFreshShell) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
     return;
   }
 

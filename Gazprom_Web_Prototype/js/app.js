@@ -185,7 +185,7 @@ function updateSettingsUpdateBanner(remoteBuild) {
     box.classList.add('settings-app-update--stale');
     if (avail) {
       avail.hidden = false;
-      avail.textContent = `Обновление до web-${remoteBuild}…`;
+      avail.textContent = `Доступна версия web-${remoteBuild}. Нажмите «Обновить приложение».`;
     }
   } else {
     box.classList.remove('settings-app-update--stale');
@@ -194,6 +194,7 @@ function updateSettingsUpdateBanner(remoteBuild) {
 }
 
 async function forceRefreshApp() {
+  clearSilentUpdateState();
   try {
     if ('caches' in window) {
       const keys = await caches.keys();
@@ -236,6 +237,7 @@ async function checkRemoteBuildVersion() {
     const localBuild = String(window.GAZPROM_ASSET_V || '');
     if (remoteBuild && localBuild && remoteBuild !== localBuild) {
       pendingRemoteBuild = remoteBuild;
+      updateSettingsUpdateBanner(remoteBuild);
       await applySilentUpdate(remoteBuild);
       return;
     }
@@ -305,6 +307,12 @@ function registerServiceWorker() {
         console.warn('SW registration failed', err);
       });
     navigator.serviceWorker.addEventListener('controllerchange', handleSwControllerChange);
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data?.type === 'GAZPROM_SW_ACTIVATED' && !shouldDeferAppReload()) {
+        swReloadArmed = true;
+        location.reload();
+      }
+    });
     void checkRemoteBuildVersion();
   });
 }
@@ -773,8 +781,9 @@ function init() {
   CatalogEditor.bindSettingsTiles();
   ViolationTypesEditor.init();
   MlTrainingWizard.init();
-  document.getElementById('appForceRefreshBtn')?.addEventListener('click', () => {
-    void forceRefreshApp();
+  document.getElementById('appForceRefreshBtn')?.addEventListener('click', async () => {
+    GazpromToast.info('Обновление приложения…');
+    await forceRefreshApp();
   });
   syncAppBuildLabel();
   const settingsBuild = document.getElementById('settingsAppBuild');
