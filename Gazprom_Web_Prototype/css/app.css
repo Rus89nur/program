@@ -639,6 +639,14 @@
       cursor: pointer;
       appearance: none;
       -webkit-appearance: none;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      text-align: left;
+      white-space: normal;
+      word-break: break-word;
+      line-height: 1.35;
+      height: auto;
+      max-width: 100%;
     }
     .chip button {
       background: none;

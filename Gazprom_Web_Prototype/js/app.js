@@ -40,6 +40,7 @@ function goTo(screenId, options = {}) {
   if (screenId === 'settings' && tryApplySwUpdate()) return;
 
   const wasWizard = document.getElementById('screen-wizard')?.classList.contains('active');
+  const wasSpravka = document.getElementById('screen-spravka')?.classList.contains('active');
   document.documentElement.classList.add('gazprom-navigated');
   document.querySelectorAll('.nav-item, .bottom-nav-item').forEach((n) => {
     n.classList.toggle('active', n.dataset.screen === screenId);
@@ -58,7 +59,8 @@ function goTo(screenId, options = {}) {
   if (screenId === 'spravka') {
     SpravkaWizard.open({
       spravkaId: options.spravkaId ?? null,
-      preserveStep: options.preserveStep === true,
+      preserveStep: options.preserveStep === true || wasSpravka,
+      preserveDraft: options.preserveDraft === true || wasSpravka,
       forceNew: options.forceNew === true,
     });
   }

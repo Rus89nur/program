@@ -236,7 +236,7 @@ const SpravkaWizard = (() => {
     const selectedChips = (draft.objectsCheck || [])
       .map(
         (o) =>
-          `<span class="chip chip-removable" data-sp-remove-object="${AktUtils.escapeHtml(String(o.id))}" title="Нажмите, чтобы убрать">${AktUtils.escapeHtml(o.title)}${o.subTitle ? ' — ' + AktUtils.escapeHtml(o.subTitle) : ''}</span>`
+          `<button type="button" class="chip chip-removable" data-sp-remove-object="${AktUtils.escapeHtml(String(o.id))}" title="Нажмите, чтобы убрать">${AktUtils.escapeHtml(o.title)}${o.subTitle ? ' — ' + AktUtils.escapeHtml(o.subTitle) : ''}</button>`
       )
       .join('');
 
@@ -244,7 +244,7 @@ const SpravkaWizard = (() => {
       .filter((o) => !selectedIds.has(String(o.id)))
       .map(
         (o) =>
-          `<span class="chip chip-catalog" data-sp-add-object="${AktUtils.escapeHtml(String(o.id))}" title="Нажмите, чтобы добавить">${AktUtils.escapeHtml(o.title)}${o.subTitle ? ' — ' + AktUtils.escapeHtml(o.subTitle) : ''}</span>`
+          `<button type="button" class="chip chip-catalog" data-sp-add-object="${AktUtils.escapeHtml(String(o.id))}" title="Нажмите, чтобы добавить">${AktUtils.escapeHtml(o.title)}${o.subTitle ? ' — ' + AktUtils.escapeHtml(o.subTitle) : ''}</button>`
       )
       .join('');
 
@@ -419,10 +419,26 @@ const SpravkaWizard = (() => {
     renderStepGenerate,
   ];
 
+  const STEP_PANEL_CLASSES = [
+    'wizard-panel--date',
+    'wizard-panel--objects',
+    'wizard-panel--org',
+    'wizard-panel--workers',
+    'wizard-panel--violations',
+    'wizard-panel--conclusions',
+    'wizard-panel--generate',
+  ];
+
   function renderPanel() {
     const host = panelsHost();
     if (!host) return;
-    host.innerHTML = `<div class="card wizard-panel-active">${STEP_RENDERERS[step]()}</div>`;
+    const panelClass = STEP_PANEL_CLASSES[step] || '';
+    try {
+      host.innerHTML = `<div class="card wizard-panel-active ${panelClass}">${STEP_RENDERERS[step]()}</div>`;
+    } catch (err) {
+      console.error(err);
+      host.innerHTML = `<div class="card wizard-panel-active"><p style="color:red">Ошибка отрисовки: ${AktUtils.escapeHtml(err.message || String(err))}</p></div>`;
+    }
     bindPanelEvents();
     syncViolFab();
   }
@@ -443,6 +459,7 @@ const SpravkaWizard = (() => {
   }
 
   function addObjectById(id) {
+    if (!draft || !catalog) return;
     commitObjectDetails();
     const obj = findCatalogObject(id);
     if (!obj) {
@@ -458,11 +475,28 @@ const SpravkaWizard = (() => {
   }
 
   function removeObjectById(id) {
+    if (!draft) return;
     commitObjectDetails();
     draft.objectsCheck = (draft.objectsCheck || []).filter((o) => String(o.id) !== String(id));
     scheduleAutosave();
     render();
     updateSummary();
+  }
+
+  function handleSpravkaObjectClick(e) {
+    const addChip = e.target.closest('[data-sp-add-object]');
+    if (addChip) {
+      e.preventDefault();
+      e.stopPropagation();
+      addObjectById(addChip.getAttribute('data-sp-add-object'));
+      return;
+    }
+    const removeChip = e.target.closest('[data-sp-remove-object]');
+    if (removeChip) {
+      e.preventDefault();
+      e.stopPropagation();
+      removeObjectById(removeChip.getAttribute('data-sp-remove-object'));
+    }
   }
 
   function addWorkerFromOrg(orgId) {
@@ -497,10 +531,18 @@ const SpravkaWizard = (() => {
     });
 
     panelsHost()?.querySelectorAll('[data-sp-add-object]').forEach((chip) => {
-      chip.addEventListener('click', () => addObjectById(chip.dataset.spAddObject));
+      chip.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        addObjectById(chip.getAttribute('data-sp-add-object'));
+      });
     });
     panelsHost()?.querySelectorAll('[data-sp-remove-object]').forEach((chip) => {
-      chip.addEventListener('click', () => removeObjectById(chip.dataset.spRemoveObject));
+      chip.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        removeObjectById(chip.getAttribute('data-sp-remove-object'));
+      });
     });
 
     document.getElementById('spWorkerAddOrg')?.addEventListener('click', () => {
@@ -601,6 +643,8 @@ const SpravkaWizard = (() => {
   function bindChrome() {
     if (chromeBound) return;
     chromeBound = true;
+    const root = document.getElementById('spravkaRoot');
+    root?.addEventListener('click', handleSpravkaObjectClick);
     document.getElementById('spravkaPrev')?.addEventListener('click', async () => {
       if (step === 0) return;
       commitStep(step);
@@ -676,7 +720,7 @@ const SpravkaWizard = (() => {
       } else {
         draft = SpravkaUtils.clone(found);
       }
-    } else {
+    } else if (!options.preserveDraft || !draft) {
       initDraft();
     }
     draft.objectsCheck = SpravkaUtils.ensureObjectFields(draft.objectsCheck);
