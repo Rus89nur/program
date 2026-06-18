@@ -10,6 +10,16 @@
       "builtin": true
     }
   ],
+  "spravkaTemplates": [
+    {
+      "id": "builtin-spravka-v1",
+      "name": "Шаблон_справки_ПБ.docx",
+      "label": "Стандартный",
+      "subtitle": "Справка по производственной безопасности",
+      "docx": "./assets/defaults/Шаблон_справки_ПБ.docx",
+      "builtin": true
+    }
+  ],
   "registries": [
     {
       "id": "builtin-registry-v1",

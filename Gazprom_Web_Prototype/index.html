@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>window.GAZPROM_ASSET_V = '219';</script>
+  <script>window.GAZPROM_ASSET_V = '222';</script>
   <script>
   (function () {
     if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
@@ -144,6 +144,7 @@
     <input type="file" id="mvPhotoInput" class="gazprom-file-input" accept="image/*,.heic,.heif" multiple tabindex="-1" aria-hidden="true">
     <input type="file" id="vrPickerImportInput" class="gazprom-file-input" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" tabindex="-1" aria-hidden="true">
     <input type="file" id="wordTemplateInput" class="gazprom-file-input" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" tabindex="-1" aria-hidden="true">
+    <input type="file" id="spravkaTemplateInput" class="gazprom-file-input" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" tabindex="-1" aria-hidden="true">
     <input type="file" id="mlMassInput" class="gazprom-file-input" accept="image/*,.heic,.heif" multiple tabindex="-1" aria-hidden="true">
     <input type="file" id="mlTestInput" class="gazprom-file-input" accept="image/*,.heic,.heif" multiple tabindex="-1" aria-hidden="true">
   </div>
@@ -176,7 +177,7 @@
       </button>
       <div class="sidebar-footer" id="sidebarAppBuild" aria-label="Версия веб-приложения">
         <span class="sidebar-footer__brand">программа НЕТ</span>
-        Сборка: <span data-app-build>web-219</span> · PWA
+        Сборка: <span data-app-build>web-222</span> · PWA
       </div>
     </aside>
 
@@ -247,7 +248,7 @@
             <div class="stat-label">Черновиков</div>
           </div>
         </div>
-        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-219</p>
+        <p class="app-build-id" id="appBuildId" aria-label="Версия веб-приложения">Сборка: web-222</p>
       </section>
 
       <section class="screen" id="screen-wizard">
@@ -622,13 +623,13 @@
           <div class="card settings-tile settings-tile--violation-types" role="button" tabindex="0"><div class="icon">🏷️</div><h4>Виды нарушений</h4><p>Классификатор и миграция</p><span class="tile-count" data-vt-unmapped></span></div>
           <div class="card settings-tile" data-catalog="predstavitely" role="button" tabindex="0"><div class="icon">👤</div><h4>Представители</h4><p>Контактные лица</p><span class="tile-count"></span></div>
           <div class="card settings-tile settings-tile--schedule" role="button" tabindex="0"><div class="icon">📅</div><h4>График</h4><p>План проверок</p><span class="tile-count"></span></div>
-          <div class="card settings-tile settings-tile--template" role="button" tabindex="0"><div class="icon">📄</div><h4>Шаблон акта</h4><p>Word-шаблон</p><span class="tile-count" data-template-status></span></div>
+          <div class="card settings-tile settings-tile--template" role="button" tabindex="0"><div class="icon">📄</div><h4>Шаблоны Word</h4><p>Акт и справка по ПБ</p><span class="tile-count" data-template-status></span></div>
           <div class="card settings-tile settings-tile--backup" role="button" tabindex="0"><div class="icon">💾</div><h4>Резервные копии</h4><p>Экспорт и управление</p></div>
           <div class="card settings-tile settings-tile--trash" role="button" tabindex="0"><div class="icon">🗑</div><h4>Корзина</h4><p>Удалённые акты</p><span class="tile-count" data-trash-count></span></div>
           <div class="card settings-tile settings-tile--ml" role="button" tabindex="0"><div class="icon">🤖</div><h4>Обучение модели</h4><p>ML по фото нарушений</p><span class="tile-count" data-ml-photos></span></div>
         </div>
         <div class="card settings-app-update" id="settingsAppUpdate">
-          <p class="settings-app-update__label">Версия приложения: <strong id="settingsAppBuild">web-219</strong></p>
+          <p class="settings-app-update__label">Версия приложения: <strong id="settingsAppBuild">web-222</strong></p>
           <p class="settings-app-update__avail" id="settingsAppUpdateAvail" hidden></p>
           <p class="settings-app-update__hint">Если после обновления на сайте ничего не меняется — нажмите кнопку ниже (сбросит кэш PWA).</p>
           <button type="button" class="btn-secondary btn-sm" id="appForceRefreshBtn">Обновить приложение</button>
@@ -747,25 +748,40 @@
     </div>
   </div>
 
-  <!-- ——— Модал: шаблон акта ——— -->
+  <!-- ——— Модал: шаблоны Word ——— -->
   <div id="templateModal" class="catalog-form-overlay" hidden>
     <div class="catalog-form-dialog card backup-modal-dialog">
-      <h3>📄 Шаблон акта (Word)</h3>
+      <h3>📄 Шаблоны Word</h3>
 
       <div class="backup-modal-section">
         <p id="templateModalStatus" class="defaults-status defaults-status--ok">Загрузка…</p>
+        <p id="spravkaTemplateModalStatus" class="defaults-status defaults-status--ok" style="margin-top:8px">Загрузка…</p>
       </div>
 
       <div class="backup-modal-section">
-        <h4 class="backup-modal-section-title">Выбор шаблона</h4>
-        <p class="backup-import-hint">Нажмите на карточку, чтобы выбрать шаблон. «Создать шаблон» — готовый .docx с маркерами и памяткой; файл сразу откроется в Word.</p>
+        <h4 class="backup-modal-section-title">Шаблон акта</h4>
+        <p class="backup-import-hint">Нажмите на карточку, чтобы выбрать шаблон акта. «Создать шаблон» — готовый .docx с маркерами и памяткой; файл сразу откроется в Word.</p>
         <div id="templatePresetPicker" class="preset-picker-host"></div>
       </div>
 
       <div class="backup-modal-section template-markers-guide">
-        <h4 class="backup-modal-section-title">Маркеры в Word</h4>
-        <p class="backup-import-hint">Вставьте в документ текстовые маркеры (как в таблице ниже) — при генерации акта они заменятся данными из мастера и справочников.</p>
+        <h4 class="backup-modal-section-title">Маркеры акта (хештеги)</h4>
+        <p class="backup-import-hint">Вставьте в документ текстовые маркеры — при генерации акта они заменятся данными из мастера.</p>
         <div id="templateMarkersGuide" class="template-markers-guide-host"></div>
+      </div>
+
+      <hr class="backup-modal-divider">
+
+      <div class="backup-modal-section">
+        <h4 class="backup-modal-section-title">Шаблон справки по ПБ</h4>
+        <p class="backup-import-hint">По умолчанию — встроенный «Шаблон_справки_ПБ.docx». Можно создать пустой шаблон с маркерами или загрузить свой .docx.</p>
+        <div id="spravkaTemplatePresetPicker" class="preset-picker-host"></div>
+      </div>
+
+      <div class="backup-modal-section template-markers-guide">
+        <h4 class="backup-modal-section-title">Маркеры справки (хештеги)</h4>
+        <p class="backup-import-hint">Маркеры для справки по производственной безопасности — DateReview, ObjectsTitles, SubcontractorsList и др.</p>
+        <div id="spravkaTemplateMarkersGuide" class="template-markers-guide-host"></div>
       </div>
 
       <div class="catalog-form-actions">
@@ -862,27 +878,29 @@
   <script src="js/mobile-overlay.js?v=35"></script>
   <script src="js/akt-utils.js?v=32"></script>
   <script src="js/violation-search.js?v=3"></script>
+  <script src="js/photo-lightbox.js?v=1"></script>
+  <script src="js/wizard-violations-ui.js?v=2"></script>
   <script src="js/violation-templates.js?v=21"></script>
   <script src="js/violation-types.js?v=6"></script>
   <script src="js/violation-types-editor.js?v=12"></script>
   <script src="js/ml-image-service.js?v=6"></script>
   <script src="js/ml-training-wizard.js?v=10"></script>
-  <script src="js/doc-generator.js?v=40"></script>
-  <script src="js/defaults-bootstrap.js?v=9"></script>
+  <script src="js/doc-generator.js?v=42"></script>
+  <script src="js/defaults-bootstrap.js?v=10"></script>
   <script src="js/violation-registry.js?v=13"></script>
   <script src="js/catalog-service.js?v=2"></script>
-  <script src="js/backup-import.js?v=31"></script>
-  <script src="js/spravka-utils.js?v=3"></script>
+  <script src="js/backup-import.js?v=32"></script>
+  <script src="js/spravka-utils.js?v=4"></script>
   <script src="js/akt-search.js"></script>
-  <script src="js/ui-bindings.js?v=35"></script>
+  <script src="js/ui-bindings.js?v=36"></script>
   <script src="js/catalog-editor.js?v=13"></script>
   <script src="js/schedule-editor.js?v=2"></script>
   <script src="js/elimination-editor.js?v=12"></script>
   <script src="js/report-exporter.js?v=2"></script>
   <script src="js/reports-dashboard.js?v=17"></script>
   <script src="js/wizard-modals.js?v=44"></script>
-  <script src="js/wizard.js?v=57"></script>
-  <script src="js/spravka-wizard.js?v=8"></script>
+  <script src="js/wizard.js?v=58"></script>
+  <script src="js/spravka-wizard.js?v=11"></script>
   <script src="js/short-akt-form.js?v=4"></script>
   <script src="js/app.js?v=158"></script>
 </body>

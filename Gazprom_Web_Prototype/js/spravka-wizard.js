@@ -11,6 +11,7 @@ const SpravkaWizard = (() => {
   let autosaveTimer = null;
   let dirty = false;
   let violSearchQuery = '';
+  let quickAddOrgTarget = 'subcontractor';
 
   const panelsHost = () => document.getElementById('spravkaPanels');
   const emptyEl = () => document.getElementById('spravkaEmpty');
@@ -32,7 +33,7 @@ const SpravkaWizard = (() => {
       setDraft: (d) => { draft = d; },
       getCatalog: () => catalog,
       reloadCatalog,
-      openLightbox: () => {},
+      openLightbox: (src, gallery) => PhotoLightbox.open(src, gallery),
       saveDraft,
       onUpdate: () => {
         render();
@@ -42,6 +43,10 @@ const SpravkaWizard = (() => {
         if (type === 'object' && item?.id) {
           addObjectById(item.id);
         }
+        if (type === 'org' && item?.id) {
+          if (quickAddOrgTarget === 'worker') addWorkerFromOrg(item.id);
+          else addSubcontractorById(item.id);
+        }
       },
     });
   }
@@ -50,7 +55,20 @@ const SpravkaWizard = (() => {
     const editable = SpravkaUtils.getEditableSpravka(catalog);
     draft = editable ? SpravkaUtils.clone(editable) : SpravkaUtils.createEmpty(catalog);
     draft.objectsCheck = SpravkaUtils.ensureObjectFields(draft.objectsCheck);
-    draft.workerRows = (draft.workerRows || []).map(SpravkaUtils.normalizeWorkerRow);
+    draft.workerRows = (draft.workerRows || []).map((row) => {
+      const normalized = SpravkaUtils.normalizeWorkerRow(row);
+      if (!normalized.orgId && normalized.orgName) {
+        const org = SpravkaUtils.matchOrganizationByTitle(catalog?.organizations, normalized.orgName);
+        if (org) {
+          normalized.orgId = String(org.id);
+          normalized.orgName = org.title;
+        }
+      } else if (normalized.orgId) {
+        normalized.orgId = String(normalized.orgId);
+      }
+      return normalized;
+    });
+    draft.violationFormat = SpravkaUtils.normalizeViolationFormat(draft.violationFormat);
     violSearchQuery = '';
   }
 
@@ -100,7 +118,7 @@ const SpravkaWizard = (() => {
     }
     if (s === 1) commitObjectDetails();
     if (s === 2) {
-      draft.subcontractorsList = document.getElementById('spSubcontractors')?.value || '';
+      /* subcontractorsList обновляется при добавлении/удалении чипов */
     }
     if (s === 3) commitWorkerRows();
     if (s === 5) {
@@ -121,6 +139,53 @@ const SpravkaWizard = (() => {
     return getCatalogObjects().find((o) => String(o.id) === key);
   }
 
+  function getCatalogOrganizations() {
+    return (catalog?.organizations || []).map((o, index) => {
+      const id = o.id || o._id || `legacy-org-${index}`;
+      return { ...o, id: String(id) };
+    });
+  }
+
+  function findCatalogOrganization(id) {
+    const key = String(id || '');
+    return getCatalogOrganizations().find((o) => String(o.id) === key);
+  }
+
+  function getSelectedSubcontractorTitles() {
+    return SpravkaUtils.parseSubcontractorsList(draft.subcontractorsList);
+  }
+
+  function setSelectedSubcontractorTitles(titles) {
+    draft.subcontractorsList = SpravkaUtils.formatSubcontractorsList(titles);
+  }
+
+  function addSubcontractorById(id) {
+    const org = findCatalogOrganization(id);
+    if (!org) return;
+    const titles = getSelectedSubcontractorTitles();
+    if (titles.includes(org.title)) {
+      GazpromToast.info('Организация уже в списке субподрядчиков');
+      return;
+    }
+    titles.push(org.title);
+    setSelectedSubcontractorTitles(titles);
+    scheduleAutosave();
+    render();
+  }
+
+  function removeSubcontractorByTitle(title) {
+    const titles = getSelectedSubcontractorTitles().filter((t) => t !== title);
+    setSelectedSubcontractorTitles(titles);
+    scheduleAutosave();
+    render();
+  }
+
+  function removeSubcontractorById(id) {
+    const org = findCatalogOrganization(id);
+    if (!org) return;
+    removeSubcontractorByTitle(org.title);
+  }
+
   function commitObjectDetails() {
     (draft.objectsCheck || []).forEach((obj) => {
       const codeEl = document.getElementById(`spObjCode_${obj.id}`);
@@ -137,8 +202,8 @@ const SpravkaWizard = (() => {
       const existing = (draft.workerRows || []).find((r) => r.id === id);
       rows.push(SpravkaUtils.normalizeWorkerRow({
         id,
-        orgId: existing?.orgId || '',
-        orgName: rowEl.querySelector('[data-sp-worker-name]')?.value?.trim() || '',
+        orgId: existing?.orgId || rowEl.dataset.spWorkerOrg || '',
+        orgName: existing?.orgName || '',
         pbCount: rowEl.querySelector('[data-sp-worker-pb]')?.value,
         workersCount: rowEl.querySelector('[data-sp-worker-count]')?.value,
       }));
@@ -196,6 +261,53 @@ const SpravkaWizard = (() => {
       if (row) row.textContent = val;
     });
   }
+
+  const violUi = WizardViolationsUI.create({
+    ids: {
+      list: 'spViolList',
+      search: 'spViolSearch',
+      badge: 'spViolCountBadge',
+      photoSection: 'spViolPhotoSection',
+      photoGrid: 'spPhotoGrid',
+    },
+    editClass: 'sp-viol-edit',
+    delClass: 'sp-viol-del',
+    getDraft: () => draft,
+    getViolSearchQuery: () => violSearchQuery,
+    setViolSearchQuery: (q) => { violSearchQuery = q; },
+    getStep: () => step,
+    violationsStep: 4,
+    panelsHost,
+    scheduleAutosave,
+    render,
+    updateSummary,
+    openLightbox: (src, gallery) => PhotoLightbox.open(src, gallery),
+    docLabel: 'справки',
+    photoSectionTitle: 'Все фото справки',
+    getViolationFormat: () => draft?.violationFormat,
+    formatViolationTitle: (v) => SpravkaUtils.formatViolationText(v, draft?.violationFormat),
+    renderStepExtra: () => {
+      const fmt = SpravkaUtils.normalizeViolationFormat(draft?.violationFormat);
+      const mestoClass = fmt.includeMesto ? 'btn-org-filter-active' : '';
+      const ruleClass = fmt.includeRuleRef ? 'btn-org-filter-active' : '';
+      return `
+        <div class="spravka-viol-format-toolbar" style="margin-bottom:14px">
+          <p class="wizard-hint" style="margin:0 0 8px">Как нарушения попадут в текст Word-документа:</p>
+          <div class="pred-filter-row" style="flex-wrap:wrap;gap:8px">
+            <button type="button" class="btn-org-filter ${mestoClass}" data-sp-viol-fmt="mesto" aria-pressed="${fmt.includeMesto}">
+              Место нарушения
+            </button>
+            <button type="button" class="btn-org-filter ${ruleClass}" data-sp-viol-fmt="rule" aria-pressed="${fmt.includeRuleRef}">
+              Пункт правил (в скобках)
+            </button>
+          </div>
+          <p class="wizard-hint" style="margin:8px 0 0;font-size:12px">
+            Пример: «Котельная №2: Не проведён инструктаж (п. 4.1 СП 12-135-2003)»
+          </p>
+        </div>
+      `;
+    },
+  });
 
   function renderStepDate() {
     return `
@@ -270,19 +382,131 @@ const SpravkaWizard = (() => {
     `;
   }
 
+  function formatOrgChipLabel(o) {
+    return `${AktUtils.escapeHtml(o.title)}${o.shortTitle ? ' — ' + AktUtils.escapeHtml(o.shortTitle) : ''}`;
+  }
+
+  function resolveSubcontractorSelection() {
+    const orgs = getCatalogOrganizations();
+    const titles = getSelectedSubcontractorTitles();
+    const selectedOrgIds = [];
+    const customTitles = [];
+    titles.forEach((title) => {
+      const org = SpravkaUtils.matchOrganizationByTitle(orgs, title);
+      if (org) selectedOrgIds.push(String(org.id));
+      else customTitles.push(title);
+    });
+    return { selectedOrgIds, customTitles };
+  }
+
+  function renderOrganizationChipPicker({
+    orgs,
+    selectedOrgIds,
+    customTitles = [],
+    chipsId,
+    newBtnId,
+    emptyHint,
+    addAttr,
+    removeAttr,
+    removeTitleAttr,
+  }) {
+    const selectedSet = new Set(selectedOrgIds.map(String));
+    const selectedFromCatalog = orgs.filter((o) => selectedSet.has(String(o.id)));
+
+    const selectedChips = [
+      ...selectedFromCatalog.map(
+        (o) =>
+          `<button type="button" class="chip chip-removable" ${removeAttr}="${AktUtils.escapeHtml(o.id)}" title="Нажмите, чтобы убрать">${formatOrgChipLabel(o)}</button>`
+      ),
+      ...(removeTitleAttr
+        ? customTitles.map(
+            (t) =>
+              `<button type="button" class="chip chip-removable" ${removeTitleAttr}="${AktUtils.escapeHtml(t)}" title="Нажмите, чтобы убрать">${AktUtils.escapeHtml(t)}</button>`
+          )
+        : []),
+    ].join('');
+
+    const catalogChips = orgs
+      .filter((o) => !selectedSet.has(String(o.id)))
+      .map(
+        (o) =>
+          `<button type="button" class="chip chip-catalog" ${addAttr}="${AktUtils.escapeHtml(o.id)}" title="Нажмите, чтобы добавить">${formatOrgChipLabel(o)}</button>`
+      )
+      .join('');
+
+    const catalogBlock = orgs.length
+      ? `<div class="chip-list">${catalogChips || '<span class="wizard-hint">Все из справочника уже добавлены</span>'}</div>`
+      : '<p class="wizard-hint">Справочник организаций пуст — добавьте через кнопку справа.</p>';
+
+    return `
+      <div class="chip-list" id="${chipsId}">${selectedChips || `<span class="wizard-hint">${emptyHint}</span>`}</div>
+      <div class="commission-divider"></div>
+      <div class="commission-catalog-section">
+        <div class="commission-catalog-header">
+          <span class="commission-catalog-label">Выбрать из справочника</span>
+          <button type="button" class="btn-ghost" id="${newBtnId}">+ Новая организация</button>
+        </div>
+        ${catalogBlock}
+      </div>
+    `;
+  }
+
+  function bindOrgChipHandlers({ addAttr, removeAttr, removeTitleAttr, onAdd, onRemove, onRemoveTitle, newBtnId, quickAddTarget }) {
+    document.getElementById(newBtnId)?.addEventListener('click', () => {
+      quickAddOrgTarget = quickAddTarget;
+      WizardModals.openQuickAdd('org');
+    });
+    panelsHost()?.querySelectorAll(`[${addAttr}]`).forEach((chip) => {
+      chip.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onAdd(chip.getAttribute(addAttr));
+      });
+    });
+    panelsHost()?.querySelectorAll(`[${removeAttr}]`).forEach((chip) => {
+      chip.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onRemove(chip.getAttribute(removeAttr));
+      });
+    });
+    if (removeTitleAttr && onRemoveTitle) {
+      panelsHost()?.querySelectorAll(`[${removeTitleAttr}]`).forEach((chip) => {
+        chip.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onRemoveTitle(chip.getAttribute(removeTitleAttr));
+        });
+      });
+    }
+  }
+
   function renderStepSubcontractors() {
+    const orgs = getCatalogOrganizations();
+    const { selectedOrgIds, customTitles } = resolveSubcontractorSelection();
+
     return `
       <h3>Основные субподрядчики</h3>
-      <p class="wizard-hint">Список субподрядчиков на объектах (через запятую или с новой строки)</p>
-      <textarea class="form-control" id="spSubcontractors" rows="5" placeholder="ООО «ГСП-1», ООО «ГСП-6», ООО «ССК «Газрегион»…">${AktUtils.escapeHtml(draft.subcontractorsList || '')}</textarea>
+      <p class="wizard-hint">Выберите субподрядчиков из справочника организаций</p>
+      ${renderOrganizationChipPicker({
+        orgs,
+        selectedOrgIds,
+        customTitles,
+        chipsId: 'spSubcontractorChips',
+        newBtnId: 'spNewSubcontractorBtn',
+        emptyHint: 'Выберите субподрядчиков из справочника',
+        addAttr: 'data-sp-add-subcontractor',
+        removeAttr: 'data-sp-remove-subcontractor',
+        removeTitleAttr: 'data-sp-remove-subcontractor-title',
+      })}
     `;
   }
 
   function renderWorkerRowHtml(row, idx) {
     return `
-      <tr data-sp-worker-row="${row.id}">
+      <tr data-sp-worker-row="${row.id}" data-sp-worker-org="${AktUtils.escapeHtml(String(row.orgId || ''))}">
         <td>${idx + 1}.</td>
-        <td><input class="form-control form-control--sm" data-sp-worker-name value="${AktUtils.escapeHtml(row.orgName)}" placeholder="Организация"></td>
+        <td>${AktUtils.escapeHtml(row.orgName)}</td>
         <td><input class="form-control form-control--sm" type="number" min="0" data-sp-worker-pb value="${row.pbCount ?? ''}" placeholder="0"></td>
         <td><input class="form-control form-control--sm" type="number" min="0" data-sp-worker-count value="${row.workersCount ?? ''}" placeholder="0"></td>
         <td><button type="button" class="btn-ghost btn-sm" data-sp-worker-del aria-label="Удалить">🗑</button></td>
@@ -291,24 +515,14 @@ const SpravkaWizard = (() => {
   }
 
   function renderStepWorkers() {
+    const orgs = getCatalogOrganizations();
     const rows = draft.workerRows || [];
     const totals = SpravkaUtils.workerTotals(rows);
-    const orgOptions = (catalog.organizations || [])
-      .map((o) => `<option value="${AktUtils.escapeHtml(o.id)}">${AktUtils.escapeHtml(o.title)}</option>`)
-      .join('');
+    const selectedOrgIds = rows.map((r) => r.orgId).filter(Boolean);
 
-    return `
-      <h3>Работники на объекте</h3>
-      <p class="wizard-hint">Укажите численность по организациям: специалисты по ПБ и работники</p>
-      <div class="spravka-workers-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-        <select class="form-control" id="spWorkerOrgPick" style="max-width:320px">
-          <option value="">— Организация из справочника —</option>
-          ${orgOptions}
-        </select>
-        <button type="button" class="btn-secondary btn-sm" id="spWorkerAddOrg">+ Из справочника</button>
-        <button type="button" class="btn-ghost btn-sm" id="spWorkerAddBlank">+ Пустая строка</button>
-      </div>
-      <div class="card card--flush">
+    const tableBlock = rows.length
+      ? `
+      <div class="card card--flush" style="margin-top:16px">
         <table class="list-table spravka-workers-table">
           <thead>
             <tr>
@@ -330,48 +544,22 @@ const SpravkaWizard = (() => {
             </tr>
           </tfoot>
         </table>
-      </div>
-    `;
-  }
-
-  function filterViolations(list, query) {
-    const q = String(query || '').trim().toLowerCase();
-    if (!q) return list;
-    return list.filter((v) =>
-      [v.title, v.mesto, v.urlToPravilo, v.vid, v.formulaFromRules]
-        .some((part) => String(part || '').toLowerCase().includes(q))
-    );
-  }
-
-  function renderViolCard(v, num) {
-    return `
-      <div class="viol-card" data-violation-id="${v.id}" role="button" tabindex="0">
-        <div class="viol-card-num">${num}</div>
-        <div class="viol-card-body">
-          <div class="viol-card-title">${AktUtils.escapeHtml(v.title)}</div>
-          <div class="viol-card-meta"><span class="viol-card-mesto">📍 ${v.mesto ? AktUtils.escapeHtml(v.mesto) : '—'}</span></div>
-        </div>
-        <div class="viol-card-actions">
-          <button type="button" class="btn-ghost btn-sm sp-viol-edit" data-vid="${v.id}" title="Редактировать">✏️</button>
-          <button type="button" class="btn-ghost btn-sm sp-viol-del" data-vid="${v.id}" title="Удалить">🗑</button>
-        </div>
-      </div>
-    `;
-  }
-
-  function renderStepViolations() {
-    const all = draft.violations || [];
-    const filtered = filterViolations(all, violSearchQuery);
-    const cards = filtered.length
-      ? filtered.map((v) => renderViolCard(v, all.indexOf(v) + 1)).join('')
-      : `<div class="viol-empty"><div class="viol-empty-text">${all.length ? 'Ничего не найдено' : 'Нарушения не добавлены'}</div></div>`;
+      </div>`
+      : '';
 
     return `
-      <div class="viol-step-header">
-        <h3 style="margin:0">Нарушения <span class="viol-total-badge">${all.length}</span></h3>
-      </div>
-      ${all.length ? `<input type="search" class="form-control" id="spViolSearch" placeholder="🔍 Поиск…" value="${AktUtils.escapeHtml(violSearchQuery)}">` : ''}
-      <div class="viol-cards-list" id="spViolList">${cards}</div>
+      <h3>Работники на объекте</h3>
+      <p class="wizard-hint">Выберите организации из справочника и укажите численность: специалисты по ПБ и работники</p>
+      ${renderOrganizationChipPicker({
+        orgs,
+        selectedOrgIds,
+        chipsId: 'spWorkerChips',
+        newBtnId: 'spNewWorkerOrgBtn',
+        emptyHint: 'Выберите организации из справочника',
+        addAttr: 'data-sp-add-worker-org',
+        removeAttr: 'data-sp-remove-worker-org',
+      })}
+      ${tableBlock}
     `;
   }
 
@@ -401,6 +589,10 @@ const SpravkaWizard = (() => {
         <div>✓ Нарушений: ${(draft.violations || []).length}</div>
         <div>✓ Статус: ${isDone ? '<span class="badge badge-green">Готова</span>' : '<span class="badge badge-orange">Черновик</span>'}</div>
       </div>
+      <div id="spSpravkaTemplateStatus" style="margin-bottom:16px;padding:12px 14px;border-radius:var(--radius);font-size:13px;background:var(--primary-soft);">
+        <span id="spSpravkaTemplateStatusText">⏳ Проверка шаблона…</span>
+        <button type="button" class="btn-ghost btn-sm" style="margin-left:12px;" data-go="settings">Открыть настройки</button>
+      </div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:20px">
         <button type="button" class="btn-primary" id="spGenerateDocx" style="font-size:15px;padding:12px 24px;">📄 Сформировать справку Word</button>
         <button type="button" class="btn-secondary" id="spSaveDraft">💾 Сохранить черновик</button>
@@ -414,7 +606,7 @@ const SpravkaWizard = (() => {
     renderStepObjects,
     renderStepSubcontractors,
     renderStepWorkers,
-    renderStepViolations,
+    () => violUi.renderStepViolations(),
     renderStepRemarks,
     renderStepGenerate,
   ];
@@ -441,6 +633,7 @@ const SpravkaWizard = (() => {
     }
     bindPanelEvents();
     syncViolFab();
+    violUi.hydrateViolationThumbs();
   }
 
   function render() {
@@ -500,34 +693,60 @@ const SpravkaWizard = (() => {
   }
 
   function addWorkerFromOrg(orgId) {
-    const org = (catalog.organizations || []).find((o) => o.id === orgId);
+    commitWorkerRows();
+    const org = findCatalogOrganization(orgId);
     if (!org) return;
-    if ((draft.workerRows || []).some((r) => r.orgId === orgId)) {
+    const key = String(org.id);
+    if ((draft.workerRows || []).some((r) => String(r.orgId) === key)) {
       GazpromToast.info('Организация уже в таблице');
       return;
     }
     draft.workerRows = [...(draft.workerRows || []), SpravkaUtils.normalizeWorkerRow({
-      orgId: org.id,
+      orgId: key,
       orgName: org.title,
     })];
     scheduleAutosave();
     render();
+    updateSummary();
   }
 
-  function addBlankWorkerRow() {
-    draft.workerRows = [...(draft.workerRows || []), SpravkaUtils.normalizeWorkerRow({ orgName: '' })];
+  function removeWorkerByOrgId(orgId) {
+    commitWorkerRows();
+    draft.workerRows = (draft.workerRows || []).filter((r) => String(r.orgId) !== String(orgId));
     scheduleAutosave();
     render();
+    updateSummary();
   }
 
   function bindPanelEvents() {
     panelsHost()?.querySelectorAll('input, select, textarea').forEach((el) => {
+      if (el.id === 'spViolSearch') return;
       el.addEventListener('input', scheduleAutosave);
       el.addEventListener('change', scheduleAutosave);
     });
 
     document.getElementById('spNewObjectBtn')?.addEventListener('click', () => {
       WizardModals.openQuickAdd('object');
+    });
+
+    bindOrgChipHandlers({
+      addAttr: 'data-sp-add-subcontractor',
+      removeAttr: 'data-sp-remove-subcontractor',
+      removeTitleAttr: 'data-sp-remove-subcontractor-title',
+      onAdd: addSubcontractorById,
+      onRemove: removeSubcontractorById,
+      onRemoveTitle: removeSubcontractorByTitle,
+      newBtnId: 'spNewSubcontractorBtn',
+      quickAddTarget: 'subcontractor',
+    });
+
+    bindOrgChipHandlers({
+      addAttr: 'data-sp-add-worker-org',
+      removeAttr: 'data-sp-remove-worker-org',
+      onAdd: addWorkerFromOrg,
+      onRemove: removeWorkerByOrgId,
+      newBtnId: 'spNewWorkerOrgBtn',
+      quickAddTarget: 'worker',
     });
 
     panelsHost()?.querySelectorAll('[data-sp-add-object]').forEach((chip) => {
@@ -545,41 +764,44 @@ const SpravkaWizard = (() => {
       });
     });
 
-    document.getElementById('spWorkerAddOrg')?.addEventListener('click', () => {
-      const orgId = document.getElementById('spWorkerOrgPick')?.value;
-      if (!orgId) {
-        GazpromToast.error('Выберите организацию');
-        return;
-      }
-      addWorkerFromOrg(orgId);
-    });
-    document.getElementById('spWorkerAddBlank')?.addEventListener('click', addBlankWorkerRow);
-
     panelsHost()?.querySelectorAll('[data-sp-worker-del]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const rowId = btn.closest('[data-sp-worker-row]')?.dataset.spWorkerRow;
+        commitWorkerRows();
+        const rowEl = btn.closest('[data-sp-worker-row]');
+        const orgId = rowEl?.dataset.spWorkerOrg;
+        if (orgId) {
+          removeWorkerByOrgId(orgId);
+          return;
+        }
+        const rowId = rowEl?.dataset.spWorkerRow;
         draft.workerRows = (draft.workerRows || []).filter((r) => r.id !== rowId);
+        scheduleAutosave();
+        render();
+        updateSummary();
+      });
+    });
+    panelsHost()?.querySelectorAll('[data-sp-worker-pb], [data-sp-worker-count]').forEach((el) => {
+      el.addEventListener('input', refreshWorkerTotals);
+    });
+
+    violUi.bindViolationListEvents();
+    violUi.bindViolSearchEvents();
+
+    panelsHost()?.querySelectorAll('[data-sp-viol-fmt]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (!draft) return;
+        const key = btn.getAttribute('data-sp-viol-fmt');
+        draft.violationFormat = SpravkaUtils.normalizeViolationFormat(draft.violationFormat);
+        if (key === 'mesto') {
+          draft.violationFormat.includeMesto = !draft.violationFormat.includeMesto;
+        }
+        if (key === 'rule') {
+          draft.violationFormat.includeRuleRef = !draft.violationFormat.includeRuleRef;
+        }
         scheduleAutosave();
         render();
       });
     });
-    panelsHost()?.querySelectorAll('[data-sp-worker-pb], [data-sp-worker-count], [data-sp-worker-name]').forEach((el) => {
-      el.addEventListener('input', refreshWorkerTotals);
-    });
-
-    document.getElementById('spViolSearch')?.addEventListener('input', (e) => {
-      violSearchQuery = e.target.value;
-      const list = document.getElementById('spViolList');
-      if (!list) return;
-      const all = draft.violations || [];
-      const filtered = filterViolations(all, violSearchQuery);
-      list.innerHTML = filtered.length
-        ? filtered.map((v) => renderViolCard(v, all.indexOf(v) + 1)).join('')
-        : `<div class="viol-empty"><div class="viol-empty-text">Ничего не найдено</div></div>`;
-      bindViolationEvents();
-    });
-
-    bindViolationEvents();
 
     document.getElementById('spGenerateDocx')?.addEventListener('click', async () => {
       commitStep(step);
@@ -590,6 +812,25 @@ const SpravkaWizard = (() => {
         GazpromToast.error(err.message || 'Ошибка генерации');
       }
     });
+
+    if (step === 6 && catalog) {
+      const statusEl = document.getElementById('spSpravkaTemplateStatusText');
+      const generateBtn = document.getElementById('spGenerateDocx');
+      const hasTpl = typeof DocGenerator?.hasSpravkaTemplate === 'function'
+        ? DocGenerator.hasSpravkaTemplate(catalog)
+        : true;
+      if (statusEl) {
+        if (hasTpl) {
+          const name = catalog.spravkaTemplateName || 'Шаблон_справки_ПБ.docx';
+          statusEl.textContent = `✅ Шаблон справки: ${name}. Нажмите «Сформировать справку Word».`;
+          statusEl.closest('#spSpravkaTemplateStatus').style.background = 'var(--success-soft, #e8f5e9)';
+        } else {
+          statusEl.textContent = '⚠️ Шаблон справки не выбран. Настройки → Шаблоны Word → раздел «Справка по ПБ».';
+          statusEl.closest('#spSpravkaTemplateStatus').style.background = 'var(--warning-soft, #fff8e1)';
+        }
+      }
+      if (generateBtn) generateBtn.disabled = !hasTpl;
+    }
 
     document.getElementById('spSaveDraft')?.addEventListener('click', async () => {
       commitStep(step);
@@ -609,34 +850,6 @@ const SpravkaWizard = (() => {
       await saveDraft();
       await persistCatalog();
       render();
-    });
-  }
-
-  function bindViolationEvents() {
-    panelsHost()?.querySelectorAll('.sp-viol-edit').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        WizardModals.openViolationEditor(btn.dataset.vid);
-      });
-    });
-    panelsHost()?.querySelectorAll('.sp-viol-del').forEach((btn) => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const ok = await GazpromToast.confirm('Удалить нарушение?', { danger: true, confirmLabel: 'Удалить' });
-        if (!ok) return;
-        draft.violations = (draft.violations || []).filter((v) => v.id !== btn.dataset.vid);
-        scheduleAutosave();
-        render();
-      });
-    });
-    panelsHost()?.querySelectorAll('.viol-card[data-violation-id]').forEach((card) => {
-      card.addEventListener('click', () => WizardModals.openViolationEditor(card.dataset.violationId));
-      card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          WizardModals.openViolationEditor(card.dataset.violationId);
-        }
-      });
     });
   }
 

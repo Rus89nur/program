@@ -34,7 +34,7 @@ const WizardController = (() => {
       },
       getCatalog: () => catalog,
       reloadCatalog,
-      openLightbox,
+      openLightbox: (src, gallery) => PhotoLightbox.open(src, gallery),
       saveDraft,
       onUpdate: () => {
         render();
@@ -189,6 +189,30 @@ const WizardController = (() => {
     });
   }
 
+  const violUi = WizardViolationsUI.create({
+    ids: {
+      list: 'wViolList',
+      search: 'wViolSearch',
+      badge: 'wViolCountBadge',
+      photoSection: 'wViolPhotoSection',
+      photoGrid: 'wPhotoGrid',
+    },
+    editClass: 'w-viol-edit',
+    delClass: 'w-viol-del',
+    getDraft: () => draft,
+    getViolSearchQuery: () => violSearchQuery,
+    setViolSearchQuery: (q) => { violSearchQuery = q; },
+    getStep: () => step,
+    violationsStep: 3,
+    panelsHost,
+    scheduleAutosave,
+    render,
+    updateSummary,
+    openLightbox: (src, gallery) => PhotoLightbox.open(src, gallery),
+    docLabel: 'акта',
+    photoSectionTitle: 'Все фото акта',
+  });
+
   function syncStepperUI() {
     document.querySelectorAll('#wizardStepper .wizard-step').forEach((el) => {
       const n = parseInt(el.dataset.step, 10);
@@ -217,7 +241,7 @@ const WizardController = (() => {
       renderStepDateCommission,
       renderStepOrganization,
       renderStepObjects,
-      renderStepViolations,
+      () => violUi.renderStepViolations(),
       renderStepDescription,
       renderStepGenerate,
     ];
@@ -241,7 +265,7 @@ const WizardController = (() => {
     bindAutosaveOnPanel();
     if (step === 4) bindVyvodyTextarea();
     syncViolFab();
-    hydrateViolationThumbs();
+    violUi.hydrateViolationThumbs();
     if (!options.skipLayoutSync) {
       requestAnimationFrame(() => {
         GazpromMobileOverlay?.ensureScrollClearance?.('wizard-render');
@@ -288,54 +312,6 @@ const WizardController = (() => {
       el.addEventListener('input', scheduleAutosave);
       el.addEventListener('change', scheduleAutosave);
     });
-  }
-
-  async function hydrateViolationThumbs() {
-    const host = panelsHost();
-    if (!host) return;
-
-    const lazyViolImgs = [...host.querySelectorAll('img[data-viol-vid][data-viol-pidx]')];
-    const hydrateOne = async (img) => {
-      if (img.dataset.photoHydrated === '1') return;
-      const vid = img.dataset.violVid;
-      const pidx = parseInt(img.dataset.violPidx, 10);
-      const v = (draft.violations || []).find((x) => x.id === vid);
-      const ref = v?.photo?.[pidx];
-      if (!ref) return;
-      const url = (await PhotoStore.resolveDataUrl(ref)) || AktUtils.photoSrc(ref);
-      if (!url || !img.isConnected) return;
-      img.src = url;
-      img.dataset.photoHydrated = '1';
-    };
-    const batchSize = 3;
-    for (let i = 0; i < lazyViolImgs.length; i += batchSize) {
-      await Promise.all(lazyViolImgs.slice(i, i + batchSize).map(hydrateOne));
-    }
-
-    if (typeof PhotoStore?.hydrateImages === 'function') {
-      await PhotoStore.hydrateImages(host);
-      return;
-    }
-    host.querySelectorAll('img[data-photo-ref]').forEach(async (img) => {
-      const ref = img.dataset.photoRef;
-      img.src = (await PhotoStore.resolveDataUrl(ref)) || AktUtils.photoSrc(ref);
-    });
-  }
-
-  function wizardPhotoImgTag(ref, violationId, photoIdx) {
-    const ph =
-      (typeof PhotoStore !== 'undefined' && PhotoStore.IMG_PLACEHOLDER) ||
-      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
-    if (!ref) return '<img alt="" loading="lazy" decoding="async">';
-    if (typeof PhotoStore !== 'undefined' && PhotoStore.isPhotoId(ref)) {
-      const safe = AktUtils.escapeHtml(String(ref));
-      return `<img data-photo-ref="${safe}" src="${ph}" alt="" loading="lazy" decoding="async">`;
-    }
-    if (violationId != null && photoIdx != null) {
-      const safeVid = AktUtils.escapeHtml(String(violationId));
-      return `<img data-viol-vid="${safeVid}" data-viol-pidx="${photoIdx}" src="${ph}" alt="" loading="lazy" decoding="async">`;
-    }
-    return `<img src="${ph}" alt="" loading="lazy" decoding="async">`;
   }
 
   function numberOptions() {
@@ -482,158 +458,6 @@ const WizardController = (() => {
         </div>
         ${catalogBlock}
       </div>
-    `;
-  }
-
-  function filterActViolations(violations, query) {
-    return ViolationSearch.filterActViolations(violations, query);
-  }
-
-  function isViolFiltering() {
-    return !!String(violSearchQuery).trim();
-  }
-
-  function violIndexInAct(violationId, allViolations) {
-    const idx = (allViolations || []).findIndex((v) => v.id === violationId);
-    return idx >= 0 ? idx + 1 : '?';
-  }
-
-  function renderViolCardHtml(v, displayNum) {
-    const photos = v.photo?.length || 0;
-    const vidBadge = v.vid
-      ? `<span class="viol-card-badge" title="${AktUtils.escapeHtml(v.vid)}">${AktUtils.escapeHtml(v.vid)}</span>`
-      : '';
-    const refLine = v.urlToPravilo
-      ? `<div class="viol-card-subtitle">📄 ${AktUtils.escapeHtml(v.urlToPravilo)}</div>`
-      : '';
-    const maxThumbs = 5;
-    const thumbsHtml = photos
-      ? `<div class="viol-card-thumbs">
-          ${(v.photo || []).slice(0, maxThumbs).map((p, idx) =>
-            `<div class="viol-card-thumb wizard-photo-thumb photo-slot filled" data-vid="${v.id}" data-pidx="${idx}">
-              ${wizardPhotoImgTag(p, v.id, idx)}
-            </div>`
-          ).join('')}
-          ${photos > maxThumbs ? `<div class="viol-card-thumb viol-card-thumb-more">+${photos - maxThumbs}</div>` : ''}
-        </div>`
-      : '';
-    return `<div class="viol-card" data-violation-id="${v.id}" role="button" tabindex="0" title="Открыть карточку нарушения" draggable="true">
-      <div class="viol-card-num">${displayNum}</div>
-      <div class="viol-card-body">
-        <div class="viol-card-title">${AktUtils.escapeHtml(v.title)}</div>
-        ${refLine}
-        <div class="viol-card-meta">
-          <span class="viol-card-mesto">📍 ${v.mesto ? AktUtils.escapeHtml(v.mesto) : '<span style="color:var(--border)">—</span>'}</span>
-          ${vidBadge}
-        </div>
-        ${thumbsHtml}
-      </div>
-      <div class="viol-card-actions">
-        <button type="button" class="btn-ghost btn-sm w-viol-edit" data-vid="${v.id}" title="Редактировать">✏️</button>
-        <button type="button" class="btn-ghost btn-sm modal-btn-danger w-viol-del" data-vid="${v.id}" title="Удалить">🗑</button>
-      </div>
-    </div>`;
-  }
-
-  function renderViolCardsListInnerHtml(allViolations, filteredViolations) {
-    if (!allViolations.length) {
-      return `<div class="viol-empty">
-        <div class="viol-empty-icon">⚠️</div>
-        <div class="viol-empty-text">Нарушения не добавлены</div>
-        <div class="viol-empty-hint">Нажмите круглую кнопку «+» внизу справа, чтобы зафиксировать нарушение</div>
-      </div>`;
-    }
-    if (!filteredViolations.length) {
-      const hint = violSearchQuery.trim();
-      return `<div class="viol-empty viol-empty--filter">
-        <div class="viol-empty-icon">🔍</div>
-        <div class="viol-empty-text">Ничего не найдено</div>
-        <div class="viol-empty-hint">По запросу «${AktUtils.escapeHtml(hint)}» нет совпадений среди ${allViolations.length} нарушений акта</div>
-      </div>`;
-    }
-    return filteredViolations
-      .map((v) => renderViolCardHtml(v, violIndexInAct(v.id, allViolations)))
-      .join('');
-  }
-
-  function renderViolPhotoSectionHtml(violations) {
-    const allPhotos = (violations || []).flatMap((v) =>
-      (v.photo || []).map((p, idx) => ({ v, idx, ref: p }))
-    );
-    if (!allPhotos.length) return '';
-    return `<div id="wViolPhotoSection">
-      <h3 style="margin-top:4px;font-size:14px;margin-bottom:12px">Все фото акта</h3>
-      <div class="photo-grid" id="wPhotoGrid">${
-        allPhotos
-          .slice(0, 16)
-          .map(
-            ({ ref, v, idx }) =>
-              `<div class="photo-slot filled wizard-photo-thumb" data-vid="${v.id}" data-pidx="${idx}" title="${AktUtils.escapeHtml(v.title)}">
-                ${wizardPhotoImgTag(ref, v.id, idx)}
-              </div>`
-          )
-          .join('') + (allPhotos.length > 16 ? `<div class="photo-slot">+${allPhotos.length - 16}</div>` : '')
-      }</div>
-    </div>`;
-  }
-
-  function renderViolCountBadgeText(allCount, filteredCount) {
-    if (isViolFiltering() && filteredCount !== allCount) {
-      return `${filteredCount} из ${allCount}`;
-    }
-    return String(allCount);
-  }
-
-  function refreshViolList() {
-    if (step !== 3 || !draft) return;
-    const allViolations = draft.violations || [];
-    const filtered = filterActViolations(allViolations, violSearchQuery);
-    const listEl = document.getElementById('wViolList');
-    if (!listEl) return;
-
-    listEl.innerHTML = renderViolCardsListInnerHtml(allViolations, filtered);
-
-    const badgeEl = document.getElementById('wViolCountBadge');
-    if (badgeEl) badgeEl.textContent = renderViolCountBadgeText(allViolations.length, filtered.length);
-
-    const photoHost = document.getElementById('wViolPhotoSection');
-    const photoHtml = renderViolPhotoSectionHtml(isViolFiltering() ? filtered : allViolations);
-    if (photoHost) {
-      if (photoHtml) photoHost.outerHTML = photoHtml;
-      else photoHost.remove();
-    } else if (photoHtml) {
-      listEl.insertAdjacentHTML('afterend', photoHtml);
-    }
-
-    bindViolationListEvents();
-    hydrateViolationThumbs();
-  }
-
-  function renderStepViolations() {
-    const allViolations = draft.violations || [];
-    const filtered = filterActViolations(allViolations, violSearchQuery);
-    const cards = renderViolCardsListInnerHtml(allViolations, filtered);
-    const photoSection = renderViolPhotoSectionHtml(isViolFiltering() ? filtered : allViolations);
-
-    const searchToolbar = allViolations.length
-      ? `<div class="viol-search-toolbar">
-          <input type="search"
-            class="form-control"
-            id="wViolSearch"
-            placeholder="🔍 Поиск по формулировке, месту, документу, виду…"
-            value="${AktUtils.escapeHtml(violSearchQuery)}"
-            autocomplete="off"
-            aria-label="Поиск нарушений в акте">
-        </div>`
-      : '';
-
-    return `
-      <div class="viol-step-header">
-        <h3 style="margin:0">Нарушения <span class="viol-total-badge" id="wViolCountBadge">${renderViolCountBadgeText(allViolations.length, filtered.length)}</span></h3>
-      </div>
-      ${searchToolbar}
-      <div class="viol-cards-list" id="wViolList">${cards}</div>
-      ${photoSection}
     `;
   }
 
@@ -795,187 +619,6 @@ const WizardController = (() => {
     `;
   }
 
-  function bindViolationDragDrop() {
-    const container = document.getElementById('wViolList');
-    if (!container) return;
-
-    let dragSrcId = null;
-    let dragOverId = null;
-
-    function getCards() {
-      return [...container.querySelectorAll('.viol-card[data-violation-id]')];
-    }
-
-    function clearDropIndicators() {
-      container.querySelectorAll('.viol-card--drag-over-top, .viol-card--drag-over-bottom')
-        .forEach((el) => {
-          el.classList.remove('viol-card--drag-over-top', 'viol-card--drag-over-bottom');
-        });
-    }
-
-    getCards().forEach((card) => {
-      card.addEventListener('dragstart', (e) => {
-        dragSrcId = card.dataset.violationId;
-        container.dataset.dragging = '1';
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', dragSrcId);
-        setTimeout(() => card.classList.add('viol-card--dragging'), 0);
-      });
-
-      card.addEventListener('dragend', () => {
-        card.classList.remove('viol-card--dragging');
-        clearDropIndicators();
-        dragSrcId = null;
-        dragOverId = null;
-        setTimeout(() => { delete container.dataset.dragging; }, 0);
-      });
-
-      card.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        if (card.dataset.violationId === dragSrcId) return;
-        clearDropIndicators();
-        // Determine if dropping above or below the midpoint
-        const rect = card.getBoundingClientRect();
-        const mid = rect.top + rect.height / 2;
-        dragOverId = card.dataset.violationId;
-        if (e.clientY < mid) {
-          card.classList.add('viol-card--drag-over-top');
-        } else {
-          card.classList.add('viol-card--drag-over-bottom');
-        }
-      });
-
-      card.addEventListener('dragleave', (e) => {
-        if (!card.contains(e.relatedTarget)) {
-          card.classList.remove('viol-card--drag-over-top', 'viol-card--drag-over-bottom');
-        }
-      });
-
-      card.addEventListener('drop', (e) => {
-        e.preventDefault();
-        if (!dragSrcId || card.dataset.violationId === dragSrcId) return;
-
-        const violations = [...(draft.violations || [])];
-        const srcIdx = violations.findIndex((v) => v.id === dragSrcId);
-        const tgtIdx = violations.findIndex((v) => v.id === card.dataset.violationId);
-        if (srcIdx === -1 || tgtIdx === -1) return;
-
-        const rect = card.getBoundingClientRect();
-        const mid = rect.top + rect.height / 2;
-        const insertAfter = e.clientY >= mid;
-
-        const [moved] = violations.splice(srcIdx, 1);
-        const newTgtIdx = violations.findIndex((v) => v.id === card.dataset.violationId);
-        violations.splice(insertAfter ? newTgtIdx + 1 : newTgtIdx, 0, moved);
-
-        draft.violations = violations;
-        scheduleAutosave();
-        render();
-        updateSummary();
-      });
-    });
-  }
-
-  function bindViolationListEvents() {
-    bindViolationDragDrop();
-
-    panelsHost()?.querySelectorAll('.viol-card[data-violation-id]').forEach((card) => {
-      const openCard = () => WizardModals.openViolationEditor(card.dataset.violationId);
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('.viol-card-actions')) return;
-        if (e.target.closest('.viol-card-thumbs')) return;
-        if (document.getElementById('wViolList')?.dataset.dragging) return;
-        openCard();
-      });
-      card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          openCard();
-        }
-      });
-    });
-    panelsHost()?.querySelectorAll('.w-viol-edit').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        WizardModals.openViolationEditor(btn.dataset.vid);
-      });
-    });
-    panelsHost()?.querySelectorAll('.w-viol-del').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const v = (draft.violations || []).find((x) => x.id === btn.dataset.vid);
-        GazpromToast.confirm(`Удалить нарушение?\n«${(v?.title || '').slice(0, 80)}»`, { confirmLabel: 'Удалить', danger: true }).then((ok) => {
-          if (!ok) return;
-          draft.violations = (draft.violations || []).filter((x) => x.id !== btn.dataset.vid);
-          scheduleAutosave();
-          render();
-          updateSummary();
-        });
-      });
-    });
-    panelsHost()?.querySelectorAll('.wizard-photo-thumb').forEach((el) => {
-      el.addEventListener('click', async () => {
-        const vid = el.dataset.vid;
-        const pidx = parseInt(el.dataset.pidx, 10);
-        const fromActGrid = !!el.closest('#wPhotoGrid');
-
-        const buildGallery = async (refs, matchIdx) => {
-          const urls = await Promise.all(refs.map((p) => AktUtils.photoSrcAsync(p)));
-          const gallery = [];
-          let start = 0;
-          urls.forEach((url, i) => {
-            if (!url) return;
-            if (i === matchIdx) start = gallery.length;
-            gallery.push(url);
-          });
-          return { gallery, start };
-        };
-
-        if (fromActGrid) {
-          const sourceViolations = isViolFiltering()
-            ? filterActViolations(draft.violations || [], violSearchQuery)
-            : draft.violations || [];
-          const items = sourceViolations.flatMap((vi) =>
-            (vi.photo || []).map((ref, i) => ({ vid: vi.id, pidx: i, ref }))
-          );
-          if (!items.length) return;
-          const urls = await Promise.all(items.map((x) => AktUtils.photoSrcAsync(x.ref)));
-          const gallery = [];
-          let start = 0;
-          urls.forEach((url, i) => {
-            if (!url) return;
-            if (items[i].vid === vid && items[i].pidx === pidx) start = gallery.length;
-            gallery.push(url);
-          });
-          if (!gallery.length) {
-            GazpromToast.info('Не удалось открыть фото');
-            return;
-          }
-          openLightbox(gallery[start], gallery);
-          return;
-        }
-
-        const v = (draft.violations || []).find((x) => x.id === vid);
-        if (!v?.photo?.length) return;
-        const { gallery, start } = await buildGallery(v.photo, Number.isNaN(pidx) ? 0 : pidx);
-        if (!gallery.length) {
-          GazpromToast.info('Не удалось открыть фото');
-          return;
-        }
-        openLightbox(gallery[start], gallery);
-      });
-    });
-  }
-
-  function bindViolSearchEvents() {
-    const searchEl = document.getElementById('wViolSearch');
-    if (!searchEl) return;
-    searchEl.addEventListener('input', () => {
-      violSearchQuery = searchEl.value;
-      refreshViolList();
-    });
-  }
 
   function bindCommissionDragDrop() {
     const container = document.getElementById('wCommissionChips');
@@ -1207,8 +850,8 @@ const WizardController = (() => {
     });
 
     bindCommissionDragDrop();
-    bindViolationListEvents();
-    bindViolSearchEvents();
+    violUi.bindViolationListEvents();
+    violUi.bindViolSearchEvents();
 
     document.getElementById('wSaveDraft')?.addEventListener('click', () => finish());
     // Проверяем наличие шаблона и обновляем статус-блок
@@ -1304,251 +947,9 @@ const WizardController = (() => {
       GazpromToast.info('Фото загружаются… попробуйте снова');
       return;
     }
-    openLightbox(gallery[0], gallery);
+    PhotoLightbox.open(gallery[0], gallery);
   }
 
-  function attachLightboxZoom(viewport, stageEl) {
-    const MIN_SCALE = 1;
-    const MAX_SCALE = 4;
-    const SNAP_THRESHOLD = 1.08;
-
-    let scale = 1;
-    let tx = 0;
-    let ty = 0;
-    let pinchDist0 = 0;
-    let pinchScale0 = 1;
-    let pinchTx0 = 0;
-    let pinchTy0 = 0;
-    let panX0 = 0;
-    let panY0 = 0;
-    let panTx0 = 0;
-    let panTy0 = 0;
-    let multiTouchGesture = false;
-    let lastTapAt = 0;
-
-    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-    const touchDist = (a, b) => Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
-
-    const viewportCenter = () => {
-      const r = viewport.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    };
-
-    const paint = () => {
-      if (scale <= 1) {
-        scale = 1;
-        tx = 0;
-        ty = 0;
-        stageEl.style.transform = '';
-        return;
-      }
-      stageEl.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`;
-    };
-
-    const resetZoom = () => {
-      scale = 1;
-      tx = 0;
-      ty = 0;
-      pinchDist0 = 0;
-      multiTouchGesture = false;
-      stageEl.style.transform = '';
-    };
-
-    const beginPinch = (t0, t1) => {
-      multiTouchGesture = true;
-      pinchDist0 = Math.max(touchDist(t0, t1), 8);
-      pinchScale0 = scale;
-      pinchTx0 = tx;
-      pinchTy0 = ty;
-    };
-
-    const updatePinch = (t0, t1) => {
-      const dist = touchDist(t0, t1);
-      const midX = (t0.clientX + t1.clientX) / 2;
-      const midY = (t0.clientY + t1.clientY) / 2;
-      const c = viewportCenter();
-      const nextScale = clamp(pinchScale0 * (dist / pinchDist0), MIN_SCALE, MAX_SCALE);
-      const ratio = nextScale / pinchScale0;
-
-      scale = nextScale;
-      tx = pinchTx0 + (midX - c.x) * (1 - ratio);
-      ty = pinchTy0 + (midY - c.y) * (1 - ratio);
-      paint();
-    };
-
-    const beginPan = (t) => {
-      panX0 = t.clientX;
-      panY0 = t.clientY;
-      panTx0 = tx;
-      panTy0 = ty;
-    };
-
-    const updatePan = (t) => {
-      tx = panTx0 + (t.clientX - panX0);
-      ty = panTy0 + (t.clientY - panY0);
-      paint();
-    };
-
-    const stopTouch = (e) => {
-      e.stopPropagation();
-    };
-
-    const onTouchStart = (e) => {
-      stopTouch(e);
-      if (e.touches.length >= 2) {
-        e.preventDefault();
-        beginPinch(e.touches[0], e.touches[1]);
-        return;
-      }
-      if (e.touches.length === 1 && scale > 1) beginPan(e.touches[0]);
-    };
-
-    const onTouchMove = (e) => {
-      stopTouch(e);
-      if (e.touches.length >= 2) {
-        e.preventDefault();
-        if (pinchDist0 <= 0) beginPinch(e.touches[0], e.touches[1]);
-        updatePinch(e.touches[0], e.touches[1]);
-        return;
-      }
-      if (e.touches.length === 1 && scale > 1 && pinchDist0 <= 0) {
-        e.preventDefault();
-        updatePan(e.touches[0]);
-      }
-    };
-
-    const onTouchEnd = (e) => {
-      stopTouch(e);
-      const remaining = e.touches.length;
-      const wasMulti = multiTouchGesture;
-
-      if (remaining === 1) {
-        pinchDist0 = 0;
-        if (scale > 1) beginPan(e.touches[0]);
-        return;
-      }
-
-      if (remaining !== 0) return;
-
-      pinchDist0 = 0;
-      if (scale < SNAP_THRESHOLD) resetZoom();
-
-      if (!wasMulti && e.changedTouches.length === 1) {
-        const now = Date.now();
-        if (now - lastTapAt < 280) {
-          lastTapAt = 0;
-          if (scale > 1) resetZoom();
-          else {
-            scale = 2.5;
-            paint();
-          }
-        } else {
-          lastTapAt = now;
-        }
-      }
-
-      window.setTimeout(() => {
-        if (!viewport.ownerDocument?.defaultView) return;
-        multiTouchGesture = false;
-      }, 400);
-    };
-
-    const onWheel = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const step = e.deltaY < 0 ? 0.1 : -0.1;
-      scale = clamp(scale + step, MIN_SCALE, MAX_SCALE);
-      if (scale <= 1) resetZoom();
-      else paint();
-    };
-
-    const touchOpts = { passive: false, capture: true };
-    viewport.addEventListener('touchstart', onTouchStart, touchOpts);
-    viewport.addEventListener('touchmove', onTouchMove, touchOpts);
-    viewport.addEventListener('touchend', onTouchEnd, touchOpts);
-    viewport.addEventListener('touchcancel', onTouchEnd, touchOpts);
-    viewport.addEventListener('wheel', onWheel, { passive: false });
-
-    return { resetZoom };
-  }
-
-  function openLightbox(src, gallery) {
-    let box = document.getElementById('photoLightbox');
-    if (
-      box &&
-      (!box.querySelector(':scope > .photo-lightbox-close') ||
-        !box.querySelector('.photo-lightbox-chip') ||
-        !box.querySelector('.photo-lightbox-viewport') ||
-        !box.querySelector('.photo-lightbox-stage'))
-    ) {
-      box.remove();
-      box = null;
-    }
-    if (!box) {
-      box = document.createElement('div');
-      box.id = 'photoLightbox';
-      box.className = 'photo-lightbox';
-      box.innerHTML = `
-        <button type="button" class="photo-lightbox-close" aria-label="Закрыть">×</button>
-        <div class="photo-lightbox-inner">
-          <div class="photo-lightbox-viewport" aria-label="Фото, жестами можно увеличить">
-            <div class="photo-lightbox-stage">
-              <img class="photo-lightbox-img" alt="" draggable="false">
-            </div>
-          </div>
-          <div class="photo-lightbox-controls">
-            <button type="button" class="photo-lightbox-nav photo-lightbox-prev photo-lightbox-chip photo-lightbox-nav-btn" aria-label="Предыдущее фото">‹</button>
-            <span class="photo-lightbox-counter photo-lightbox-chip" aria-live="polite"></span>
-            <button type="button" class="photo-lightbox-nav photo-lightbox-next photo-lightbox-chip photo-lightbox-nav-btn" aria-label="Следующее фото">›</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(box);
-      const viewport = box.querySelector('.photo-lightbox-viewport');
-      const stageEl = box.querySelector('.photo-lightbox-stage');
-      box._lightboxZoom = attachLightboxZoom(viewport, stageEl);
-      const hideLightbox = () => {
-        if (!box.classList.contains('show')) return;
-        box._lightboxZoom?.resetZoom?.();
-        box.classList.remove('show');
-        GazpromMobileOverlay.unlock();
-        GazpromMobileOverlay.scheduleRecoverViewportLayout?.();
-      };
-      box.querySelector('.photo-lightbox-close').onclick = hideLightbox;
-      box.onclick = (e) => {
-        if (e.target === box) hideLightbox();
-      };
-    }
-    const imgs = gallery?.length ? gallery : [src];
-    let idx = src ? imgs.indexOf(src) : 0;
-    if (idx < 0) idx = 0;
-    const imgEl = box.querySelector('.photo-lightbox-img');
-    const counterEl = box.querySelector('.photo-lightbox-counter');
-    const prevBtn = box.querySelector('.photo-lightbox-prev');
-    const nextBtn = box.querySelector('.photo-lightbox-next');
-    const show = (i) => {
-      idx = (i + imgs.length) % imgs.length;
-      box._lightboxZoom?.resetZoom?.();
-      imgEl.src = imgs[idx];
-      const multi = imgs.length > 1;
-      if (counterEl) counterEl.textContent = multi ? `${idx + 1} / ${imgs.length}` : '';
-      if (prevBtn) prevBtn.style.visibility = multi ? 'visible' : 'hidden';
-      if (nextBtn) nextBtn.style.visibility = multi ? 'visible' : 'hidden';
-    };
-    show(idx);
-    prevBtn.onclick = (e) => {
-      e.stopPropagation();
-      show(idx - 1);
-    };
-    nextBtn.onclick = (e) => {
-      e.stopPropagation();
-      show(idx + 1);
-    };
-    if (!box.classList.contains('show')) {
-      GazpromMobileOverlay.lock();
-    }
-    box.classList.add('show');
-  }
 
   function commitStep(s) {
     if (!draft) return;

@@ -6,6 +6,7 @@ const DefaultsBootstrap = (() => {
   const MANIFEST_URL = './assets/defaults/manifest.json';
   const LEGACY_REGISTRY_JSON = './assets/defaults/violation-registry.json';
   const LEGACY_TEMPLATE_DOCX = './assets/defaults/akt-template.docx';
+  const LEGACY_SPRAVKA_TEMPLATE_DOCX = './assets/defaults/Шаблон_справки_ПБ.docx';
 
   let manifestCache = null;
   const registryJsonCache = new Map();
@@ -33,6 +34,7 @@ const DefaultsBootstrap = (() => {
 
   function ensureLibraries(catalog) {
     if (!Array.isArray(catalog.savedTemplates)) catalog.savedTemplates = [];
+    if (!Array.isArray(catalog.savedSpravkaTemplates)) catalog.savedSpravkaTemplates = [];
     if (!Array.isArray(catalog.savedRegistries)) catalog.savedRegistries = [];
     return catalog;
   }
@@ -42,6 +44,7 @@ const DefaultsBootstrap = (() => {
     let changed = false;
     const defaultTemplateId = manifestCache?.templates?.[0]?.id || 'builtin-template-v1';
     const defaultRegistryId = manifestCache?.registries?.[0]?.id || 'builtin-registry-v1';
+    const defaultSpravkaTemplateId = manifestCache?.spravkaTemplates?.[0]?.id || 'builtin-spravka-v1';
 
     if (!catalog.activeTemplatePresetId) {
       if (catalog.wordTemplateSource === 'builtin') {
@@ -77,6 +80,25 @@ const DefaultsBootstrap = (() => {
         });
         catalog.activeRegistryPresetId = catalog.savedRegistries[0].id;
         changed = true;
+      }
+    }
+
+    if (!catalog.activeSpravkaTemplatePresetId) {
+      const spravkaKey = DocGenerator?.SPRAVKA_TEMPLATE_KEY || 'spravkaTemplate';
+      if (catalog.spravkaTemplateSource === 'builtin') {
+        catalog.activeSpravkaTemplatePresetId = defaultSpravkaTemplateId;
+        changed = true;
+      } else if (catalog.spravkaTemplateName && catalog[spravkaKey]) {
+        if (catalog.savedSpravkaTemplates.length === 0) {
+          catalog.savedSpravkaTemplates.push({
+            id: AktUtils.uuid(),
+            name: catalog.spravkaTemplateName,
+            data: catalog[spravkaKey],
+            createdAt: new Date().toISOString(),
+          });
+          catalog.activeSpravkaTemplatePresetId = catalog.savedSpravkaTemplates[0].id;
+          changed = true;
+        }
       }
     }
 
@@ -197,6 +219,43 @@ const DefaultsBootstrap = (() => {
     await GazpromUI?.refreshAll?.();
   }
 
+  async function getBuiltinSpravkaTemplateMeta(id) {
+    const manifest = await loadManifest();
+    return manifest.spravkaTemplates?.find((t) => t.id === id)
+      || manifest.spravkaTemplates?.[0]
+      || { id: 'builtin-spravka-v1', docx: LEGACY_SPRAVKA_TEMPLATE_DOCX, name: 'Шаблон_справки_ПБ.docx' };
+  }
+
+  async function writeSpravkaTemplateToCatalog(catalog, b64, name, { presetId, source }) {
+    const templateKey = DocGenerator?.SPRAVKA_TEMPLATE_KEY || 'spravkaTemplate';
+    catalog[templateKey] = b64;
+    catalog.spravkaTemplateName = name;
+    catalog.spravkaTemplateSource = source;
+    catalog.spravkaTemplatePreset = source === 'builtin' ? presetId : null;
+    catalog.activeSpravkaTemplatePresetId = presetId;
+    catalog.spravkaTemplateOffloaded = false;
+    return catalog;
+  }
+
+  async function applySpravkaTemplatePreset(presetId) {
+    const catalog = ensureLibraries(await GazpromStore.get());
+    const manifest = await loadManifest();
+    const builtin = manifest.spravkaTemplates?.find((t) => t.id === presetId);
+
+    if (builtin) {
+      const b64 = await fetchTemplateBase64(builtin.docx || LEGACY_SPRAVKA_TEMPLATE_DOCX);
+      await writeSpravkaTemplateToCatalog(catalog, b64, builtin.name, { presetId: builtin.id, source: 'builtin' });
+    } else {
+      const saved = catalog.savedSpravkaTemplates.find((t) => t.id === presetId);
+      if (!saved?.data) throw new Error('Шаблон справки не найден');
+      await writeSpravkaTemplateToCatalog(catalog, saved.data, saved.name, { presetId: saved.id, source: 'custom' });
+    }
+
+    await GazpromStore.set(catalog, { skipPhotoIngest: true });
+    GazpromStore.invalidateCache();
+    await GazpromUI?.refreshAll?.();
+  }
+
   async function applyRegistryPreset(presetId, { merge = false } = {}) {
     const catalog = ensureLibraries(await GazpromStore.get());
     const manifest = await loadManifest();
@@ -276,6 +335,15 @@ const DefaultsBootstrap = (() => {
       }
     }
 
+    if (!hasSpravkaTemplate(catalog) && catalog.spravkaTemplateSource !== 'custom') {
+      try {
+        const defaultSpravkaId = manifestCache.spravkaTemplates?.[0]?.id || 'builtin-spravka-v1';
+        await applySpravkaTemplatePreset(defaultSpravkaId);
+      } catch (err) {
+        console.warn('[DefaultsBootstrap] spravka template seed failed:', err);
+      }
+    }
+
     if (changed) {
       await GazpromStore.set(catalog, { skipPhotoIngest: true });
       GazpromStore.invalidateCache();
@@ -298,6 +366,38 @@ const DefaultsBootstrap = (() => {
       active: t.id === activeId,
     }));
     const customs = (c.savedTemplates || []).map((t) => ({
+      id: t.id,
+      name: t.name,
+      label: 'Свой шаблон',
+      subtitle: t.name,
+      kind: 'custom',
+      active: t.id === activeId,
+    }));
+    return [...builtins, ...customs];
+  }
+
+  function hasSpravkaTemplate(catalog) {
+    if (typeof DocGenerator?.hasSpravkaTemplate === 'function') {
+      return DocGenerator.hasSpravkaTemplate(catalog);
+    }
+    const key = DocGenerator?.SPRAVKA_TEMPLATE_KEY || 'spravkaTemplate';
+    return Boolean(catalog?.[key] || catalog?.spravkaTemplateOffloaded || catalog?.spravkaTemplateSource === 'builtin');
+  }
+
+  async function listSpravkaTemplatePresets(catalog) {
+    const manifest = await loadManifest();
+    const c = ensureLibraries(catalog || (await GazpromStore.get()));
+    migrateCatalog(c);
+    const activeId = c.activeSpravkaTemplatePresetId || manifest.spravkaTemplates?.[0]?.id;
+    const builtins = (manifest.spravkaTemplates || []).map((t) => ({
+      id: t.id,
+      name: t.name,
+      label: t.label || 'Встроенный',
+      subtitle: t.subtitle || 'Справка по ПБ',
+      kind: 'builtin',
+      active: t.id === activeId,
+    }));
+    const customs = (c.savedSpravkaTemplates || []).map((t) => ({
       id: t.id,
       name: t.name,
       label: 'Свой шаблон',
@@ -364,7 +464,8 @@ const DefaultsBootstrap = (() => {
   }
 
   function renderPresetCard(preset, type) {
-    const thumb = type === 'template' ? renderDocThumb() : renderRegistryThumb(preset);
+    const isDocType = type === 'template' || type === 'spravka-template';
+    const thumb = isDocType ? renderDocThumb() : renderRegistryThumb(preset);
     const meta = type === 'registry' && preset.count ? `${preset.count} зап.` : preset.subtitle;
     const deleteBtn = preset.kind === 'custom'
       ? `<button type="button" class="preset-card__delete" data-preset-delete="${escHtml(preset.id)}" data-preset-type="${type}" title="Удалить" aria-label="Удалить ${escHtml(preset.name)}">×</button>`
@@ -450,6 +551,52 @@ const DefaultsBootstrap = (() => {
       .join('');
   }
 
+  function renderSpravkaTemplateMarkersGuide() {
+    const host = document.getElementById('spravkaTemplateMarkersGuide');
+    if (!host) return;
+
+    const gen = getDocGenerator();
+    if (!gen || typeof gen.getSpravkaMarkerGuide !== 'function') {
+      host.innerHTML =
+        '<p class="backup-import-hint">Справочник маркеров справки загружается… Если таблица пустая — закройте окно и откройте снова.</p>';
+      return;
+    }
+
+    const groups = gen.getSpravkaMarkerGuide();
+    host.innerHTML = groups
+      .map(
+        (group) => `
+      <details class="template-markers-group" open>
+        <summary class="template-markers-group__title">${escHtml(group.title)}</summary>
+        ${group.hint ? `<p class="template-markers-group__hint">${escHtml(group.hint)}</p>` : ''}
+        <div class="template-markers-table-wrap">
+          <table class="template-markers-table">
+            <thead>
+              <tr>
+                <th>Маркер</th>
+                <th>Что подставится</th>
+                <th>Откуда в приложении</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${group.items
+                .map(
+                  (item) => `
+                <tr>
+                  <td><code class="template-marker-code">${escHtml(item.key)}</code></td>
+                  <td>${escHtml(item.label)}</td>
+                  <td>${escHtml(item.source)}</td>
+                </tr>`
+                )
+                .join('')}
+            </tbody>
+          </table>
+        </div>
+      </details>`
+      )
+      .join('');
+  }
+
   async function deleteTemplatePreset(id) {
     const catalog = ensureLibraries(await GazpromStore.get());
     const idx = catalog.savedTemplates.findIndex((t) => t.id === id);
@@ -463,6 +610,28 @@ const DefaultsBootstrap = (() => {
       const builtin = manifestCache?.templates?.find((t) => t.id === defaultId);
       const b64 = await fetchTemplateBase64(builtin?.docx || LEGACY_TEMPLATE_DOCX);
       await writeTemplateToCatalog(catalog, b64, builtin?.name || 'Шаблон', { presetId: defaultId, source: 'builtin' });
+    }
+
+    await GazpromStore.set(catalog, { skipPhotoIngest: true });
+    GazpromStore.invalidateCache();
+    await GazpromUI?.refreshAll?.();
+    return name;
+  }
+
+  async function deleteSpravkaTemplatePreset(id) {
+    const catalog = ensureLibraries(await GazpromStore.get());
+    const idx = catalog.savedSpravkaTemplates.findIndex((t) => t.id === id);
+    if (idx < 0) throw new Error('Свой шаблон справки не найден');
+    const name = catalog.savedSpravkaTemplates[idx].name;
+    const wasActive = catalog.activeSpravkaTemplatePresetId === id;
+    catalog.savedSpravkaTemplates.splice(idx, 1);
+
+    if (wasActive) {
+      const defaultId = manifestCache?.spravkaTemplates?.[0]?.id || 'builtin-spravka-v1';
+      const builtin = manifestCache?.spravkaTemplates?.find((t) => t.id === defaultId)
+        || { docx: LEGACY_SPRAVKA_TEMPLATE_DOCX, name: 'Шаблон_справки_ПБ.docx', id: defaultId };
+      const b64 = await fetchTemplateBase64(builtin.docx || LEGACY_SPRAVKA_TEMPLATE_DOCX);
+      await writeSpravkaTemplateToCatalog(catalog, b64, builtin.name, { presetId: defaultId, source: 'builtin' });
     }
 
     await GazpromStore.set(catalog, { skipPhotoIngest: true });
@@ -503,16 +672,18 @@ const DefaultsBootstrap = (() => {
         e.preventDefault();
         const id = btn.dataset.presetDelete;
         const presetType = btn.dataset.presetType || type;
-        const label = presetType === 'template' ? 'шаблон' : 'реестр';
+        const label = presetType === 'template' || presetType === 'spravka-template' ? 'шаблон' : 'реестр';
         const ok = await GazpromToast.confirm(
-          `Удалить свой ${label} из списка?\nФайл останется только в уже созданных актах.`,
+          `Удалить свой ${label} из списка?\nФайл останется только в уже созданных документах.`,
           { confirmLabel: 'Удалить', danger: true }
         );
         if (!ok) return;
         try {
           const deletedName = presetType === 'template'
             ? await deleteTemplatePreset(id)
-            : await deleteRegistryPreset(id);
+            : presetType === 'spravka-template'
+              ? await deleteSpravkaTemplatePreset(id)
+              : await deleteRegistryPreset(id);
           GazpromToast.success(`Удалено: ${deletedName}`);
           if (typeof onDeleted === 'function') await onDeleted();
         } catch (err) {
@@ -576,6 +747,64 @@ const DefaultsBootstrap = (() => {
         );
       } catch (err) {
         GazpromToast.error(err?.message || 'Не удалось создать шаблон');
+      }
+    });
+  }
+
+  async function renderSpravkaTemplatePicker(container) {
+    if (!container) return;
+    const presets = await listSpravkaTemplatePresets();
+    container.innerHTML = `
+      <div class="preset-picker-grid" role="listbox" aria-label="Выбор шаблона справки">
+        ${presets.map((p) => renderPresetCard(p, 'spravka-template')).join('')}
+        ${renderAddCard('spravka-template-create', 'Создать шаблон')}
+        ${renderAddCard('spravka-template', 'Загрузить .docx')}
+      </div>`;
+
+    container.querySelectorAll('[data-preset-id]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (btn.classList.contains('preset-card--active')) return;
+        try {
+          GazpromToast.info('Применяю шаблон справки…');
+          await applySpravkaTemplatePreset(btn.dataset.presetId);
+          await renderSpravkaTemplatePicker(container);
+          await refreshTemplateModal();
+          GazpromToast.success('Шаблон справки выбран');
+        } catch (err) {
+          GazpromToast.error(err.message);
+        }
+      });
+    });
+
+    bindPresetDeleteHandlers(container, 'spravka-template', {
+      onDeleted: async () => {
+        await renderSpravkaTemplatePicker(container);
+        await refreshTemplateModal();
+      },
+    });
+
+    container.querySelector('[data-preset-add="spravka-template"]')?.addEventListener('click', () => {
+      GazpromFileUtils?.triggerFilePicker?.(document.getElementById('spravkaTemplateInput'));
+    });
+
+    container.querySelector('[data-preset-add="spravka-template-create"]')?.addEventListener('click', async () => {
+      try {
+        const gen = getDocGenerator();
+        if (!gen || typeof gen.downloadBlankSpravkaTemplate !== 'function') {
+          throw new Error('Модуль Word не загружен. Обновите страницу.');
+        }
+        GazpromToast.info('Создаю шаблон справки Word…');
+        const mode = await gen.downloadBlankSpravkaTemplate();
+        if (mode === 'shared') {
+          GazpromToast.success('Выберите Word в меню «Поделиться»');
+          return;
+        }
+        if (mode === 'cancelled') return;
+        GazpromToast.success(
+          'Шаблон справки создан — откройте в Word (в конце файла памятка по маркерам). Затем загрузите через «Загрузить .docx»'
+        );
+      } catch (err) {
+        GazpromToast.error(err?.message || 'Не удалось создать шаблон справки');
       }
     });
   }
@@ -666,6 +895,28 @@ const DefaultsBootstrap = (() => {
     GazpromStore.invalidateCache();
   }
 
+  async function saveCustomSpravkaTemplate(file) {
+    const buf = await file.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const b64 = btoa(binary);
+    const catalog = ensureLibraries((await GazpromStore.get()) || { akts: [] });
+
+    let saved = catalog.savedSpravkaTemplates.find((t) => t.name === file.name);
+    if (!saved) {
+      saved = { id: AktUtils.uuid(), name: file.name, data: b64, createdAt: new Date().toISOString() };
+      catalog.savedSpravkaTemplates.push(saved);
+    } else {
+      saved.data = b64;
+      saved.createdAt = new Date().toISOString();
+    }
+
+    await writeSpravkaTemplateToCatalog(catalog, b64, file.name, { presetId: saved.id, source: 'custom' });
+    await GazpromStore.set(catalog, { skipPhotoIngest: true });
+    GazpromStore.invalidateCache();
+  }
+
   async function saveCustomRegistryPreset(name, items) {
     const catalog = ensureLibraries(await GazpromStore.get());
     const label = name || 'Импорт Excel';
@@ -710,6 +961,14 @@ const DefaultsBootstrap = (() => {
     if (catalog?.violationRegistrySource === 'custom') return catalog.violationRegistryLabel || 'Свой реестр';
     const n = catalog?.violationRegistry?.length || 0;
     return n ? 'Загруженный' : 'Не задан';
+  }
+
+  function spravkaTemplateSourceLabel(catalog) {
+    if (catalog?.spravkaTemplateSource === 'builtin') {
+      return `Встроенный (${catalog.spravkaTemplateName || manifestCache?.spravkaTemplates?.[0]?.name || 'шаблон'})`;
+    }
+    if (catalog?.spravkaTemplateSource === 'custom') return catalog?.spravkaTemplateName || 'Свой шаблон';
+    return catalog?.spravkaTemplateName ? catalog.spravkaTemplateName : 'Не загружен';
   }
 
   function templateSourceLabel(catalog) {
@@ -832,17 +1091,28 @@ const DefaultsBootstrap = (() => {
   async function refreshTemplateModal() {
     const catalog = await GazpromStore.get();
     const statusEl = document.getElementById('templateModalStatus');
+    const spravkaStatusEl = document.getElementById('spravkaTemplateModalStatus');
     const has = await hasWordTemplate(catalog);
+    const hasSpravka = hasSpravkaTemplate(catalog);
 
     if (statusEl) {
       statusEl.textContent = has
-        ? `✅ Активный: ${catalog.wordTemplateName || 'шаблон'}`
-        : '⚠️ Шаблон не выбран';
+        ? `✅ Акт: ${catalog.wordTemplateName || 'шаблон'}`
+        : '⚠️ Шаблон акта не выбран';
       statusEl.className = `defaults-status ${has ? 'defaults-status--ok' : 'defaults-status--warn'}`;
     }
 
+    if (spravkaStatusEl) {
+      spravkaStatusEl.textContent = hasSpravka
+        ? `✅ Справка: ${catalog.spravkaTemplateName || 'Шаблон_справки_ПБ.docx'}`
+        : '⚠️ Шаблон справки не выбран';
+      spravkaStatusEl.className = `defaults-status ${hasSpravka ? 'defaults-status--ok' : 'defaults-status--warn'}`;
+    }
+
     await renderTemplatePicker(document.getElementById('templatePresetPicker'));
+    await renderSpravkaTemplatePicker(document.getElementById('spravkaTemplatePresetPicker'));
     renderTemplateMarkersGuide();
+    renderSpravkaTemplateMarkersGuide();
     await renderSettingsTilePreviews(catalog);
   }
 
@@ -852,7 +1122,10 @@ const DefaultsBootstrap = (() => {
     modal.hidden = false;
     window.GazpromMobileOverlay?.lock?.();
     void refreshTemplateModal().then(() => {
-      requestAnimationFrame(() => renderTemplateMarkersGuide());
+      requestAnimationFrame(() => {
+        renderTemplateMarkersGuide();
+        renderSpravkaTemplateMarkersGuide();
+      });
     });
   }
 
@@ -874,7 +1147,23 @@ const DefaultsBootstrap = (() => {
         await saveCustomTemplate(file);
         await GazpromUI?.refreshAll?.();
         await refreshTemplateModal();
-        GazpromToast.success('Шаблон добавлен и выбран');
+        GazpromToast.success('Шаблон акта добавлен и выбран');
+      } catch (err) {
+        GazpromToast.error(err.message);
+      } finally {
+        e.target.value = '';
+      }
+    });
+
+    document.getElementById('spravkaTemplateInput')?.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        GazpromToast.info('Сохранение шаблона справки…');
+        await saveCustomSpravkaTemplate(file);
+        await GazpromUI?.refreshAll?.();
+        await refreshTemplateModal();
+        GazpromToast.success('Шаблон справки добавлен и выбран');
       } catch (err) {
         GazpromToast.error(err.message);
       } finally {
@@ -886,23 +1175,29 @@ const DefaultsBootstrap = (() => {
   return {
     ensureSeeded,
     applyTemplatePreset,
+    applySpravkaTemplatePreset,
     applyRegistryPreset,
     saveCustomTemplate,
+    saveCustomSpravkaTemplate,
     saveCustomRegistryPreset,
     markRegistryCustom,
     registrySourceLabel,
     templateSourceLabel,
+    spravkaTemplateSourceLabel,
     hasWordTemplate,
+    hasSpravkaTemplate,
     openRegistryModal,
     closeRegistryModal,
     bindRegistryModal,
     openTemplateModal,
     bindTemplateModal,
     deleteTemplatePreset,
+    deleteSpravkaTemplatePreset,
     deleteRegistryPreset,
     renderRegistryPicker,
     renderSettingsTilePreviews,
     listTemplatePresets,
+    listSpravkaTemplatePresets,
     listRegistryPresets,
     renderDocThumb,
     renderRegistryThumb,
@@ -911,5 +1206,7 @@ const DefaultsBootstrap = (() => {
       applyRegistryPreset(manifestCache?.registries?.[0]?.id || 'builtin-registry-v1', { merge: !replace }),
     restoreBuiltinTemplate: () =>
       applyTemplatePreset(manifestCache?.templates?.[0]?.id || 'builtin-template-v1'),
+    restoreBuiltinSpravkaTemplate: () =>
+      applySpravkaTemplatePreset(manifestCache?.spravkaTemplates?.[0]?.id || 'builtin-spravka-v1'),
   };
 })();

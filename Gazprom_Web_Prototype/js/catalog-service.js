@@ -84,6 +84,10 @@ const CatalogService = (() => {
       typeof DocGenerator !== 'undefined' && DocGenerator.TEMPLATE_KEY
         ? DocGenerator.TEMPLATE_KEY
         : 'wordTemplate';
+    const spravkaTemplateKey =
+      typeof DocGenerator !== 'undefined' && DocGenerator.SPRAVKA_TEMPLATE_KEY
+        ? DocGenerator.SPRAVKA_TEMPLATE_KEY
+        : 'spravkaTemplate';
     const exportData = {
       version: '1.3',
       timestamp: new Date().toISOString(),
@@ -105,6 +109,11 @@ const CatalogService = (() => {
       descriptionTemplates: data.descriptionTemplates || ['', '', ''],
       [templateKey]: data[templateKey] || null,
       wordTemplateName: data.wordTemplateName || null,
+      [spravkaTemplateKey]: data[spravkaTemplateKey] || null,
+      spravkaTemplateName: data.spravkaTemplateName || null,
+      spravkaTemplateSource: data.spravkaTemplateSource || null,
+      activeSpravkaTemplatePresetId: data.activeSpravkaTemplatePresetId || null,
+      savedSpravkaTemplates: data.savedSpravkaTemplates || [],
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], {
       type: 'application/json',

@@ -73,6 +73,66 @@ const DocGenerator = (() => {
     },
   ];
 
+  /** Справочник маркеров для шаблона справки по ПБ. */
+  const SPRAVKA_MARKER_GUIDE = [
+    {
+      id: 'scalar',
+      title: 'Поля справки — вставьте текстом в документ',
+      hint: 'Маркер пишется как обычный текст (без фигурных скобок). Word не должен разбивать его на части.',
+      items: [
+        { key: 'DateReview', label: 'Дата справки', source: 'Мастер справки → дата' },
+        { key: 'ObjectsTitles', label: 'Объекты строительства', source: 'Все выбранные объекты через запятую' },
+        { key: 'NameObject', label: 'Первый объект', source: 'Первый объект из списка' },
+        { key: 'SubcontractorsList', label: 'Субподрядчики', source: 'Шаг «Субподрядчики»' },
+        { key: 'RemarksRMM', label: 'Замечания по РММ', source: 'Шаг «Замечания по РММ»' },
+        { key: 'Conclusion', label: 'Компенсирующие мероприятия', source: 'Шаг «Замечания по РММ»' },
+        { key: 'OrgPbTotal', label: 'Итого специалистов ПБ', source: 'Сумма по таблице работников' },
+        { key: 'OrgWorkersTotal', label: 'Итого работников', source: 'Сумма по таблице работников' },
+      ],
+    },
+    {
+      id: 'objects',
+      title: 'Объекты — одна строка таблицы',
+      hint: 'Создайте строку таблицы с маркерами. При генерации строка копируется для каждого объекта.',
+      items: [
+        { key: 'ObjNum', label: '№ п/п', source: 'Порядковый номер объекта' },
+        { key: 'ObjTitle', label: 'Название объекта', source: 'Название из мастера' },
+        { key: 'ObjSubtitle', label: 'Код / адрес (строка 1)', source: 'Код объекта или адрес' },
+        { key: 'ObjSubtitle2', label: 'Генподрядчик (строка 2)', source: 'ГП и договор или примечание' },
+      ],
+    },
+    {
+      id: 'workers',
+      title: 'Работники — одна строка таблицы',
+      hint: 'Строка копируется для каждой организации из таблицы работников.',
+      items: [
+        { key: 'OrgNum', label: '№ п/п', source: 'Порядковый номер' },
+        { key: 'OrgName', label: 'Организация', source: 'Название из справочника' },
+        { key: 'OrgPbCount', label: 'Специалисты ПБ', source: 'Число из таблицы работников' },
+        { key: 'OrgWorkersCount', label: 'Работники', source: 'Число из таблицы работников' },
+      ],
+    },
+    {
+      id: 'violations',
+      title: 'Нарушения — одна строка таблицы',
+      hint: 'Строка копируется для каждого нарушения справки.',
+      items: [
+        { key: 'PoradNum', label: '№ п/п', source: 'Порядковый номер' },
+        { key: 'ddescrVi', label: 'Формулировка', source: 'Текст нарушения' },
+        { key: 'ddescpitVi', label: 'Формулировка (запасной)', source: 'То же, если в шаблоне опечатка в маркере' },
+      ],
+    },
+  ];
+
+  const BLANK_SPRAVKA_TEMPLATE_FILENAME = 'Шаблон_справки_пустой.docx';
+
+  function getSpravkaMarkerGuide() {
+    return SPRAVKA_MARKER_GUIDE.map((g) => ({
+      ...g,
+      items: g.items.map((item) => ({ ...item })),
+    }));
+  }
+
   function getMarkerGuide() {
     return TEMPLATE_MARKER_GUIDE.map((g) => ({
       ...g,
@@ -203,7 +263,7 @@ const DocGenerator = (() => {
     ].join('');
   }
 
-  function buildMarkerGuideXmlParts() {
+  function buildMarkerGuideXmlParts(guide = TEMPLATE_MARKER_GUIDE) {
     const parts = [
       '<w:p><w:r><w:br w:type="page"/></w:r></w:p>',
       wParagraph('ПАМЯТКА ПО МАРКЕРАМ', { bold: true }),
@@ -216,7 +276,7 @@ const DocGenerator = (() => {
       wParagraph(''),
     ];
 
-    TEMPLATE_MARKER_GUIDE.forEach((group) => {
+    guide.forEach((group) => {
       parts.push(wParagraph(group.title, { bold: true }));
       if (group.hint) parts.push(wParagraph(group.hint));
       parts.push(
@@ -354,6 +414,77 @@ const DocGenerator = (() => {
     return openDocxBlob(blob, BLANK_TEMPLATE_FILENAME);
   }
 
+  function buildBlankSpravkaDocumentXml() {
+    const body = [
+      wParagraph('СПРАВКА О СОСТОЯНИИ ПРОИЗВОДСТВЕННОЙ БЕЗОПАСНОСТИ', { bold: true }),
+      wParagraph(''),
+      wParagraphMarkers('Дата: DateReview'),
+      wParagraphMarkers('Объекты: ObjectsTitles'),
+      wParagraphMarkers('Субподрядчики: SubcontractorsList'),
+      wParagraph(''),
+      wParagraph('Объекты (таблица — одна строка с маркерами):', { bold: true }),
+      wTable([
+        wTableRow(['№', 'Объект', 'Код / адрес', 'Генподрядчик']),
+        wTableRow(['ObjNum', 'ObjTitle', 'ObjSubtitle', 'ObjSubtitle2']),
+      ]),
+      wParagraph(''),
+      wParagraph('Работники (таблица — одна строка с маркерами):', { bold: true }),
+      wTable([
+        wTableRow(['№', 'Организация', 'Спец. ПБ', 'Работники']),
+        wTableRow(['OrgNum', 'OrgName', 'OrgPbCount', 'OrgWorkersCount']),
+      ]),
+      wParagraph(''),
+      wParagraphMarkers('Итого спец. ПБ: OrgPbTotal'),
+      wParagraphMarkers('Итого работников: OrgWorkersTotal'),
+      wParagraph(''),
+      wParagraph('Нарушения (таблица — одна строка с маркерами):', { bold: true }),
+      wTable([
+        wTableRow(['№', 'Формулировка']),
+        wTableRow(['PoradNum', 'ddescrVi']),
+      ]),
+      wParagraph(''),
+      wParagraph('Замечания по РММ:', { bold: true }),
+      wParagraphMarkers('RemarksRMM'),
+      wParagraph(''),
+      wParagraph('Компенсирующие мероприятия:', { bold: true }),
+      wParagraphMarkers('Conclusion'),
+      wParagraph(''),
+      wParagraph('Отредактируйте оформление в Word, сохраните .docx и загрузите в приложение.', { bold: false }),
+      buildMarkerGuideXmlParts(SPRAVKA_MARKER_GUIDE),
+      '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134"/></w:sectPr>',
+    ].join('');
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>${body}</w:body>
+</w:document>`;
+  }
+
+  function buildBlankSpravkaTemplateZip() {
+    const zip = buildBlankTemplateZip();
+    zip.file('word/document.xml', buildBlankSpravkaDocumentXml());
+    const now = new Date().toISOString();
+    zip.file(
+      'docProps/core.xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>Шаблон справки по ПБ</dc:title>
+  <dc:creator>Gazprom Web</dc:creator>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created>
+</cp:coreProperties>`
+    );
+    return zip;
+  }
+
+  async function downloadBlankSpravkaTemplate() {
+    await ensurePizZip();
+    const zip = buildBlankSpravkaTemplateZip();
+    const blob = zip.generate({
+      type: 'blob',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    return openDocxBlob(blob, BLANK_SPRAVKA_TEMPLATE_FILENAME);
+  }
+
   async function loadTemplateBlob(catalogOverride) {
     const catalog = catalogOverride || (await GazpromStore.get());
     const b64 = catalog?.[TEMPLATE_KEY];
@@ -453,14 +584,19 @@ const DocGenerator = (() => {
     const workerOrgs = buildSpravkaWorkerOrgs(source);
     const pbTotal = workerOrgs.reduce((s, r) => s + (parseInt(r.OrgPbCount, 10) || 0), 0);
     const workersTotal = workerOrgs.reduce((s, r) => s + (parseInt(r.OrgWorkersCount, 10) || 0), 0);
-    const violations = (source.violations || []).map((v, i) => ({
-      PoradNum: i + 1,
-      TitleViolatation: v.mesto || '',
-      ddescrVi: v.title || '',
-      ddescpitVi: v.title || '',
-      urlDoc: v.urlToPravilo || '',
-      formula: v.formulaFromRules || '',
-    }));
+    const violations = (source.violations || []).map((v, i) => {
+      const formatted = typeof SpravkaUtils?.formatViolationText === 'function'
+        ? SpravkaUtils.formatViolationText(v, spravka.violationFormat)
+        : (v.title || '');
+      return {
+        PoradNum: i + 1,
+        TitleViolatation: v.mesto || '',
+        ddescrVi: formatted,
+        ddescpitVi: formatted,
+        urlDoc: v.urlToPravilo || '',
+        formula: v.formulaFromRules || '',
+      };
+    });
 
     return {
       DateReview: AktUtils.formatDateShort(source.date),
@@ -1275,6 +1411,21 @@ const DocGenerator = (() => {
     return c?.wordTemplateName || null;
   }
 
+  async function getSpravkaTemplateName() {
+    const c = await GazpromStore.get();
+    return c?.spravkaTemplateName || null;
+  }
+
+  function hasSpravkaTemplate(catalog) {
+    const key = SPRAVKA_TEMPLATE_KEY;
+    return Boolean(
+      catalog?.[key]
+      || catalog?.spravkaTemplateOffloaded
+      || catalog?.spravkaTemplateSource === 'builtin'
+      || catalog?.activeSpravkaTemplatePresetId
+    );
+  }
+
   return {
     saveTemplate,
     generateFromAkt,
@@ -1285,10 +1436,16 @@ const DocGenerator = (() => {
     buildSpravkaTemplateData,
     toWordMultilineTextXml,
     getMarkerGuide,
+    getSpravkaMarkerGuide,
     downloadBlankTemplate,
+    downloadBlankSpravkaTemplate,
     BLANK_TEMPLATE_FILENAME,
+    BLANK_SPRAVKA_TEMPLATE_FILENAME,
     TEMPLATE_KEY,
     SPRAVKA_TEMPLATE_KEY,
+    SPRAVKA_DEFAULT_TEMPLATE,
+    hasSpravkaTemplate,
+    getSpravkaTemplateName,
   };
 })();
 

@@ -55,6 +55,10 @@ const GazpromBackup = (() => {
       typeof DocGenerator !== 'undefined' && DocGenerator.TEMPLATE_KEY
         ? DocGenerator.TEMPLATE_KEY
         : 'wordTemplate';
+    const spravkaTemplateKey =
+      typeof DocGenerator !== 'undefined' && DocGenerator.SPRAVKA_TEMPLATE_KEY
+        ? DocGenerator.SPRAVKA_TEMPLATE_KEY
+        : 'spravkaTemplate';
     const templates = raw.descriptionTemplates;
     const descriptionTemplates = Array.isArray(templates)
       ? templates.slice(0, 3).concat(['', '', '']).slice(0, 3)
@@ -81,6 +85,11 @@ const GazpromBackup = (() => {
       descriptionTemplates,
       [templateKey]: raw[templateKey] || raw.wordTemplate || null,
       wordTemplateName: raw.wordTemplateName || null,
+      [spravkaTemplateKey]: raw[spravkaTemplateKey] || raw.spravkaTemplate || null,
+      spravkaTemplateName: raw.spravkaTemplateName || null,
+      spravkaTemplateSource: raw.spravkaTemplateSource || null,
+      activeSpravkaTemplatePresetId: raw.activeSpravkaTemplatePresetId || null,
+      savedSpravkaTemplates: raw.savedSpravkaTemplates || [],
       importedAt: new Date().toISOString(),
       sourceFileName: raw.sourceFileName || null,
     };
@@ -416,6 +425,12 @@ const GazpromBackup = (() => {
 
     const wordTemplate = incoming[templateKey] || current[templateKey] || null;
     const wordTemplateName = incoming.wordTemplateName || current.wordTemplateName || null;
+    const spravkaTemplateKey =
+      typeof DocGenerator !== 'undefined' && DocGenerator.SPRAVKA_TEMPLATE_KEY
+        ? DocGenerator.SPRAVKA_TEMPLATE_KEY
+        : 'spravkaTemplate';
+    const spravkaTemplate = incoming[spravkaTemplateKey] || current[spravkaTemplateKey] || null;
+    const spravkaTemplateName = incoming.spravkaTemplateName || current.spravkaTemplateName || null;
 
     return {
       ...incoming,
@@ -433,6 +448,13 @@ const GazpromBackup = (() => {
       descriptionTemplates: mergedTemplates,
       [templateKey]: wordTemplate,
       wordTemplateName,
+      [spravkaTemplateKey]: spravkaTemplate,
+      spravkaTemplateName,
+      spravkaTemplateSource: incoming.spravkaTemplateSource || current.spravkaTemplateSource || null,
+      activeSpravkaTemplatePresetId: incoming.activeSpravkaTemplatePresetId || current.activeSpravkaTemplatePresetId || null,
+      savedSpravkaTemplates: (incoming.savedSpravkaTemplates?.length
+        ? incoming.savedSpravkaTemplates
+        : current.savedSpravkaTemplates) || [],
       importedAt: new Date().toISOString(),
       sourceFileName: incoming.sourceFileName,
     };

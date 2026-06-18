@@ -516,18 +516,23 @@ const GazpromUI = (() => {
       }
     }
 
-    // Шаблон Word
+    // Шаблоны Word (акт + справка)
     const templateBadge = document.querySelector('[data-template-status]');
     if (templateBadge) {
-      const hasTemplate = !!(data.wordTemplateName || data[DocGenerator?.TEMPLATE_KEY] || data.wordTemplateOffloaded);
-      if (!hasTemplate) {
+      const hasAkt = !!(data.wordTemplateName || data[DocGenerator?.TEMPLATE_KEY] || data.wordTemplateOffloaded);
+      const hasSpravka = typeof DocGenerator?.hasSpravkaTemplate === 'function'
+        ? DocGenerator.hasSpravkaTemplate(data)
+        : !!(data.spravkaTemplateName || data[DocGenerator?.SPRAVKA_TEMPLATE_KEY]);
+      if (!hasAkt && !hasSpravka) {
         templateBadge.textContent = '';
-      } else if (typeof DefaultsBootstrap !== 'undefined') {
-        const src = data.wordTemplateSource;
-        templateBadge.textContent = src === 'builtin' ? 'стандарт' : (data.wordTemplateName || 'свой');
+      } else if (hasAkt && hasSpravka) {
+        templateBadge.textContent = 'акт+справка';
+        templateBadge.style.color = 'var(--success)';
+      } else if (hasAkt) {
+        templateBadge.textContent = 'акт';
         templateBadge.style.color = 'var(--success)';
       } else {
-        templateBadge.textContent = data.wordTemplateName || 'загружен';
+        templateBadge.textContent = 'справка';
         templateBadge.style.color = 'var(--success)';
       }
     }

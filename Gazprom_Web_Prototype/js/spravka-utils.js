@@ -28,6 +28,7 @@ const SpravkaUtils = (() => {
       urlToFllACT: null,
       isDraft: true,
       realDateCreate: now,
+      violationFormat: defaultViolationFormat(),
     };
   }
 
@@ -105,6 +106,59 @@ const SpravkaUtils = (() => {
     return `Справка от ${date} — ${objLabel}`;
   }
 
+  function parseSubcontractorsList(text) {
+    return String(text || '')
+      .split(/[,;\n]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  function formatSubcontractorsList(titles) {
+    return (titles || []).filter(Boolean).join(', ');
+  }
+
+  function matchOrganizationByTitle(orgs, title) {
+    const needle = String(title || '').trim().toLowerCase();
+    if (!needle) return null;
+    return (orgs || []).find((o) => {
+      const full = String(o.title || '').trim().toLowerCase();
+      const short = String(o.shortTitle || '').trim().toLowerCase();
+      return full === needle || (short && short === needle);
+    }) || null;
+  }
+
+  function defaultViolationFormat() {
+    return { includeMesto: true, includeRuleRef: true };
+  }
+
+  function normalizeViolationFormat(fmt) {
+    const base = defaultViolationFormat();
+    if (!fmt || typeof fmt !== 'object') return { ...base };
+    return {
+      includeMesto: fmt.includeMesto !== false,
+      includeRuleRef: fmt.includeRuleRef !== false,
+    };
+  }
+
+  function getViolationRuleRef(v) {
+    return String(v?.urlToPravilo || v?.formulaFromRules || '').trim();
+  }
+
+  function formatViolationText(v, fmt) {
+    const options = normalizeViolationFormat(fmt);
+    const title = String(v?.title || '').trim();
+    const mesto = String(v?.mesto || '').trim();
+    const ruleRef = getViolationRuleRef(v);
+    let text = title;
+    if (options.includeMesto && mesto) {
+      text = `${mesto}: ${text}`;
+    }
+    if (options.includeRuleRef && ruleRef) {
+      text = `${text} (${ruleRef})`;
+    }
+    return text;
+  }
+
   return {
     isDraft,
     getEditableSpravka,
@@ -118,5 +172,12 @@ const SpravkaUtils = (() => {
     workerTotals,
     toAktShapeForDoc,
     formatTitle,
+    parseSubcontractorsList,
+    formatSubcontractorsList,
+    matchOrganizationByTitle,
+    defaultViolationFormat,
+    normalizeViolationFormat,
+    getViolationRuleRef,
+    formatViolationText,
   };
 })();
