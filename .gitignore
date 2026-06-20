@@ -104,6 +104,7 @@ Source_Code_Backups/
 !Gazprom_Web_Prototype/README.md
 *.sh
 *.py
+!Gazprom_Web_Prototype/dev-server.py
 *.swift
 
 # Temporary files
