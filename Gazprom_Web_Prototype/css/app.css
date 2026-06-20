@@ -370,7 +370,14 @@
     .home-greeting {
       font-size: 1.1rem;
       color: var(--text-muted);
-      margin-bottom: 28px;
+      margin-bottom: 10px;
+    }
+    .home-ruslan-label {
+      margin: 0 0 28px;
+      text-align: center;
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #ff4fb8;
     }
     .home-data-hint {
       max-width: 520px;
